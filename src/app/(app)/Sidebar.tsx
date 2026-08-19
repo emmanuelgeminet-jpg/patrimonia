@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGroups } from "./nav-items";
 import { navIcons } from "./nav-icons";
+import { signOut } from "./actions";
 
-export default function Sidebar() {
+export default function Sidebar({ displayName }: { displayName: string }) {
   const pathname = usePathname();
 
   return (
@@ -42,9 +43,26 @@ export default function Sidebar() {
       ))}
 
       <div className="sidebar-foot">
-        Connecté — GEMINET
+        Connecté — {displayName}
         <br />
-        Phase 1 : fondations en cours
+        <form action={signOut} style={{ display: "inline" }}>
+          <button
+            type="submit"
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              marginTop: 4,
+              color: "#B7B29F",
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: 11,
+              fontFamily: "inherit",
+            }}
+          >
+            Se déconnecter
+          </button>
+        </form>
       </div>
     </aside>
   );
