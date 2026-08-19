@@ -86,7 +86,10 @@ function parseDate(raw: string): string | null {
   return null;
 }
 
-export function parseCsv(content: string): { transactions: ParsedTransaction[]; errors: string[] } {
+export function parseCsv(rawContent: string): { transactions: ParsedTransaction[]; errors: string[] } {
+  // Les exports bancaires commencent souvent par un BOM (marqueur d'encodage invisible)
+  // qui, laissé en place, empêche de reconnaître la toute première colonne.
+  const content = rawContent.charCodeAt(0) === 0xfeff ? rawContent.slice(1) : rawContent;
   const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const errors: string[] = [];
   if (lines.length < 2) {
