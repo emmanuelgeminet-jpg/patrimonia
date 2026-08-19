@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ensureDefaultCategories } from "@/lib/budget";
 import ImportCard from "./ImportCard";
 import BudgetTabs from "./BudgetTabs";
 import NewCategoryForm from "./NewCategoryForm";
@@ -31,6 +32,7 @@ export default async function MonBudgetPage() {
     .single();
 
   const householdId = profile?.household_id;
+  if (householdId) await ensureDefaultCategories(supabase, householdId);
 
   const [{ data: transactions }, { data: categories }] = await Promise.all([
     supabase

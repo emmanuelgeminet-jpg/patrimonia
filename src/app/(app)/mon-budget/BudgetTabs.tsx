@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateTransactionCategory, flipTransactionSign } from "./actions";
 import { formatEuros, formatMonthLabel } from "@/lib/budget";
+import DashboardHero from "./DashboardHero";
 import type { Transaction, Category } from "./page";
 
 type TabKey = "1m" | "6m" | "1a" | "5a";
@@ -71,6 +72,7 @@ function PanelUnMois({
 
   const revenus = monthTx.filter((t) => t.montant_cents > 0).reduce((s, t) => s + t.montant_cents, 0);
   const depensesTotal = monthTx.filter((t) => t.montant_cents < 0).reduce((s, t) => s + t.montant_cents, 0);
+  const depenses = Math.abs(depensesTotal);
 
   const categorieById = new Map(categories.map((c) => [c.id, c]));
   const groupeSums: Record<"besoin" | "envie" | "epargne", number> = { besoin: 0, envie: 0, epargne: 0 };
@@ -82,9 +84,7 @@ function PanelUnMois({
   }
   const totalGroupes = groupeSums.besoin + groupeSums.envie + groupeSums.epargne || 1;
 
-  const reste = revenus + depensesTotal;
-
-  // Détail par catégorie
+  // Détail des dépenses par catégorie
   const catTotals = new Map<string, number>();
   for (const t of monthTx) {
     if (t.montant_cents >= 0) continue;
@@ -92,7 +92,17 @@ function PanelUnMois({
     catTotals.set(nom, (catTotals.get(nom) ?? 0) + Math.abs(t.montant_cents));
   }
   const catRows = [...catTotals.entries()].sort((a, b) => b[1] - a[1]);
-  const totalDepenses = Math.abs(depensesTotal) || 1;
+  const totalDepenses = depenses || 1;
+
+  // Revenus par source (une source = une catégorie assignée à une ligne positive)
+  const revenuTotals = new Map<string, number>();
+  for (const t of monthTx) {
+    if (t.montant_cents <= 0) continue;
+    const nom = t.categorie_id ? categorieById.get(t.categorie_id)?.nom ?? "Non catégorisé" : "Non catégorisé";
+    revenuTotals.set(nom, (revenuTotals.get(nom) ?? 0) + t.montant_cents);
+  }
+  const revenuRows = [...revenuTotals.entries()].sort((a, b) => b[1] - a[1]);
+  const totalRevenus = revenus || 1;
 
   // Abonnements détectés : même libellé sur au moins 2 périodes différentes
   const byLibelle = new Map<string, { periods: Set<string>; montant_cents: number }>();
@@ -108,11 +118,44 @@ function PanelUnMois({
     <div>
       <div className="pagesub" style={{ marginBottom: 14 }}>{formatMonthLabel(period)}</div>
 
-      <div className="kpis">
-        <div className="kpi"><div className="label">Revenus du foyer</div><div className="value">{formatEuros(revenus)}</div></div>
-        <div className="kpi"><div className="label">Dépenses</div><div className="value">{formatEuros(Math.abs(depensesTotal))}</div></div>
-        <div className="kpi"><div className="label">Dont épargne / invest.</div><div className="value">{formatEuros(groupeSums.epargne)}</div></div>
-        <div className="kpi accent"><div className="label">Reste</div><div className="value">{formatEuros(reste)}</div></div>
+      <DashboardHero revenus={revenus} depenses={depenses} epargne={groupeSums.epargne} solde={revenus - depenses} />
+
+      <div className="grid2">
+        <div className="card">
+          <h2>Revenus par source</h2>
+          {revenuRows.length === 0 ? (
+            <div className="empty" style={{ padding: "16px 4px" }}>Aucun revenu catégorisé ce mois-ci</div>
+          ) : (
+            <table>
+              <thead><tr><th>Source</th><th className="num">Montant</th><th className="num">%</th></tr></thead>
+              <tbody>
+                {revenuRows.map(([nom, cents]) => (
+                  <tr key={nom}>
+                    <td>{nom}</td>
+                    <td className="num">{formatEuros(cents)}</td>
+                    <td className="num">{((100 * cents) / totalRevenus).toFixed(0)} %</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <div className="card">
+          <h2>Détail par catégorie <span className="tag">dépenses</span></h2>
+          <table>
+            <thead><tr><th>Catégorie</th><th className="num">Montant</th><th className="num">%</th></tr></thead>
+            <tbody>
+              {catRows.map(([nom, cents]) => (
+                <tr key={nom}>
+                  <td>{nom}</td>
+                  <td className="num">{formatEuros(cents)}</td>
+                  <td className="num">{((100 * cents) / totalDepenses).toFixed(0)} %</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card">
@@ -133,22 +176,6 @@ function PanelUnMois({
           <span>● Envies — {formatEuros(groupeSums.envie)} ({((100 * groupeSums.envie) / totalGroupes).toFixed(1)} %)</span>
           <span>● Épargne / invest. — {formatEuros(groupeSums.epargne)} ({((100 * groupeSums.epargne) / totalGroupes).toFixed(1)} %)</span>
         </div>
-      </div>
-
-      <div className="card">
-        <h2>Détail par catégorie</h2>
-        <table>
-          <thead><tr><th>Catégorie</th><th className="num">Montant</th><th className="num">% des dépenses</th></tr></thead>
-          <tbody>
-            {catRows.map(([nom, cents]) => (
-              <tr key={nom}>
-                <td>{nom}</td>
-                <td className="num">{formatEuros(cents)}</td>
-                <td className="num">{((100 * cents) / totalDepenses).toFixed(1)} %</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
 
       {abonnements.length > 0 && (
@@ -268,6 +295,9 @@ function PanelTendance({
     <div>
       <div className="card">
         <h2>Évolution revenus / dépenses <span className="tag">{titre}</span></h2>
+        <TrendChart rows={rows} />
+      </div>
+      <div className="card">
         <table>
           <thead><tr><th>Période</th><th className="num">Revenus</th><th className="num">Dépenses</th><th className="num">Solde</th></tr></thead>
           <tbody>
@@ -283,5 +313,65 @@ function PanelTendance({
         </table>
       </div>
     </div>
+  );
+}
+
+function TrendChart({ rows }: { rows: { period: string; revenus: number; depenses: number }[] }) {
+  const width = 620;
+  const height = 190;
+  const padLeft = 15;
+  const padRight = 15;
+  const chartTop = 15;
+  const chartBottom = 150;
+  const maxValue = Math.max(1, ...rows.map((r) => Math.max(r.revenus, r.depenses)));
+
+  const usableWidth = width - padLeft - padRight;
+  const groupWidth = usableWidth / rows.length;
+  const barWidth = Math.min(18, groupWidth / 3);
+
+  const scaleY = (v: number) => chartBottom - (v / maxValue) * (chartBottom - chartTop);
+
+  // N'affiche pas plus d'une vingtaine d'étiquettes pour rester lisible
+  const labelEvery = Math.max(1, Math.ceil(rows.length / 12));
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
+      <line x1={padLeft} y1={chartBottom} x2={width - padRight} y2={chartBottom} stroke="#8B876F" strokeWidth="1" />
+      {rows.map((r, i) => {
+        const groupX = padLeft + i * groupWidth;
+        return (
+          <g key={r.period}>
+            <rect
+              x={groupX + groupWidth / 2 - barWidth - 2}
+              y={scaleY(r.revenus)}
+              width={barWidth}
+              height={chartBottom - scaleY(r.revenus)}
+              fill="#5C7A5B"
+            />
+            <rect
+              x={groupX + groupWidth / 2 + 2}
+              y={scaleY(r.depenses)}
+              width={barWidth}
+              height={chartBottom - scaleY(r.depenses)}
+              fill="#A8523A"
+            />
+            {i % labelEvery === 0 && (
+              <text
+                x={groupX + groupWidth / 2}
+                y={168}
+                textAnchor="middle"
+                fontFamily="IBM Plex Mono"
+                fontSize="9"
+                fill="#5B5F53"
+              >
+                {formatMonthLabel(r.period).replace(" ", " ").slice(0, 8)}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      <text x={padLeft} y={10} fontFamily="IBM Plex Mono" fontSize="10" fill="#5C7A5B">● Revenus</text>
+      <text x={padLeft + 90} y={10} fontFamily="IBM Plex Mono" fontSize="10" fill="#A8523A">● Dépenses</text>
+    </svg>
   );
 }

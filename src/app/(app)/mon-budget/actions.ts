@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseCsv, parsePdfText, decodeFileContent, DEFAULT_CATEGORIES } from "@/lib/budget";
+import { parseCsv, parsePdfText, decodeFileContent, ensureDefaultCategories } from "@/lib/budget";
 
 async function getHouseholdId() {
   const supabase = await createClient();
@@ -14,22 +14,6 @@ async function getHouseholdId() {
   const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
   if (!profile) throw new Error("Profil introuvable");
   return { supabase, householdId: profile.household_id as string };
-}
-
-async function ensureDefaultCategories(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  householdId: string
-) {
-  const { count } = await supabase
-    .from("budget_categories")
-    .select("id", { count: "exact", head: true })
-    .eq("household_id", householdId);
-
-  if (!count) {
-    await supabase
-      .from("budget_categories")
-      .insert(DEFAULT_CATEGORIES.map((c) => ({ household_id: householdId, nom: c.nom, groupe: c.groupe })));
-  }
 }
 
 export type ImportState = {

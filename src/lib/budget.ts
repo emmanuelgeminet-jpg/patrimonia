@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 export type ParsedTransaction = {
   date: string; // YYYY-MM-DD
   libelle: string;
@@ -217,7 +219,10 @@ export function parsePdfText(text: string): { transactions: ParsedTransaction[];
   return { transactions, errors };
 }
 
-export const DEFAULT_CATEGORIES: { nom: string; groupe: "besoin" | "envie" | "epargne" }[] = [
+export type CategoryGroupe = "besoin" | "envie" | "epargne" | null;
+
+export const DEFAULT_CATEGORIES: { nom: string; groupe: CategoryGroupe }[] = [
+  // Dépenses
   { nom: "Alimentation", groupe: "besoin" },
   { nom: "Logement", groupe: "besoin" },
   { nom: "Transport", groupe: "besoin" },
@@ -233,7 +238,31 @@ export const DEFAULT_CATEGORIES: { nom: string; groupe: "besoin" | "envie" | "ep
   { nom: "Épargne", groupe: "epargne" },
   { nom: "Investissement", groupe: "epargne" },
   { nom: "Non catégorisé", groupe: "envie" },
+  // Revenus — groupe à null, le 50/30/20 ne porte que sur les dépenses
+  { nom: "Salaire Emmanuel", groupe: null },
+  { nom: "Salaire Thérèse", groupe: null },
+  { nom: "Aides & prestations (CAF...)", groupe: null },
+  { nom: "Revenus locatifs", groupe: null },
+  { nom: "Autres revenus", groupe: null },
 ];
+
+/** Crée les catégories par défaut qui n'existent pas encore pour ce foyer (idempotent). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function ensureDefaultCategories(supabase: SupabaseClient<any>, householdId: string) {
+  const { data: current } = await supabase
+    .from("budget_categories")
+    .select("nom")
+    .eq("household_id", householdId);
+
+  const existingNames = new Set((current ?? []).map((c: { nom: string }) => c.nom));
+  const missing = DEFAULT_CATEGORIES.filter((c) => !existingNames.has(c.nom));
+
+  if (missing.length > 0) {
+    await supabase
+      .from("budget_categories")
+      .insert(missing.map((c) => ({ household_id: householdId, nom: c.nom, groupe: c.groupe })));
+  }
+}
 
 export function formatEuros(cents: number): string {
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
