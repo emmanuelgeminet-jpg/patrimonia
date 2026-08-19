@@ -26,6 +26,7 @@ export async function signUp(_prevState: AuthState, formData: FormData): Promise
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const displayName = String(formData.get("displayName") ?? "");
+  const inviteCode = String(formData.get("inviteCode") ?? "").trim();
 
   if (password.length < 8) {
     return { error: "Le mot de passe doit contenir au moins 8 caractères." };
@@ -35,7 +36,12 @@ export async function signUp(_prevState: AuthState, formData: FormData): Promise
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName } },
+    options: {
+      data: {
+        display_name: displayName,
+        ...(inviteCode ? { invite_household_id: inviteCode } : {}),
+      },
+    },
   });
 
   if (error) {

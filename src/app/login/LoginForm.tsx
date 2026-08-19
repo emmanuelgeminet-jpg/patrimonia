@@ -2,12 +2,15 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { signIn, signUp, type AuthState } from "./actions";
 
 const initialState: AuthState = {};
 
 export default function LoginForm() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const searchParams = useSearchParams();
+  const inviteFromLink = searchParams.get("invite") ?? "";
+  const [mode, setMode] = useState<"signin" | "signup">(inviteFromLink ? "signup" : "signin");
   const [signInState, signInAction, signInPending] = useActionState(signIn, initialState);
   const [signUpState, signUpAction, signUpPending] = useActionState(signUp, initialState);
 
@@ -27,10 +30,22 @@ export default function LoginForm() {
 
         <form action={mode === "signin" ? signInAction : signUpAction}>
           {mode === "signup" && (
-            <div className="auth-field">
-              <label htmlFor="displayName">Prénom</label>
-              <input id="displayName" name="displayName" type="text" placeholder="Emmanuel" required />
-            </div>
+            <>
+              <div className="auth-field">
+                <label htmlFor="displayName">Prénom</label>
+                <input id="displayName" name="displayName" type="text" placeholder="Emmanuel" required />
+              </div>
+              <div className="auth-field">
+                <label htmlFor="inviteCode">Code d&apos;invitation (optionnel)</label>
+                <input
+                  id="inviteCode"
+                  name="inviteCode"
+                  type="text"
+                  placeholder="Laisse vide pour créer ton propre foyer"
+                  defaultValue={inviteFromLink}
+                />
+              </div>
+            </>
           )}
           <div className="auth-field">
             <label htmlFor="email">Email</label>

@@ -305,9 +305,11 @@ create index if not exists idx_analyses_household on analyses_biens(household_id
 
 -- =====================================================================
 -- 10. CRÉATION AUTOMATIQUE DU PROFIL À L'INSCRIPTION
--- Phase 1 : un seul foyer existe (GEMINET) — tout nouvel inscrit y est
--- rattaché automatiquement. La gestion de plusieurs foyers distincts
--- (ex : PAPIN) arrivera en Phase 3.
+-- Chaque inscription crée son propre foyer indépendant par défaut —
+-- l'app doit rester utilisable par n'importe qui, pas seulement par le
+-- foyer GEMINET. Pour rejoindre un foyer existant (ex : conjoint), le
+-- formulaire d'inscription accepte un code d'invitation (l'identifiant
+-- du foyer à rejoindre) transmis via les métadonnées utilisateur.
 -- =====================================================================
 
 create or replace function handle_new_user()
@@ -317,15 +319,26 @@ security definer set search_path = public
 as $$
 declare
   target_household_id uuid;
+  invite_id text;
+  new_display_name text;
 begin
-  select id into target_household_id from households order by created_at asc limit 1;
+  new_display_name := coalesce(new.raw_user_meta_data->>'display_name', new.email);
+  invite_id := new.raw_user_meta_data->>'invite_household_id';
+
+  if invite_id is not null and invite_id ~ '^[0-9a-fA-F-]{36}$' then
+    begin
+      select id into target_household_id from households where id = invite_id::uuid;
+    exception when others then
+      target_household_id := null;
+    end;
+  end if;
 
   if target_household_id is null then
-    insert into households (name) values ('Foyer GEMINET') returning id into target_household_id;
+    insert into households (name) values (new_display_name || ' (foyer)') returning id into target_household_id;
   end if;
 
   insert into profiles (id, household_id, display_name)
-  values (new.id, target_household_id, coalesce(new.raw_user_meta_data->>'display_name', new.email));
+  values (new.id, target_household_id, new_display_name);
 
   return new;
 end;
@@ -441,11 +454,37 @@ create policy "categories de mon foyer" on budget_categories for all using (hous
 drop policy if exists "budget de mon foyer" on budget_transactions;
 create policy "budget de mon foyer" on budget_transactions for all using (is_household_member(household_id)) with check (is_household_member(household_id));
 
--- Phase 1 : un seul foyer a un compte, donc "authentifié" = membre du
--- foyer GEMINET. Cette policy sera affinée par entité (SCI/bien/foyer)
--- quand plusieurs foyers cohabiteront (Phase 3).
+-- Un document est visible s'il appartient à une entité (foyer, SCI, bien,
+-- lot) dont l'utilisateur est membre — entity_type identifie la table
+-- cible, entity_id la ligne précise.
 drop policy if exists "documents accessibles" on documents;
-create policy "documents accessibles" on documents for all using (auth.uid() is not null) with check (auth.uid() is not null);
+create policy "documents accessibles" on documents for all using (
+  (entity_type = 'household' and is_household_member(entity_id)) or
+  (entity_type = 'sci' and is_sci_member(entity_id)) or
+  (entity_type = 'bien' and exists (
+    select 1 from biens
+    where biens.id = documents.entity_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )) or
+  (entity_type = 'lot' and exists (
+    select 1 from lots join biens on biens.id = lots.bien_id
+    where lots.id = documents.entity_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  ))
+) with check (
+  (entity_type = 'household' and is_household_member(entity_id)) or
+  (entity_type = 'sci' and is_sci_member(entity_id)) or
+  (entity_type = 'bien' and exists (
+    select 1 from biens
+    where biens.id = documents.entity_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )) or
+  (entity_type = 'lot' and exists (
+    select 1 from lots join biens on biens.id = lots.bien_id
+    where lots.id = documents.entity_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  ))
+);
 
 drop policy if exists "profil de mon foyer" on profil_investisseur;
 create policy "profil de mon foyer" on profil_investisseur for all using (is_household_member(household_id)) with check (is_household_member(household_id));
