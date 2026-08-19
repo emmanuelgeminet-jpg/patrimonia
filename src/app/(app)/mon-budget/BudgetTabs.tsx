@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { updateTransactionCategory } from "./actions";
+import { formatEuros } from "@/lib/budget";
+import type { Transaction, Category } from "./page";
 
 type TabKey = "1m" | "6m" | "1a" | "5a";
 
@@ -11,8 +14,23 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "5a", label: "5 ans" },
 ];
 
-export default function BudgetTabs() {
+export default function BudgetTabs({ transactions, categories }: { transactions: Transaction[]; categories: Category[] }) {
   const [active, setActive] = useState<TabKey>("1m");
+
+  const periods = [...new Set(transactions.map((t) => t.mois_import ?? "Sans période"))].sort((a, b) =>
+    a < b ? 1 : -1
+  );
+
+  if (periods.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty">
+          <div className="big">Aucune donnée pour l&apos;instant</div>
+          Importe un premier relevé bancaire ci-dessus pour voir apparaître ton budget ici.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -32,127 +50,221 @@ export default function BudgetTabs() {
         ))}
       </div>
 
-      {active === "1m" && <Panel1Mois />}
-      {active === "6m" && <Panel6Mois />}
-      {active === "1a" && <PanelVide texte="Historique insuffisant" detail="2 mois importés sur 12. Continue à déposer tes relevés chaque mois pour débloquer cette vue — taux d'épargne annuel moyen, mois les plus dépensiers, saisonnalité (vacances, Noël, rentrée scolaire)." sous="Vue annuelle — se complète au fil des imports mensuels" />}
-      {active === "5a" && <PanelVide texte="Historique insuffisant" detail="Cette vue prendra tout son sens après plusieurs années d'import : évolution du taux d'épargne, progression du patrimoine financier constitué, comparaison à l'inflation." sous="Vue long terme — évolution du taux d'épargne et constitution de patrimoine" />}
+      {active === "1m" && <PanelUnMois transactions={transactions} categories={categories} period={periods[0]} />}
+      {active === "6m" && <PanelTendance transactions={transactions} periods={periods} minPeriods={2} titre="6 mois" />}
+      {active === "1a" && <PanelTendance transactions={transactions} periods={periods} minPeriods={6} titre="1 an" />}
+      {active === "5a" && <PanelTendance transactions={transactions} periods={periods} minPeriods={24} titre="5 ans" />}
     </>
   );
 }
 
-function Panel1Mois() {
+function PanelUnMois({
+  transactions,
+  categories,
+  period,
+}: {
+  transactions: Transaction[];
+  categories: Category[];
+  period: string;
+}) {
+  const monthTx = transactions.filter((t) => (t.mois_import ?? "Sans période") === period);
+
+  const revenus = monthTx.filter((t) => t.montant_cents > 0).reduce((s, t) => s + t.montant_cents, 0);
+  const depensesTotal = monthTx.filter((t) => t.montant_cents < 0).reduce((s, t) => s + t.montant_cents, 0);
+
+  const categorieById = new Map(categories.map((c) => [c.id, c]));
+  const groupeSums: Record<"besoin" | "envie" | "epargne", number> = { besoin: 0, envie: 0, epargne: 0 };
+  for (const t of monthTx) {
+    if (t.montant_cents >= 0) continue;
+    const cat = t.categorie_id ? categorieById.get(t.categorie_id) : null;
+    const groupe = cat?.groupe ?? "envie";
+    groupeSums[groupe] += Math.abs(t.montant_cents);
+  }
+  const totalGroupes = groupeSums.besoin + groupeSums.envie + groupeSums.epargne || 1;
+
+  const reste = revenus + depensesTotal;
+
+  // Détail par catégorie
+  const catTotals = new Map<string, number>();
+  for (const t of monthTx) {
+    if (t.montant_cents >= 0) continue;
+    const nom = t.categorie_id ? categorieById.get(t.categorie_id)?.nom ?? "Non catégorisé" : "Non catégorisé";
+    catTotals.set(nom, (catTotals.get(nom) ?? 0) + Math.abs(t.montant_cents));
+  }
+  const catRows = [...catTotals.entries()].sort((a, b) => b[1] - a[1]);
+  const totalDepenses = Math.abs(depensesTotal) || 1;
+
+  // Abonnements détectés : même libellé sur au moins 2 périodes différentes
+  const byLibelle = new Map<string, { periods: Set<string>; montant_cents: number }>();
+  for (const t of transactions) {
+    if (t.montant_cents >= 0) continue;
+    const entry = byLibelle.get(t.libelle) ?? { periods: new Set(), montant_cents: t.montant_cents };
+    entry.periods.add(t.mois_import ?? "");
+    byLibelle.set(t.libelle, entry);
+  }
+  const abonnements = [...byLibelle.entries()].filter(([, v]) => v.periods.size >= 2);
+
   return (
     <div>
-      <div className="pagesub" style={{ marginBottom: 14 }}>
-        21 février – 21 mars 2025 · reconstitué à partir de ton fichier, corrigé de deux erreurs de formule (détail plus bas)
-      </div>
+      <div className="pagesub" style={{ marginBottom: 14 }}>{period}</div>
 
       <div className="kpis">
-        <div className="kpi"><div className="label">Revenus du foyer</div><div className="value">3 825 €</div></div>
-        <div className="kpi"><div className="label">Dépenses récurrentes</div><div className="value">2 988 €</div></div>
-        <div className="kpi"><div className="label">Épargne + investissement</div><div className="value">950 €</div></div>
-        <div className="kpi accent"><div className="label">Reste réel (avec exceptionnel)</div><div className="value">− 80 €</div></div>
-      </div>
-
-      <div className="placeholder-note" style={{ background: "var(--brick-soft)", color: "var(--brick)" }}>
-        <b>Écart trouvé avec ton fichier d&apos;origine :</b> ta formule de &quot;Total dépenses variables&quot; (<code>=SUM(F2:F9)</code>) s&apos;arrêtait avant la ligne &quot;tabac&quot; et &quot;divers imprévus&quot;, qui n&apos;étaient donc jamais comptés. Résultat affiché sur ton fichier : + 38 € de reste en fin de mois. Résultat réel une fois toutes les lignes incluses : <b>− 80 €</b>. C&apos;est exactement le genre d&apos;écart silencieux qu&apos;une catégorisation automatique évite.
+        <div className="kpi"><div className="label">Revenus du foyer</div><div className="value">{formatEuros(revenus)}</div></div>
+        <div className="kpi"><div className="label">Dépenses</div><div className="value">{formatEuros(Math.abs(depensesTotal))}</div></div>
+        <div className="kpi"><div className="label">Dont épargne / invest.</div><div className="value">{formatEuros(groupeSums.epargne)}</div></div>
+        <div className="kpi accent"><div className="label">Reste</div><div className="value">{formatEuros(reste)}</div></div>
       </div>
 
       <div className="card">
         <h2>Répartition 50/30/20 <span className="tag">besoins / envies / épargne</span></h2>
         <svg viewBox="0 0 600 60" width="100%" height="56">
-          <rect x="0" y="18" width="446" height="24" fill="#8B876F" />
-          <rect x="446" y="18" width="87" height="24" fill="#C7A98A" />
-          <rect x="533" y="18" width="248" height="24" fill="#5C7A5B" />
+          <rect x="0" y="18" width={(600 * groupeSums.besoin) / totalGroupes} height="24" fill="#8B876F" />
+          <rect x={(600 * groupeSums.besoin) / totalGroupes} y="18" width={(600 * groupeSums.envie) / totalGroupes} height="24" fill="#C7A98A" />
+          <rect
+            x={(600 * (groupeSums.besoin + groupeSums.envie)) / totalGroupes}
+            y="18"
+            width={(600 * groupeSums.epargne) / totalGroupes}
+            height="24"
+            fill="#5C7A5B"
+          />
         </svg>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-soft)", marginTop: 4 }}>
-          <span>● Besoins — 1 706 € (44,6 %)</span>
-          <span>● Envies — 333 € (8,7 %)</span>
-          <span>● Épargne / invest. — 950 € (24,8 %)</span>
-        </div>
-        <div className="placeholder-note">
-          Répartition plus favorable que la référence classique 50/30/20 — vous épargnez plus et dépensez moins en envies que la moyenne. Le vrai point de vigilance n&apos;est pas la structure du budget, c&apos;est le poste &quot;imprévus&quot; (917 € ce mois-ci), qui mérite une provision mensuelle dédiée plutôt que de tomber en une fois.
+          <span>● Besoins — {formatEuros(groupeSums.besoin)} ({((100 * groupeSums.besoin) / totalGroupes).toFixed(1)} %)</span>
+          <span>● Envies — {formatEuros(groupeSums.envie)} ({((100 * groupeSums.envie) / totalGroupes).toFixed(1)} %)</span>
+          <span>● Épargne / invest. — {formatEuros(groupeSums.epargne)} ({((100 * groupeSums.epargne) / totalGroupes).toFixed(1)} %)</span>
         </div>
       </div>
 
       <div className="card">
         <h2>Détail par catégorie</h2>
         <table>
-          <thead><tr><th>Catégorie</th><th className="num">Montant</th><th className="num">% du budget</th></tr></thead>
+          <thead><tr><th>Catégorie</th><th className="num">Montant</th><th className="num">% des dépenses</th></tr></thead>
           <tbody>
-            <tr><td>Alimentation</td><td className="num">670,82 €</td><td className="num">22,4 %</td></tr>
-            <tr><td>Épargne programmée</td><td className="num">450,00 €</td><td className="num">15,1 %</td></tr>
-            <tr><td>Investissement SCI</td><td className="num">500,00 €</td><td className="num">16,7 %</td></tr>
-            <tr><td>Immobilier locatif (Ormes)</td><td className="num">328,71 €</td><td className="num">11,0 %</td></tr>
-            <tr><td>Enfants</td><td className="num">240,00 €</td><td className="num">8,0 %</td></tr>
-            <tr><td>Logement principal</td><td className="num">185,50 €</td><td className="num">6,2 %</td></tr>
-            <tr><td>Loisirs &amp; plaisirs</td><td className="num">168,34 €</td><td className="num">5,6 %</td></tr>
-            <tr><td>Impôts</td><td className="num">107,61 €</td><td className="num">3,6 %</td></tr>
-            <tr><td>Assurances</td><td className="num">109,75 €</td><td className="num">3,7 %</td></tr>
-            <tr><td>Transport</td><td className="num">96,52 €</td><td className="num">3,2 %</td></tr>
-            <tr><td>Abonnements &amp; télécom</td><td className="num">75,46 €</td><td className="num">2,5 %</td></tr>
-            <tr><td>Santé</td><td className="num">55,63 €</td><td className="num">1,9 %</td></tr>
-            <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Total récurrent</b></td><td className="num"><b>2 988,34 €</b></td><td className="num"><b>100 %</b></td></tr>
-            <tr><td>Exceptionnel (LCNAS + imprimante)</td><td className="num">917,23 €</td><td className="num" style={{ color: "var(--brick)" }}>hors récurrent</td></tr>
+            {catRows.map(([nom, cents]) => (
+              <tr key={nom}>
+                <td>{nom}</td>
+                <td className="num">{formatEuros(cents)}</td>
+                <td className="num">{((100 * cents) / totalDepenses).toFixed(1)} %</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
+      {abonnements.length > 0 && (
+        <div className="card">
+          <h2>Abonnements détectés <span className="tag">même libellé sur plusieurs mois</span></h2>
+          <table>
+            <tbody>
+              {abonnements.map(([libelle, v]) => (
+                <tr key={libelle}>
+                  <td>{libelle}</td>
+                  <td className="num">{formatEuros(Math.abs(v.montant_cents))}/mois</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="card">
-        <h2>Abonnements détectés <span className="tag">75,46 €/mois — 905 €/an</span></h2>
+        <h2>Transactions — {period} <span className="tag">clique une catégorie pour la modifier</span></h2>
         <table>
+          <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th>Catégorie</th></tr></thead>
           <tbody>
-            <tr><td>Box internet</td><td className="num">30,99 €/mois</td></tr>
-            <tr><td>Forfait mobile — Thérèse</td><td className="num">14,99 €/mois</td></tr>
-            <tr><td>Forfait mobile — Emmanuel</td><td className="num">15,99 €/mois</td></tr>
-            <tr><td>Netflix</td><td className="num">13,49 €/mois</td></tr>
+            {monthTx.map((t) => (
+              <TransactionRow key={t.id} transaction={t} categories={categories} />
+            ))}
           </tbody>
         </table>
-        <div className="placeholder-note">
-          L&apos;IA repère automatiquement les prélèvements récurrents identiques d&apos;un mois sur l&apos;autre pour constituer cette liste — pratique pour repérer un abonnement oublié.
-        </div>
       </div>
     </div>
   );
 }
 
-function Panel6Mois() {
+function TransactionRow({ transaction, categories }: { transaction: Transaction; categories: Category[] }) {
+  const [categorieId, setCategorieId] = useState(transaction.categorie_id ?? "");
+  const [isPending, startTransition] = useTransition();
+
   return (
-    <div>
-      <div className="pagesub" style={{ marginBottom: 14 }}>
-        Seuls 2 mois sont importés pour l&apos;instant — tendance ci-dessous à titre indicatif, à affiner au fil des imports
-      </div>
-      <div className="card">
-        <h2>Évolution revenus / dépenses</h2>
-        <svg viewBox="0 0 500 170" width="100%" height="165">
-          <line x1="20" y1="145" x2="480" y2="145" stroke="#DEDACE" />
-          <polyline points="40,49 160,88" fill="none" stroke="#5C7A5B" strokeWidth="2.5" />
-          <circle cx="40" cy="49" r="4" fill="#5C7A5B" /><circle cx="160" cy="88" r="4" fill="#5C7A5B" />
-          <polyline points="40,79 160,120" fill="none" stroke="#A8523A" strokeWidth="2.5" strokeDasharray="5,3" />
-          <circle cx="40" cy="79" r="4" fill="#A8523A" /><circle cx="160" cy="120" r="4" fill="#A8523A" />
-          <text x="30" y="163" fontFamily="IBM Plex Mono" fontSize="9" fill="#5B5F53">Fév-Mars</text>
-          <text x="140" y="163" fontFamily="IBM Plex Mono" fontSize="9" fill="#5B5F53">Mars-Avr</text>
-          <text x="260" y="163" fontFamily="IBM Plex Mono" fontSize="9" fill="#C7C2B0">à venir...</text>
-          <text x="350" y="60" fontFamily="IBM Plex Mono" fontSize="10" fill="#5C7A5B">Revenus</text>
-          <text x="350" y="110" fontFamily="IBM Plex Mono" fontSize="10" fill="#A8523A">Dépenses</text>
-        </svg>
-        <div className="chart-caption">
-          Baisse de revenu en mars-avril (salaire Manu 2 417 € au lieu de 2 671 €) largement compensée par une chute des dépenses variables — le mois de février-mars portait des imprévus exceptionnels non récurrents
-        </div>
-      </div>
-    </div>
+    <tr>
+      <td>{new Date(transaction.date).toLocaleDateString("fr-FR")}</td>
+      <td>{transaction.libelle}</td>
+      <td className="num">{formatEuros(transaction.montant_cents)}</td>
+      <td>
+        <select
+          value={categorieId}
+          disabled={isPending}
+          onChange={(e) => {
+            const value = e.target.value;
+            setCategorieId(value);
+            startTransition(() => {
+              updateTransactionCategory(transaction.id, value);
+            });
+          }}
+        >
+          <option value="">—</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.nom}</option>
+          ))}
+        </select>
+      </td>
+    </tr>
   );
 }
 
-function PanelVide({ texte, detail, sous }: { texte: string; detail: string; sous: string }) {
+function PanelTendance({
+  transactions,
+  periods,
+  minPeriods,
+  titre,
+}: {
+  transactions: Transaction[];
+  periods: string[];
+  minPeriods: number;
+  titre: string;
+}) {
+  if (periods.length < minPeriods) {
+    return (
+      <div>
+        <div className="pagesub" style={{ marginBottom: 14 }}>Vue &quot;{titre}&quot; — se complète au fil des imports</div>
+        <div className="card">
+          <div className="empty">
+            <div className="big">Historique insuffisant</div>
+            {periods.length} période(s) importée(s) sur {minPeriods} nécessaires pour cette vue. Continue à déposer tes relevés au fil du temps.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const rows = periods
+    .slice()
+    .reverse()
+    .map((period) => {
+      const tx = transactions.filter((t) => (t.mois_import ?? "Sans période") === period);
+      const revenus = tx.filter((t) => t.montant_cents > 0).reduce((s, t) => s + t.montant_cents, 0);
+      const depenses = Math.abs(tx.filter((t) => t.montant_cents < 0).reduce((s, t) => s + t.montant_cents, 0));
+      return { period, revenus, depenses };
+    });
+
   return (
     <div>
-      <div className="pagesub" style={{ marginBottom: 14 }}>{sous}</div>
       <div className="card">
-        <div className="empty">
-          <div className="big">{texte}</div>
-          {detail}
-        </div>
+        <h2>Évolution revenus / dépenses <span className="tag">{titre}</span></h2>
+        <table>
+          <thead><tr><th>Période</th><th className="num">Revenus</th><th className="num">Dépenses</th><th className="num">Solde</th></tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.period}>
+                <td>{r.period}</td>
+                <td className="num">{formatEuros(r.revenus)}</td>
+                <td className="num">{formatEuros(r.depenses)}</td>
+                <td className="num">{formatEuros(r.revenus - r.depenses)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
