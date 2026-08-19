@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<title>SCI Les Bons Gascons</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --paper:#F7F5F0; --paper-raised:#FFFFFF; --ink:#22261F; --ink-soft:#5B5F53;
+    --line:#DEDACE; --brick:#A8523A; --brick-soft:#F1E2DA; --sage:#5C7A5B; --sage-soft:#E4EBE0;
+    --amber:#B98A2E; --amber-soft:#F3E9D2;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',sans-serif; font-size:14px; }
+  .app{ display:grid; grid-template-columns:236px 1fr; min-height:100vh; }
+
+  .sidebar{ background:var(--ink); color:#EEEBE2; padding:26px 18px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  .brand{ font-family:'Fraunces',serif; font-size:16.5px; font-weight:500; line-height:1.25; border-bottom:1px solid rgba(238,235,226,.18); padding-bottom:14px; margin-bottom:16px; }
+  .brand small{ display:block; font-family:'IBM Plex Sans'; font-size:9.5px; font-weight:400; letter-spacing:.1em; text-transform:uppercase; color:#B7B29F; margin-top:4px; }
+  .nav-group-label{ font-size:9.5px; text-transform:uppercase; letter-spacing:.12em; color:#8B876F; margin:14px 0 5px 9px; }
+  .nav-group-label:first-of-type{ margin-top:0; }
+  nav{ display:flex; flex-direction:column; gap:1px; }
+  .nav-item{ display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:3px; color:#C9C5B4; font-size:12.5px; cursor:pointer; border-left:2px solid transparent; }
+  .nav-item svg{ width:13px; height:13px; opacity:.75; flex-shrink:0; }
+  .nav-item.active{ background:rgba(238,235,226,.08); color:#fff; border-left-color:var(--sage); }
+  .nav-item.active.brick{ border-left-color:var(--brick); }
+  .nav-item:not(.active):hover{ background:rgba(238,235,226,.05); }
+  .nav-item.sub{ padding-left:22px; font-size:12px; }
+  .nav-item.sub2{ padding-left:34px; font-size:11.5px; opacity:.92; }
+  .nav-subgroup-label{ font-size:9px; text-transform:uppercase; letter-spacing:.1em; color:#7A765F; font-weight:600; margin:10px 0 3px 11px; }
+  .sidebar-foot{ margin-top:auto; padding-top:12px; border-top:1px solid rgba(238,235,226,.18); font-size:11px; color:#B7B29F; }
+
+  main{ padding:30px 38px 60px; }
+  .section{ display:none; max-width:1080px; }
+  .section.visible{ display:block; }
+  .crumb{ font-size:11.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .crumb b{ font-weight:500; }
+  h1{ font-family:'Fraunces',serif; font-weight:500; font-size:25px; margin:0 0 4px; }
+  .pagesub{ color:var(--ink-soft); font-size:12.5px; margin-bottom:24px; }
+
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+  .kpi{ background:var(--paper-raised); border:1px solid var(--line); border-radius:3px; padding:14px 16px; }
+  .kpi .label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-bottom:7px; }
+  .kpi .value{ font-family:'IBM Plex Mono'; font-size:19px; font-weight:500; }
+  .kpi .sub{ font-size:11px; color:var(--ink-soft); margin-top:3px; }
+
+  .grid2{ display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin-bottom:14px; }
+  .card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:3px; padding:18px 20px; }
+  .card h2{ font-family:'Fraunces',serif; font-weight:500; font-size:15px; margin:0 0 14px; display:flex; justify-content:space-between; align-items:center; }
+  .card h2 .tag{ font-family:'IBM Plex Sans'; font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:400; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:500; border-bottom:1px solid var(--line); padding:0 6px 7px; }
+  td{ padding:9px 6px; border-bottom:1px solid var(--line); }
+  tr:last-child td{ border-bottom:none; }
+  .num{ font-family:'IBM Plex Mono'; text-align:right; }
+  .pill{ display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:500; }
+  .pill.ok{ background:var(--sage-soft); color:var(--sage); }
+  .pill.warn{ background:var(--amber-soft); color:var(--amber); }
+  .pill.due{ background:var(--brick-soft); color:var(--brick); }
+  .pill.vac{ background:#EEECE4; color:var(--ink-soft); }
+
+  .chart-caption{ font-size:11px; color:var(--ink-soft); margin-top:6px; }
+  .placeholder-note{ background:var(--amber-soft); color:var(--amber); font-size:11.5px; padding:9px 12px; border-radius:3px; margin-top:14px; }
+  .empty{ text-align:center; padding:40px 20px; color:var(--ink-soft); font-size:12.5px; }
+  .empty .big{ font-family:'Fraunces',serif; font-size:17px; color:var(--ink); margin-bottom:6px; }
+
+  .unit-tabs{ display:flex; gap:6px; margin-bottom:18px; }
+  .unit-tab{ padding:7px 14px; border:1px solid var(--line); border-radius:20px; font-size:12px; cursor:pointer; background:var(--paper-raised); }
+  .unit-tab.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .jpanel{ display:none; }
+  .jpanel.visible{ display:block; }
+  .budpanel{ display:none; }
+  .budpanel.visible{ display:block; }
+
+  .docfolder{ display:flex; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--line); border-radius:3px; margin-bottom:8px; background:var(--paper-raised); }
+  .docfolder svg{ width:22px; height:22px; stroke:var(--brick); fill:none; stroke-width:1.4; flex-shrink:0; }
+  .docfolder .name{ font-weight:500; font-size:13px; }
+  .docfolder .count{ font-size:11.5px; color:var(--ink-soft); margin-left:auto; }
+
+  .form-row{ display:grid; grid-template-columns:180px 1fr; gap:14px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .form-row label{ color:var(--ink-soft); }
+  .form-row input, .form-row select{ font-family:inherit; padding:7px 10px; border:1px solid var(--line); border-radius:3px; background:var(--paper); font-size:12.5px; }
+
+  .cat-block{ margin-bottom:16px; padding-bottom:2px; }
+  .cat-title{ font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .cat-block table{ font-size:12px; }
+  .cat-block td{ padding:6px; border-bottom:1px solid var(--line); }
+  .addline{ color:var(--sage); cursor:pointer; font-weight:500; font-size:11.5px; }
+
+  .visit-theme{ margin-bottom:24px; }
+  .visit-theme-title{ font-family:'Fraunces',serif; font-weight:500; font-size:14.5px; color:var(--ink); margin-bottom:4px; padding-bottom:7px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+  .visit-theme-title .n{ font-family:'IBM Plex Mono'; font-size:11px; color:#fff; background:var(--brick); width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .visit-item{ display:flex; gap:10px; padding:9px 2px; border-bottom:1px dashed var(--line); }
+  .visit-item:last-child{ border-bottom:none; }
+  .visit-check{ width:15px; height:15px; border:1.5px solid #C7C2B0; border-radius:3px; flex-shrink:0; margin-top:2px; }
+  .visit-label{ font-weight:500; font-size:12.5px; color:var(--ink); }
+  .visit-note{ font-size:11.5px; color:var(--ink-soft); line-height:1.55; margin-top:2px; }
+  .visit-note b{ color:var(--ink); }
+
+  /* Indicateurs — refonte visuelle */
+  .stat-row{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+  .hero-stat{ flex:1 1 150px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:6px; padding:14px 16px; border-left:3px solid var(--sage); }
+  .hero-stat.warn-border{ border-left-color:var(--amber); }
+  .hero-stat .hs-icon{ font-size:18px; margin-bottom:6px; }
+  .hero-stat .hs-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:#B7B29F; margin-bottom:6px; }
+  .hero-stat .hs-value{ font-family:'IBM Plex Mono'; font-size:22px; font-weight:600; color:#7FB1E3; line-height:1.1; }
+  .hero-stat .hs-value.good{ color:#8FB88D; }
+  .hero-stat .hs-value.warn{ color:#E0B15C; }
+  .hero-stat .hs-foot{ font-size:10.5px; color:#9C977F; margin-top:5px; }
+
+  .gauge-card{ flex:1 1 260px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:6px; padding:14px 16px 8px; display:flex; align-items:center; gap:14px; }
+  .gauge-card .gauge-svg{ width:120px; height:66px; flex-shrink:0; }
+  .gauge-card .gauge-text{ flex:1; }
+  .gauge-card .hs-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:#B7B29F; margin-bottom:4px; }
+  .gauge-card .gauge-value{ font-family:'IBM Plex Mono'; font-size:26px; font-weight:600; color:#8FB88D; }
+  .gauge-card .gauge-foot{ font-size:10.5px; color:#9C977F; margin-top:3px; }
+
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .pill-stat{ display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:7px 14px 7px 10px; }
+  .pill-stat .ps-dot{ width:8px; height:8px; border-radius:50%; background:var(--sage); flex-shrink:0; }
+  .pill-stat.warn .ps-dot{ background:var(--amber); }
+  .pill-stat .ps-label{ font-size:10px; color:#9C977F; }
+  .pill-stat .ps-value{ font-size:12px; font-weight:600; color:#7FB1E3; }
+
+  @media (max-width: 640px){
+    .stat-row{ flex-direction:column; }
+    .hero-stat, .gauge-card{ flex:1 1 auto; }
+    .gauge-card{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">PATRIMONIA<small>Squelette v0.2</small></div>
+
+    <div class="nav-group-label">Mon budget</div>
+    <nav>
+      <div class="nav-item" data-target="mon-budget"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path><circle cx="16" cy="14.5" r="1.3"></circle></svg>Mon budget</div>
+    </nav>
+
+    <div class="nav-group-label">Investir</div>
+    <nav>
+      <div class="nav-item brick" data-target="profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.2"></circle><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"></path></svg>Profil investisseur</div>
+      <div class="nav-item brick" data-target="investir-analyser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 4a7 7 0 100 14 7 7 0 000-14z"></path><path d="M21 21l-4.3-4.3"></path></svg>Analyse d'un bien</div>
+      <div class="nav-item brick sub" data-target="investir-travaux"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M2 12h20"></path></svg>Estimatif des travaux</div>
+      <div class="nav-item brick sub" data-target="investir-carnet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6l1 3h3v15H5V6h3z"></path><path d="M9 11h6M9 15h6"></path></svg>Carnet de visite</div>
+    </nav>
+
+    <div class="nav-group-label">Gestion immobilière</div>
+    <nav>
+      <div class="nav-item" data-target="nouveau-bien"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"></path></svg>Rentrer un nouveau bien</div>
+    </nav>
+    <div class="nav-subgroup-label">Biens propres</div>
+    <nav>
+      <div class="nav-item sub" data-target="bien-ormes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18"></rect></svg>14 rue des Ormes St Victor, Orléans</div>
+    </nav>
+    <div class="nav-subgroup-label">SCI</div>
+    <nav>
+      <div class="nav-item active sub" data-target="vision-globale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>Les Bons Gascons</div>
+      <div class="nav-item sub2" data-target="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4z"></path><path d="M4 9h16"></path></svg>Journal comptable</div>
+      <div class="nav-item sub2" data-target="associes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10h18M6 10V6h12v4M4 10v10h16V10"></path></svg>Comptes courants</div>
+      <div class="nav-item sub2" data-target="documents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg>Documents</div>
+      <div class="nav-item sub2" data-target="par-immeuble"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18"></rect></svg>Immeuble</div>
+      <div class="nav-item sub2" data-target="par-appartement"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="7" width="10" height="10"></rect></svg>Logements <span class="tag" style="color:#9C977F; font-size:9.5px;">RDC · 1er · 2e · Garage</span></div>
+    </nav>
+    <div class="sidebar-foot">Connecté — GEMINET<br>Squelette : sections à détailler</div>
+  </aside>
+
+  <main>
+
+    <!-- MON BUDGET -->
+    <section class="section" id="sec-mon-budget">
+      <div class="crumb">Mon budget</div>
+      <h1>Mon budget</h1>
+      <div class="pagesub">Budget personnel du foyer — import de relevés bancaires, catégorisation automatique, vision 1 mois à 5 ans</div>
+
+      <div class="card">
+        <h2>Importer un relevé bancaire</h2>
+        <div class="card-sub">CSV ou PDF, un par mois — l'IA catégorise chaque ligne automatiquement</div>
+        <div style="border:1.5px dashed var(--line); border-radius:6px; padding:24px; text-align:center; margin-top:8px;">
+          <div style="font-size:24px; margin-bottom:8px;">📄</div>
+          <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:10px;">Glisse ton relevé ici, ou</div>
+          <span style="background:var(--ink); color:#fff; padding:8px 18px; border-radius:20px; font-size:12px; cursor:pointer;">Choisir un fichier</span>
+        </div>
+        <table style="margin-top:14px;">
+          <thead><tr><th>Période</th><th>Statut</th><th class="num">Lignes catégorisées</th></tr></thead>
+          <tbody>
+            <tr><td>21 fév. – 21 mars 2025</td><td><span class="pill ok">Importé</span></td><td class="num">31 / 31</td></tr>
+            <tr><td>21 mars – 21 avr. 2025</td><td><span class="pill ok">Importé</span></td><td class="num">28 / 28</td></tr>
+            <tr><td>21 avr. – 21 mai 2025</td><td><span class="pill vac">Non importé</span></td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="unit-tabs" id="budget-tabs">
+        <div class="unit-tab budtab active" data-btarget="bud-1m">1 mois</div>
+        <div class="unit-tab budtab" data-btarget="bud-6m">6 mois</div>
+        <div class="unit-tab budtab" data-btarget="bud-1a">1 an</div>
+        <div class="unit-tab budtab" data-btarget="bud-5a">5 ans</div>
+      </div>
+
+      <!-- 1 MOIS -->
+      <div class="budpanel visible" id="bud-1m">
+        <div class="pagesub" style="margin-bottom:14px;">21 février – 21 mars 2025 · reconstitué à partir de ton fichier, corrigé de deux erreurs de formule (détail plus bas)</div>
+        <div class="kpis">
+          <div class="kpi"><div class="label">Revenus du foyer</div><div class="value">3 825 €</div></div>
+          <div class="kpi"><div class="label">Dépenses récurrentes</div><div class="value">2 988 €</div></div>
+          <div class="kpi"><div class="label">Épargne + investissement</div><div class="value">950 €</div></div>
+          <div class="kpi accent"><div class="label">Reste réel (avec exceptionnel)</div><div class="value">− 80 €</div></div>
+        </div>
+
+        <div class="placeholder-note" style="background:var(--brick-soft); color:var(--brick);">
+          <b>Écart trouvé avec ton fichier d'origine :</b> ta formule de "Total dépenses variables" (<code>=SUM(F2:F9)</code>)
+ s'arrêtait avant la ligne "tabac" et "divers imprévus", qui n'étaient 
+donc jamais comptés. Résultat affiché sur ton fichier : + 38 € de reste 
+en fin de mois. Résultat réel une fois toutes les lignes incluses : <b>− 80 €</b>. C'est exactement le genre d'écart silencieux qu'une catégorisation automatique évite.
+        </div>
+
+        <div class="card">
+          <h2>Répartition 50/30/20 <span class="tag">besoins / envies / épargne</span></h2>
+          <svg viewBox="0 0 600 60" width="100%" height="56">
+            <rect x="0" y="18" width="446" height="24" fill="#8B876F"></rect>
+            <rect x="446" y="18" width="87" height="24" fill="#C7A98A"></rect>
+            <rect x="533" y="18" width="248" height="24" fill="#5C7A5B"></rect>
+          </svg>
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--ink-soft); margin-top:4px;">
+            <span>● Besoins — 1 706 € (44,6 %)</span>
+            <span>● Envies — 333 € (8,7 %)</span>
+            <span>● Épargne / invest. — 950 € (24,8 %)</span>
+          </div>
+          <div class="placeholder-note">Répartition plus favorable que 
+la référence classique 50/30/20 — vous épargnez plus et dépensez moins 
+en envies que la moyenne. Le vrai point de vigilance n'est pas la 
+structure du budget, c'est le poste "imprévus" (917 € ce mois-ci), qui 
+mérite une provision mensuelle dédiée plutôt que de tomber en une fois.</div>
+        </div>
+
+        <div class="card">
+          <h2>Détail par catégorie</h2>
+          <table>
+            <thead><tr><th>Catégorie</th><th class="num">Montant</th><th class="num">% du budget</th></tr></thead>
+            <tbody>
+              <tr><td>Alimentation</td><td class="num">670,82 €</td><td class="num">22,4 %</td></tr>
+              <tr><td>Épargne programmée</td><td class="num">450,00 €</td><td class="num">15,1 %</td></tr>
+              <tr><td>Investissement SCI</td><td class="num">500,00 €</td><td class="num">16,7 %</td></tr>
+              <tr><td>Immobilier locatif (Ormes)</td><td class="num">328,71 €</td><td class="num">11,0 %</td></tr>
+              <tr><td>Enfants</td><td class="num">240,00 €</td><td class="num">8,0 %</td></tr>
+              <tr><td>Logement principal</td><td class="num">185,50 €</td><td class="num">6,2 %</td></tr>
+              <tr><td>Loisirs &amp; plaisirs</td><td class="num">168,34 €</td><td class="num">5,6 %</td></tr>
+              <tr><td>Impôts</td><td class="num">107,61 €</td><td class="num">3,6 %</td></tr>
+              <tr><td>Assurances</td><td class="num">109,75 €</td><td class="num">3,7 %</td></tr>
+              <tr><td>Transport</td><td class="num">96,52 €</td><td class="num">3,2 %</td></tr>
+              <tr><td>Abonnements &amp; télécom</td><td class="num">75,46 €</td><td class="num">2,5 %</td></tr>
+              <tr><td>Santé</td><td class="num">55,63 €</td><td class="num">1,9 %</td></tr>
+              <tr style="border-top:1px solid var(--ink);"><td><b>Total récurrent</b></td><td class="num"><b>2 988,34 €</b></td><td class="num"><b>100 %</b></td></tr>
+              <tr><td>Exceptionnel (LCNAS + imprimante)</td><td class="num">917,23 €</td><td class="num" style="color:var(--brick);">hors récurrent</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h2>Abonnements détectés <span class="tag">75,46 €/mois — 905 €/an</span></h2>
+          <table>
+            <tbody><tr><td>Box internet</td><td class="num">30,99 €/mois</td></tr>
+            <tr><td>Forfait mobile — Thérèse</td><td class="num">14,99 €/mois</td></tr>
+            <tr><td>Forfait mobile — Emmanuel</td><td class="num">15,99 €/mois</td></tr>
+            <tr><td>Netflix</td><td class="num">13,49 €/mois</td></tr>
+          </tbody></table>
+          <div class="placeholder-note">L'IA repère automatiquement les 
+prélèvements récurrents identiques d'un mois sur l'autre pour constituer
+ cette liste — pratique pour repérer un abonnement oublié.</div>
+        </div>
+      </div>
+
+      <!-- 6 MOIS -->
+      <div class="budpanel" id="bud-6m">
+        <div class="pagesub" style="margin-bottom:14px;">Seuls 2 mois sont importés pour l'instant — tendance ci-dessous à titre indicatif, à affiner au fil des imports</div>
+        <div class="card">
+          <h2>Évolution revenus / dépenses</h2>
+          <svg viewBox="0 0 500 170" width="100%" height="165">
+            <line x1="20" y1="145" x2="480" y2="145" stroke="#DEDACE"></line>
+            <polyline points="40,49 160,88" fill="none" stroke="#5C7A5B" stroke-width="2.5"></polyline>
+            <circle cx="40" cy="49" r="4" fill="#5C7A5B"></circle><circle cx="160" cy="88" r="4" fill="#5C7A5B"></circle>
+            <polyline points="40,79 160,120" fill="none" stroke="#A8523A" stroke-width="2.5" stroke-dasharray="5,3"></polyline>
+            <circle cx="40" cy="79" r="4" fill="#A8523A"></circle><circle cx="160" cy="120" r="4" fill="#A8523A"></circle>
+            <text x="30" y="163" font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">Fév-Mars</text>
+            <text x="140" y="163" font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">Mars-Avr</text>
+            <text x="260" y="163" font-family="IBM Plex Mono" font-size="9" fill="#C7C2B0">à venir...</text>
+            <text x="350" y="60" font-family="IBM Plex Mono" font-size="10" fill="#5C7A5B">Revenus</text>
+            <text x="350" y="110" font-family="IBM Plex Mono" font-size="10" fill="#A8523A">Dépenses</text>
+          </svg>
+          <div class="chart-caption">Baisse de revenu en mars-avril 
+(salaire Manu 2 417 € au lieu de 2 671 €) largement compensée par une 
+chute des dépenses variables — le mois de février-mars portait des 
+imprévus exceptionnels non récurrents</div>
+        </div>
+      </div>
+
+      <!-- 1 AN -->
+      <div class="budpanel" id="bud-1a">
+        <div class="pagesub" style="margin-bottom:14px;">Vue annuelle — se complète au fil des imports mensuels</div>
+        <div class="card">
+          <div class="empty"><div class="big">Historique insuffisant</div>2
+ mois importés sur 12. Continue à déposer tes relevés chaque mois pour 
+débloquer cette vue — taux d'épargne annuel moyen, mois les plus 
+dépensiers, saisonnalité (vacances, Noël, rentrée scolaire).</div>
+        </div>
+      </div>
+
+      <!-- 5 ANS -->
+      <div class="budpanel" id="bud-5a">
+        <div class="pagesub" style="margin-bottom:14px;">Vue long terme — évolution du taux d'épargne et constitution de patrimoine</div>
+        <div class="card">
+          <div class="empty"><div class="big">Historique insuffisant</div>Cette
+ vue prendra tout son sens après plusieurs années d'import : évolution 
+du taux d'épargne, progression du patrimoine financier constitué, 
+comparaison à l'inflation.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISION GLOBALE -->
+    <section class="section visible" id="sec-vision-globale">
+      <div class="crumb">Gérer <b>› Gérer mon parc › Vision globale</b></div>
+      <h1>Vision globale</h1>
+      <div class="pagesub">Tous vos biens — trésorerie, rentabilité, comptes associés</div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="label">Solde bancaire SCI</div><div class="value">1 166,00 €</div><div class="sub">au 31 décembre 2025</div></div>
+        <div class="kpi"><div class="label">Loyers encaissés</div><div class="value">9 197,16 €</div><div class="sub">exercice 2025, hors charges</div></div>
+        <div class="kpi"><div class="label">Charges décaissées</div><div class="value">17 931,17 €</div><div class="sub">exercice 2025</div></div>
+        <div class="kpi"><div class="label">Dette SCI → associés</div><div class="value">39 932,16 €</div><div class="sub">GEMINET 19 825 € + PAPIN 20 107 €</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>Trésorerie <span class="tag">solde en fin de mois — 2025</span></h2>
+          <svg viewBox="0 0 612 155" width="100%" height="150">
+            <line x1="0" y1="150" x2="612" y2="150" stroke="#DEDACE" stroke-width="1"></line>
+            <path d="M20,92.4 L72,84.1 L124,55.8 L176,105.3 L228,23.9 L280,97.4 L332,114.5 L384,133.2 L436,122.7 L488,22.2 L540,98.3 L592,102.6 L592,150 L20,150 Z" fill="#A8523A" opacity="0.08"></path>
+            <polyline points="20,92.4 72,84.1 124,55.8 176,105.3 228,23.9 280,97.4 332,114.5 384,133.2 436,122.7 488,22.2 540,98.3 592,102.6" fill="none" stroke="#A8523A" stroke-width="2"></polyline>
+            <g fill="#A8523A">
+              <circle cx="20" cy="92.4" r="2.5"></circle><circle cx="72" cy="84.1" r="2.5"></circle><circle cx="124" cy="55.8" r="2.5"></circle><circle cx="176" cy="105.3" r="2.5"></circle>
+              <circle cx="228" cy="23.9" r="2.5"></circle><circle cx="280" cy="97.4" r="2.5"></circle><circle cx="332" cy="114.5" r="2.5"></circle><circle cx="384" cy="133.2" r="2.5"></circle>
+              <circle cx="436" cy="122.7" r="2.5"></circle><circle cx="488" cy="22.2" r="2.5"></circle><circle cx="540" cy="98.3" r="2.5"></circle><circle cx="592" cy="102.6" r="2.5"></circle>
+            </g>
+            <g font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">
+              <text x="14" y="163">Jan</text><text x="66" y="163">Fév</text><text x="115" y="163">Mar</text><text x="167" y="163">Avr</text>
+              <text x="220" y="163">Mai</text><text x="273" y="163">Juin</text><text x="325" y="163">Juil</text><text x="374" y="163">Août</text>
+              <text x="425" y="163">Sep</text><text x="478" y="163">Oct</text><text x="530" y="163">Nov</text><text x="580" y="163">Déc</text>
+            </g>
+          </svg>
+          <div class="chart-caption">Données réelles issues du journal 2025 — pic en octobre après déblocages de prêt travaux</div>
+        </div>
+
+        <div class="card">
+          <h2>Rentabilité nette <span class="tag">par appartement</span></h2>
+          <svg viewBox="0 0 260 155" width="100%" height="150">
+            <g font-family="IBM Plex Mono" font-size="10" fill="#22261F">
+              <rect x="20" y="98" width="34" height="52" fill="#5C7A5B"></rect><text x="20" y="94">6,2%</text><text x="14" y="168" font-size="9" fill="#5B5F53">RDC</text>
+              <rect x="90" y="105" width="34" height="45" fill="#5C7A5B"></rect><text x="90" y="101">5,8%</text><text x="76" y="168" font-size="9" fill="#5B5F53">1er ét.</text>
+              <rect x="160" y="88" width="34" height="62" fill="#5C7A5B"></rect><text x="160" y="84">6,9%</text><text x="148" y="168" font-size="9" fill="#5B5F53">2e ét.</text>
+              <rect x="230" y="148" width="34" height="2" fill="#DEDACE"></rect><text x="222" y="144" fill="#5B5F53">0%</text><text x="212" y="168" font-size="9" fill="#5B5F53">Garage</text>
+            </g>
+          </svg>
+          <div class="chart-caption">Estimation — à recaler une fois les valeurs vénales des lots renseignées</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>Appartements</h2>
+          <table>
+            <thead><tr><th>Lot</th><th>Locataire</th><th>Statut</th><th class="num">Loyer HC</th></tr></thead>
+            <tbody>
+              <tr><td>RDC</td><td>Sophie Noiraud</td><td><span class="pill ok">Payé</span></td><td class="num">650,00 €</td></tr>
+              <tr><td>1er étage</td><td>Delphine Gruet</td><td><span class="pill warn">Partiel</span></td><td class="num">650,00 €</td></tr>
+              <tr><td>2e étage</td><td>Léa Verdier</td><td><span class="pill due">En attente</span></td><td class="num">580,00 €</td></tr>
+              <tr><td>Garage</td><td>—</td><td><span class="pill vac">Vacant</span></td><td class="num">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h2>Comptes courants associés</h2>
+          <table>
+            <tbody><tr><td>Foyer GEMINET</td><td class="num">19 825,07 €</td></tr>
+            <tr><td>Foyer PAPIN</td><td class="num">20 107,09 €</td></tr>
+          </tbody></table>
+          <div class="placeholder-note">Détail apports / avances / remboursements → onglet Comptes courants</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAR IMMEUBLE -->
+    <section class="section" id="sec-par-immeuble">
+      <div class="crumb">Gérer <b>› Gérer mon parc › Par immeuble</b></div>
+      <h1>13 rue des Cordeliers</h1>
+      <div class="pagesub">45130 Meung-sur-Loire — 3 appartements + garage</div>
+      <div class="kpis">
+        <div class="kpi"><div class="label">Loyers annuels potentiels</div><div class="value">22 320 €</div></div>
+        <div class="kpi"><div class="label">Rentabilité brute</div><div class="value">6,8 %</div></div>
+        <div class="kpi"><div class="label">Rentabilité nette</div><div class="value">5,3 %</div></div>
+        <div class="kpi"><div class="label">Rentabilité net-net</div><div class="value">3,1 %</div></div>
+      </div>
+      <div class="card">
+        <h2>Répartition des charges 2025 <span class="tag">annuelle</span></h2>
+        <svg viewBox="0 0 612 150" width="100%" height="145">
+          <g font-family="IBM Plex Mono" font-size="10" fill="#22261F">
+            <rect x="20" y="20" width="500" height="16" fill="#A8523A"></rect><text x="530" y="32">Prêt — 13 034 €</text>
+            <rect x="20" y="44" width="83" height="16" fill="#B98A2E"></rect><text x="112" y="56">Taxe foncière — 2 153 €</text>
+            <rect x="20" y="68" width="137" height="16" fill="#5C7A5B"></rect><text x="166" y="80">Entretien — 2 025 €</text>
+            <rect x="20" y="92" width="137" height="16" fill="#8B876F"></rect><text x="166" y="104">Eau/élec — 3 559 €</text>
+            <rect x="20" y="116" width="19" height="16" fill="#DEDACE"></rect><text x="48" y="128">Assurance — 494 €</text>
+          </g>
+        </svg>
+        <div class="chart-caption">Barres proportionnelles au montant annuel décaissé, hors travaux exceptionnels</div>
+      </div>
+      <div class="card">
+        <h2>Fiche immeuble <span class="tag">squelette</span></h2>
+        <div class="empty">
+          <div class="big">À détailler</div>
+          Caractéristiques du bien, historique d'acquisition, prêt, travaux réalisés, DPE, copropriété/mono-propriété...
+        </div>
+      </div>
+    </section>
+
+    <!-- PAR APPARTEMENT -->
+    <section class="section" id="sec-par-appartement">
+      <div class="crumb">Gérer <b>› Gérer mon parc › Par appartement</b></div>
+      <h1>Par appartement</h1>
+      <div class="pagesub">Fiche détaillée de chaque lot</div>
+      <div class="unit-tabs">
+        <div class="unit-tab active">RDC</div>
+        <div class="unit-tab">1er étage</div>
+        <div class="unit-tab">2e étage</div>
+        <div class="unit-tab">Garage</div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <h2>RDC — Sophie Noiraud <span class="tag" style="cursor:pointer; color:var(--brick);">Modifier le locataire</span></h2>
+          <table>
+            <tbody><tr><td>Loyer HC</td><td class="num">650,00 €</td></tr>
+            <tr><td>Charges (provisions)</td><td class="num">20,00 €</td></tr>
+            <tr><td><b>Total loyer + charges</b></td><td class="num"><b>670,00 €</b></td></tr>
+            <tr><td>Date d'entrée</td><td class="num">24/11/2025</td></tr>
+            <tr><td>Dépôt de garantie</td><td class="num">650,00 € — 24/11/2025 — Virement</td></tr>
+            <tr><td>Statut décembre</td><td class="num"><span class="pill ok">Payé</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="card">
+          <h2>Quittances — RDC <span class="tag" style="color:var(--sage); cursor:pointer;">Envoyer celle du mois</span></h2>
+          <table>
+            <tbody><tr><td>Décembre 2025</td><td class="num"><span class="pill ok">Envoyée le 05/12</span></td></tr>
+            <tr><td>Novembre 2025</td><td class="num"><span class="pill ok">Envoyée le 05/11</span></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">Envoi automatique activé — voir réglage global dans Documents.</div>
+        </div>
+        <div class="card">
+          <h2>Charges récupérables</h2>
+          <table>
+            <tbody><tr><td>Provisions perçues 2025</td><td class="num">20,00 €</td></tr>
+            <tr><td>Quote-part eau/élec réelle (index compteur)</td><td class="num">0,00 €</td></tr>
+            <tr><td>Quote-part TEOM</td><td class="num">0,00 €</td></tr>
+            <tr><td><b>Solde régularisation</b></td><td class="num"><b>+ 20,00 €</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">Calcul automatique : provisions perçues − charges réelles imputables au lot (au prorata des index et de la quote-part immeuble)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Révision annuelle de loyer <span class="tag">IRL</span></h2>
+        <table>
+          <tbody><tr><td>Loyer actuel</td><td class="num">650,00 €</td></tr>
+          <tr><td>Date anniversaire du bail</td><td class="num">24/11</td></tr>
+          <tr><td>Indice IRL de référence</td><td class="num">à récupérer en ligne (INSEE)</td></tr>
+          <tr><td><b>Nouveau loyer proposé</b></td><td class="num"><b>à calculer</b></td></tr>
+        </tbody></table>
+        <div class="placeholder-note">Squelette — récupération automatique de l'IRL trimestriel INSEE et génération de l'avenant au bail à construire</div>
+      </div>
+
+      <div class="card">
+        <h2>Documents du logement <span class="tag">RDC</span></h2>
+        <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">DPE</div><div class="count">1 fichier</div></div>
+        <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Bail et avenants</div><div class="count">1 fichier</div></div>
+        <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">État des lieux</div><div class="count">2 fichiers</div></div>
+        <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Assurances &amp; diagnostics (électricité, gaz...)</div><div class="count">0 fichier</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Historique des travaux <span class="tag">RDC</span></h2>
+        <table>
+          <thead><tr><th>Date</th><th>Nature</th><th class="num">Montant</th><th>Devis</th><th>Facture</th></tr></thead>
+          <tbody>
+            <tr><td>07/03/2025</td><td>Rénovation salle de bain — TKT CVLF</td><td class="num">16 960,78 €</td><td><span class="pill ok" style="cursor:pointer;">📎 devis.pdf</span></td><td><span class="pill ok" style="cursor:pointer;">📎 facture.pdf</span></td></tr>
+            <tr><td>19/03/2025</td><td>Suite travaux — TKT CVLF</td><td class="num">8 661,51 €</td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+ ajouter</span></td><td><span class="pill ok" style="cursor:pointer;">📎 facture.pdf</span></td></tr>
+            <tr><td>21/02/2025</td><td>Petite fourniture / entretien — VDL conseil</td><td class="num">270,00 €</td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+ ajouter</span></td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+ ajouter</span></td></tr>
+          </tbody>
+        </table>
+        <div class="placeholder-note">Squelette — chaque ligne de 
+travaux se relie à l'écriture correspondante du journal comptable, avec 
+devis et facture attachés directement</div>
+      </div>
+
+      <div class="card">
+        <h2>Historique de paiement <span class="tag">squelette</span></h2>
+        <div class="empty"><div class="big">À détailler</div>Historique mois par mois, index compteur, régularisations charges</div>
+      </div>
+    </section>
+
+    <!-- JOURNAL COMPTABLE -->
+    <section class="section" id="sec-journal">
+      <div class="crumb">Gérer <b>› Journal comptable</b></div>
+      <h1>Journal comptable</h1>
+      <div class="pagesub">Reprend la structure de ton fichier — mois par mois, avec bilan annuel et bilan global</div>
+
+      <div class="unit-tabs" id="journal-tabs">
+        <div class="unit-tab jtab active" data-jtarget="j-mensuel">Détail mensuel</div>
+        <div class="unit-tab jtab" data-jtarget="j-annuel">Bilan annuel</div>
+        <div class="unit-tab jtab" data-jtarget="j-global">Bilan global depuis achat</div>
+      </div>
+
+      <!-- DETAIL MENSUEL -->
+      <div class="jpanel visible" id="j-mensuel">
+        <div class="card" style="margin-bottom:14px;">
+          <div class="form-row" style="border:none; padding:0;">
+            <label>Mois</label>
+            <select><option selected="selected">Décembre 2025</option><option>Novembre 2025</option><option>...</option><option>Janvier 2025</option></select>
+          </div>
+        </div>
+
+        <div class="kpis" style="grid-template-columns:repeat(4,1fr); margin-bottom:14px;">
+          <div class="kpi"><div class="label">Solde au 1er du mois</div><div class="value">3 144,77 €</div></div>
+          <div class="kpi"><div class="label">Total encaissé</div><div class="value">650,00 €</div></div>
+          <div class="kpi"><div class="label">Total décaissé</div><div class="value">3 011,34 €</div></div>
+          <div class="kpi"><div class="label">Solde bancaire fin de mois</div><div class="value">1 166,00 €</div></div>
+        </div>
+
+        <div class="card">
+          <h2>Écritures — Décembre 2025 <span class="tag">+ nouvelle écriture ci-dessous</span></h2>
+          <table>
+            <thead><tr><th>Date</th><th>Encaissement</th><th class="num">Montant E</th><th>Décaissement</th><th class="num">Montant D</th><th>Mode</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th></tr></thead>
+            <tbody>
+              <tr><td>05/12</td><td>—</td><td class="num">—</td><td>Taxe foncière</td><td class="num">2 153,00 €</td><td>Banque SCI</td><td>Immeuble</td><td>Avis 2025</td><td><span class="pill ok" style="cursor:pointer;">📎</span></td></tr>
+              <tr><td>05/12</td><td>—</td><td class="num">—</td><td>Assurance PNO</td><td class="num">46,43 €</td><td>Banque SCI</td><td>Immeuble</td><td>Prélèvement mensuel</td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+</span></td></tr>
+              <tr><td>10/12</td><td>—</td><td class="num">—</td><td>Échéance prêt</td><td class="num">811,91 €</td><td>Banque SCI</td><td>Immeuble</td><td>Mensualité</td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+</span></td></tr>
+              <tr><td>10/12</td><td>Loyer HC</td><td class="num">650,00 €</td><td>—</td><td class="num">—</td><td>Virement</td><td>RDC</td><td>Noiraud</td><td><span class="tag" style="color:var(--brick); cursor:pointer;">+</span></td></tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--paper);"><td colspan="9" style="padding:10px 6px;">
+                <span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter une écriture</span>
+                <span style="color:var(--ink-soft); font-size:11px; margin-left:10px;">Date · Encaissement/Décaissement · Montant · Mode · Bien concerné · Commentaire · Justificatif</span>
+              </td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="grid2" style="margin-top:14px;">
+          <div class="card">
+            <h2>Flux — Foyer GEMINET</h2>
+            <table>
+              <tbody><tr><td>Apports du mois</td><td class="num">0,00 €</td></tr>
+              <tr><td>Avances de frais</td><td class="num">0,00 €</td></tr>
+              <tr><td>Remboursements reçus</td><td class="num">0,00 €</td></tr>
+            </tbody></table>
+          </div>
+          <div class="card">
+            <h2>Flux — Foyer PAPIN</h2>
+            <table>
+              <tbody><tr><td>Apports du mois</td><td class="num">0,00 €</td></tr>
+              <tr><td>Avances de frais</td><td class="num">0,00 €</td></tr>
+              <tr><td>Remboursements reçus</td><td class="num">0,00 €</td></tr>
+            </tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BILAN ANNUEL -->
+      <div class="jpanel" id="j-annuel">
+        <div class="card" style="margin-bottom:14px;">
+          <div class="form-row" style="border:none; padding:0;">
+            <label>Exercice</label>
+            <select><option selected="selected">2025 (12 mois)</option><option>2024 (6 mois, 1er exercice)</option></select>
+          </div>
+        </div>
+
+        <div class="pagesub" style="margin-bottom:16px;">Données extraites des comptes annuels certifiés par VDL Conseil (exercice 2025, arrêté le 19/05/2026)</div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="label">Chiffre d'affaires (loyers + charges)</div><div class="value">10 200,16 €</div><div class="sub">2024 : 0 € (pas encore loué)</div></div>
+          <div class="kpi accent"><div class="label">Résultat net comptable</div><div class="value">− 17 645,90 €</div><div class="sub">2024 : − 7 423,95 €</div></div>
+          <div class="kpi"><div class="label">Total bilan</div><div class="value">282 992,32 €</div><div class="sub">2024 : 244 529,10 €</div></div>
+          <div class="kpi"><div class="label">Capitaux propres</div><div class="value">− 24 869,85 €</div><div class="sub">déficit reporté, normal en phase travaux</div></div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <h2>Produits d'exploitation 2025 <span class="tag">par appartement</span></h2>
+            <table>
+              <tbody><tr><td>Loyer RDC <span class="tag" style="color:var(--ink-soft);">(entrée nov. 2025)</span></td><td class="num">587,16 €</td></tr>
+              <tr><td>Loyer 1er étage</td><td class="num">4 550,00 €</td></tr>
+              <tr><td>Loyer 2e étage</td><td class="num">4 060,00 €</td></tr>
+              <tr><td>Charges locatives (3 lots)</td><td class="num">1 003,00 €</td></tr>
+              <tr style="border-top:1px solid var(--ink);"><td><b>Chiffre d'affaires total</b></td><td class="num"><b>10 200,16 €</b></td></tr>
+            </tbody></table>
+          </div>
+          <div class="card">
+            <h2>Charges d'exploitation 2025 <span class="tag">principales lignes</span></h2>
+            <table>
+              <tbody><tr><td>EDF</td><td class="num">3 491,30 €</td></tr>
+              <tr><td>Entretien et réparations</td><td class="num">5 649,66 €</td></tr>
+              <tr><td>Taxe foncière</td><td class="num">2 153,00 €</td></tr>
+              <tr><td>Assurances (PNO + emprunt)</td><td class="num">698,96 €</td></tr>
+              <tr><td>Honoraires comptables</td><td class="num">1 080,00 €</td></tr>
+              <tr><td>Dotations aux amortissements</td><td class="num">8 045,97 €</td></tr>
+              <tr style="border-top:1px solid var(--ink);"><td><b>Total charges d'exploitation</b></td><td class="num"><b>17 931,17 €</b></td></tr>
+            </tbody></table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Évolution du bilan <span class="tag">2024 → 2025</span></h2>
+          <svg viewBox="0 0 612 170" width="100%" height="165">
+            <g font-family="IBM Plex Mono" font-size="10" fill="#22261F">
+              <text x="20" y="15">Total bilan (actif)</text>
+              <rect x="20" y="20" width="211" height="14" fill="#DEDACE"></rect><text x="235" y="31">244 529 € (2024)</text>
+              <rect x="20" y="38" width="244" height="14" fill="#A8523A"></rect><text x="268" y="49">282 992 € (2025)</text>
+
+              <text x="20" y="75">Dette bancaire (CRD)</text>
+              <rect x="20" y="80" width="198" height="14" fill="#DEDACE"></rect><text x="222" y="91">229 770 € (2024)</text>
+              <rect x="20" y="98" width="229" height="14" fill="#A8523A"></rect><text x="253" y="109">266 050 € (2025)</text>
+
+              <text x="20" y="135">Comptes courants associés (cumul)</text>
+              <rect x="20" y="140" width="180" height="14" fill="#DEDACE"></rect><text x="204" y="151">20 903 € (2024)</text>
+              <rect x="20" y="158" width="345" height="14" fill="#A8523A"></rect><text x="369" y="169">39 932 € (2025)</text>
+            </g>
+          </svg>
+          <div class="chart-caption">Barres proportionnelles aux montants — la dette bancaire et les comptes courants associés progressent avec la fin des travaux</div>
+        </div>
+
+        <div class="card">
+          <h2>Situation des comptes courants d'associés au 31/12/2025 <span class="tag">source : bilan passif certifié</span></h2>
+          <table>
+            <thead><tr><th>Foyer</th><th class="num">Solde au 31/12/2024</th><th class="num">Solde au 31/12/2025</th><th class="num">Variation 2025</th></tr></thead>
+            <tbody><tr><td>GEMINET</td><td class="num">10 688,61 €</td><td class="num"><b>19 825,07 €</b></td><td class="num">+ 9 136,46 €</td></tr>
+            <tr><td>PAPIN</td><td class="num">10 214,21 €</td><td class="num"><b>20 107,09 €</b></td><td class="num">+ 9 892,88 €</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Total</b></td><td class="num"><b>20 902,82 €</b></td><td class="num"><b>39 932,16 €</b></td><td class="num"><b>+ 19 029,34 €</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">C'est ce que la SCI doit 
+réellement à chaque foyer — la somme cumulée depuis la création, pas 
+seulement les mouvements de l'année.</div>
+        </div>
+      </div>
+
+      <!-- BILAN GLOBAL DEPUIS ACHAT -->
+      <div class="jpanel" id="j-global">
+        <div class="pagesub" style="margin-bottom:16px;">SCI créée le 28/06/2024 — comptes annuels certifiés par VDL Conseil pour 2024 (6 mois) et 2025 (12 mois)</div>
+        <div class="kpis">
+          <div class="kpi accent"><div class="label">Total bilan au 31/12/2025</div><div class="value">282 992,32 €</div></div>
+          <div class="kpi"><div class="label">Résultat cumulé depuis achat</div><div class="value">− 25 069,85 €</div><div class="sub">2024 + 2025</div></div>
+          <div class="kpi"><div class="label">Dette bancaire actuelle</div><div class="value">266 050,01 €</div></div>
+          <div class="kpi"><div class="label">Dette SCI → associés (cumul)</div><div class="value">39 932,16 €</div></div>
+        </div>
+
+        <div class="card">
+          <h2>Compte de résultat par exercice</h2>
+          <table>
+            <thead><tr><th>Exercice</th><th class="num">Chiffre d'affaires</th><th class="num">Charges totales</th><th class="num">Résultat net</th></tr></thead>
+            <tbody><tr><td>2024 <span class="tag">(6 mois, 1er exercice)</span></td><td class="num">0,94 €</td><td class="num">7 425,96 €</td><td class="num">− 7 423,95 €</td></tr>
+            <tr><td>2025 <span class="tag">(12 mois)</span></td><td class="num">10 200,16 €</td><td class="num">27 846,06 €</td><td class="num">− 17 645,90 €</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Cumul depuis achat</b></td><td class="num"><b>10 201,10 €</b></td><td class="num"><b>35 272,02 €</b></td><td class="num"><b>− 25 069,85 €</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">Déficit cumulé normal en phase 
+de travaux : 8 045,97 € de dotations aux amortissements en 2025 (charge 
+comptable, pas une sortie de trésorerie) et 9 914,89 € d'intérêts 
+d'emprunt pèsent lourd tant que l'immeuble n'est pas loué en totalité.</div>
+        </div>
+
+        <div class="card">
+          <h2>Évolution du résultat net</h2>
+          <svg viewBox="0 0 400 160" width="100%" height="155">
+            <line x1="20" y1="30" x2="380" y2="30" stroke="#DEDACE" stroke-width="1" stroke-dasharray="3,3"></line>
+            <text x="384" y="34" font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">0 €</text>
+            <rect x="100" y="30" width="70" height="52" fill="#A8523A" opacity="0.85"></rect>
+            <text x="90" y="98" font-family="IBM Plex Mono" font-size="10" fill="#22261F">− 7 424 €</text>
+            <text x="118" y="112" font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">2024</text>
+            <rect x="230" y="30" width="70" height="122" fill="#A8523A"></rect>
+            <text x="215" y="168" font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">2025</text>
+            <text x="212" y="26" font-family="IBM Plex Mono" font-size="10" fill="#22261F">− 17 646 €</text>
+          </svg>
+          <div class="chart-caption">Le déficit se creuse en 2025 avec 
+la montée en puissance des amortissements et des intérêts d'emprunt — 
+attendu tant que les 3 lots ne sont pas loués toute l'année</div>
+        </div>
+
+        <div class="card">
+          <h2>Répartition du capital social</h2>
+          <table>
+            <tbody><tr><td>Pierre PAPIN</td><td class="num">25 parts — 25,00 %</td></tr>
+            <tr><td>Marie PAPIN</td><td class="num">25 parts — 25,00 %</td></tr>
+            <tr><td>Emmanuel GEMINET</td><td class="num">25 parts — 25,00 %</td></tr>
+            <tr><td>Thérèse GEMINET</td><td class="num">25 parts — 25,00 %</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Capital social</b></td><td class="num"><b>200,00 € — 100 parts</b></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- COMPTES COURANTS -->
+    <section class="section" id="sec-associes">
+      <div class="crumb">Gérer <b>› Comptes courants</b></div>
+      <h1>Comptes courants associés</h1>
+      <div class="pagesub">Suivi des apports, avances de frais et remboursements</div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Foyer GEMINET</h2>
+          <table>
+            <tbody><tr><td>Solde au 31/12/2024</td><td class="num">10 688,61 €</td></tr>
+            <tr><td>Mouvement net 2025 (apports + avances)</td><td class="num">+ 9 136,46 €</td></tr>
+            <tr><td><b>Dette SCI → foyer au 31/12/2025</b></td><td class="num"><b>19 825,07 €</b></td></tr>
+          </tbody></table>
+        </div>
+        <div class="card">
+          <h2>Foyer PAPIN</h2>
+          <table>
+            <tbody><tr><td>Solde au 31/12/2024</td><td class="num">10 214,21 €</td></tr>
+            <tr><td>Mouvement net 2025 (apports + avances)</td><td class="num">+ 9 892,88 €</td></tr>
+            <tr><td><b>Dette SCI → foyer au 31/12/2025</b></td><td class="num"><b>20 107,09 €</b></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Suivi détaillé — apports et remboursements 2025</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Foyer</th><th>Type</th><th class="num">Montant</th></tr></thead>
+          <tbody>
+            <tr><td>24/01</td><td>GEMINET</td><td>Apport</td><td class="num">+ 500,00 €</td></tr>
+            <tr><td>03/02</td><td>PAPIN</td><td>Apport (retard janvier)</td><td class="num">+ 500,00 €</td></tr>
+            <tr><td>21/02</td><td>GEMINET</td><td>Avance de frais — VDL conseil</td><td class="num">+ 270,00 €</td></tr>
+            <tr><td>07/03</td><td>PAPIN</td><td>Apport</td><td class="num">+ 500,00 €</td></tr>
+          </tbody>
+        </table>
+        <div class="placeholder-note">Squelette — vue complète des 12 mois, filtrable par foyer, avec export pour la déclaration fiscale</div>
+      </div>
+    </section>
+
+    <section class="section" id="sec-documents">
+      <div class="crumb">Gérer <b>› Documents</b></div>
+      <h1>Documents</h1>
+      <div class="pagesub">Un seul espace pour tous les justificatifs et documents de la SCI</div>
+      <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Statuts</div><div class="count">1 fichier</div></div>
+      <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Assemblées générales</div><div class="count">0 fichier</div></div>
+      <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Factures &amp; justificatifs</div><div class="count">0 fichier</div></div>
+      <div class="docfolder"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v4h4"></path></svg><div class="name">Assurances &amp; diagnostics</div><div class="count">0 fichier</div></div>
+
+      <div class="card" style="margin-top:18px;">
+        <h2>Quittances <span class="tag">historique et envoi</span></h2>
+        <div class="form-row" style="border:none; padding:6px 0 14px;">
+          <label>Envoi automatique</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:38px; height:20px; background:var(--sage); border-radius:20px; position:relative;"><div style="width:16px; height:16px; background:#fff; border-radius:50%; position:absolute; top:2px; right:2px;"></div></div>
+            <span style="font-size:12px; color:var(--ink-soft);">Activé — envoyée le 5 de chaque mois si le loyer est encaissé</span>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Mois</th><th>Locataire</th><th>Lot</th><th>Envoi</th><th class="num">Justificatif</th></tr></thead>
+          <tbody>
+            <tr><td>Décembre 2025</td><td>Sophie Noiraud</td><td>RDC</td><td><span class="pill ok">Envoyée le 05/12</span></td><td class="num"><span class="pill ok" style="cursor:pointer;">📎 PDF</span></td></tr>
+            <tr><td>Décembre 2025</td><td>Delphine Gruet</td><td>1er étage</td><td><span class="pill warn">En attente (loyer partiel)</span></td><td class="num"><span class="tag" style="color:var(--brick); cursor:pointer;">+ générer</span></td></tr>
+            <tr><td>Décembre 2025</td><td>Léa Verdier</td><td>2e étage</td><td><span class="pill due">Non envoyée</span></td><td class="num"><span class="tag" style="color:var(--brick); cursor:pointer;">+ générer</span></td></tr>
+            <tr><td>Novembre 2025</td><td>Sophie Noiraud</td><td>RDC</td><td><span class="pill ok">Envoyée le 05/11</span></td><td class="num"><span class="pill ok" style="cursor:pointer;">📎 PDF</span></td></tr>
+          </tbody>
+        </table>
+        <div class="placeholder-note">Squelette — la génération se fait 
+automatiquement dès que le loyer du mois est pointé "Payé" dans le 
+journal comptable, puis part par email au locataire sans action manuelle
+ si l'envoi automatique est activé.</div>
+      </div>
+      <div class="placeholder-note">Squelette — upload par glisser-déposer et lien direct depuis chaque écriture du journal à construire</div>
+    </section>
+
+    <!-- NOUVEAU BIEN -->
+    <section class="section" id="sec-nouveau-bien">
+      <div class="crumb">Gérer <b>› Rentrer un nouveau bien</b></div>
+      <h1>Rentrer un nouveau bien</h1>
+      <div class="pagesub">Ajouter un immeuble ou un appartement à votre parc géré</div>
+      <div class="card">
+        <div class="form-row"><label>Type de bien</label><select><option selected="selected">Immeuble</option><option>Maison</option><option>Appartement isolé</option><option>Garage</option><option>Local commercial</option></select></div>
+        <div class="form-row"><label>Adresse</label><input placeholder="13 rue des Cordeliers"></div>
+        <div class="form-row"><label>Date d'acquisition</label><input placeholder="jj/mm/aaaa"></div>
+        <div class="form-row"><label>Prix d'acquisition</label><input placeholder="€"></div>
+        <div class="form-row"><label>Nombre de lots</label><input placeholder="3"></div>
+        <div class="form-row"><label>Mode de détention</label><select><option selected="selected">Bien propre (nom propre)</option><option>Nue-propriété / usufruit</option><option>SCI à l'IR</option><option>SCI à l'IS</option></select></div>
+        <div class="form-row"><label>Mode de location</label><select><option selected="selected">Location nue</option><option>Location meublée</option></select></div>
+        <div class="form-row"><label>Régime fiscal</label><select><option selected="selected">Micro-foncier</option><option>Réel foncier (formulaire 2044)</option><option>Micro-BIC (LMNP)</option><option>Réel BIC (LMNP/LMP)</option><option>Imposition à l'IS (SCI)</option></select></div>
+      </div>
+
+      <div class="card">
+        <h2>Repères fiscaux 2026 <span class="tag">à vérifier chaque année</span></h2>
+        <table>
+          <tbody><tr><td>Micro-foncier (location nue)</td><td class="num">≤ 15 000 €/an — abattement 30 %</td></tr>
+          <tr><td>Micro-BIC (location meublée classique)</td><td class="num">≤ 77 700 €/an — abattement 50 %</td></tr>
+          <tr><td>Micro-BIC (meublé de tourisme non classé)</td><td class="num">≤ 15 000 €/an — abattement 30 %</td></tr>
+          <tr><td>Seuil de bascule LMNP → LMP</td><td class="num">&gt; 23 000 €/an et &gt; autres revenus du foyer</td></tr>
+        </tbody></table>
+        <div class="placeholder-note">Votre SCI est à l'IS : ces seuils 
+micro-foncier/micro-BIC ne s'appliquent pas à vous, ils sont surtout 
+utiles si vous ajoutez un bien détenu en nom propre. Seuils vérifiés en 
+ligne au moment de la maquette — à recontrôler à chaque exercice, la loi
+ de finances les fait bouger chaque année.</div>
+      </div>
+      <div class="placeholder-note">Squelette — le formulaire complet (financement, travaux prévisionnels, DPE...) reste à détailler</div>
+    </section>
+
+    <!-- BIEN PROPRE — 14 RUE DES ORMES -->
+    <section class="section" id="sec-bien-ormes">
+      <div class="crumb">Gestion immobilière <b>› Biens propres › 14 rue des Ormes St Victor</b></div>
+      <h1>14 rue des Ormes Saint Victor</h1>
+      <div class="pagesub">Orléans — bien locatif détenu en nom propre (hors SCI)</div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="label">Loyer perçu</div><div class="value">395 €/mois</div></div>
+        <div class="kpi"><div class="label">Crédit en cours</div><div class="value">317,38 €/mois</div></div>
+        <div class="kpi"><div class="label">Assurance</div><div class="value">11,33 €/mois</div></div>
+        <div class="kpi accent"><div class="label">Cashflow net</div><div class="value">66,29 €/mois</div></div>
+      </div>
+
+      <div class="card">
+        <div class="empty">
+          <div class="big">À détailler</div>
+          Reconstitué à partir des lignes trouvées dans ton budget 
+personnel (loyer, crédit, assurance). Une vraie fiche bien (comme pour 
+la SCI : locataire, bail, documents, historique de travaux, rentabilité)
+ reste à construire — dis-moi quand tu veux qu'on s'y attelle.
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFIL INVESTISSEUR (rappel condensé) -->
+    <section class="section" id="sec-profil">
+      <div class="crumb">Analyser un bien <b>› Profil investisseur</b></div>
+      <h1>Profil investisseur</h1>
+      <div class="pagesub">Foyer GEMINET (Emmanuel + Thérèse) — communauté d'acquêts</div>
+
+      <div class="indic-block">
+        <div class="indic-title">Indicateurs calculés</div>
+        <div class="indic-note">Recalculés automatiquement à partir des réponses saisies ci-dessous</div>
+
+        <div class="stat-row">
+          <div class="gauge-card">
+            <svg class="gauge-svg" viewBox="0 0 140 72">
+              <path d="M 15,70 A 55,55 0 0,1 125,70" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="14" stroke-linecap="round"></path>
+              <path d="M 15,70 A 55,55 0 0,1 87.0,17.7" fill="none" stroke="#8FB88D" stroke-width="14" stroke-linecap="round"></path>
+              <line x1="114.3" y1="51.6" x2="129.1" y2="45.5" stroke="#E0B15C" stroke-width="3" stroke-linecap="round"></line>
+              <text x="70" y="66" text-anchor="middle" font-family="IBM Plex Mono" font-size="20" font-weight="600" fill="#8FB88D">24%</text>
+            </svg>
+            <div class="gauge-text">
+              <div class="hs-label">Taux d'endettement</div>
+              <div class="gauge-foot">Limite HCSF <b style="color:#E0B15C;">35 %</b> — marge de 11 points</div>
+            </div>
+          </div>
+
+          <div class="hero-stat">
+            <div class="hs-icon">💶</div>
+            <div class="hs-label">Capacité d'épargne / mois</div>
+            <div class="hs-value good">+ 640 €</div>
+            <div class="hs-foot">Revenus − charges − mensualités</div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="hero-stat">
+            <div class="hs-icon">🏠</div>
+            <div class="hs-label">Reste à vivre</div>
+            <div class="hs-value good">1 480 €</div>
+            <div class="hs-foot">Après charges et crédits</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hs-icon">📊</div>
+            <div class="hs-label">Patrimoine net</div>
+            <div class="hs-value">157 536 €</div>
+            <div class="hs-foot">Actif − passif, détail plus bas</div>
+          </div>
+          <div class="hero-stat warn-border">
+            <div class="hs-icon">🏦</div>
+            <div class="hs-label">Capacité d'emprunt résiduelle</div>
+            <div class="hs-value warn">≈ 96 000 €</div>
+            <div class="hs-foot">À 20 ans, taux estimé 3,8 %</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hs-icon">💰</div>
+            <div class="hs-label">Apport mobilisable</div>
+            <div class="hs-value">18 500 €</div>
+            <div class="hs-foot">Épargne dispo hors précaution</div>
+          </div>
+        </div>
+
+        <div class="pill-row">
+          <div class="pill-stat"><span class="ps-dot"></span><span class="ps-label">Horizon</span><span class="ps-value">Long terme</span></div>
+          <div class="pill-stat warn"><span class="ps-dot"></span><span class="ps-label">Appétence au risque</span><span class="ps-value">Équilibrée</span></div>
+        </div>
+
+        <div class="synthese">
+          <span class="badge">Profil favorable</span>
+          <p>Capacité d'épargne positive, endettement maîtrisé avec 11 
+points de marge sous le seuil HCSF, et un apport mobilisable qui couvre 
+les frais de notaire d'un bien jusqu'à environ 155 000 €.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>1. Situation du foyer</h2>
+        <div class="form-row"><label>Composition du foyer</label><select><option selected="selected">Couple marié</option><option>Couple pacsé</option><option>Concubinage</option><option>Personne seule</option></select></div>
+        <div class="form-row"><label>Régime matrimonial</label><select><option selected="selected">Communauté d'acquêts</option><option>Séparation de biens</option><option>Communauté universelle</option><option>Participation aux acquêts</option></select></div>
+        <div class="form-row"><label>Donation entre époux</label><select><option selected="selected">Oui</option><option>Non</option></select></div>
+        <div class="form-row"><label>Nombre d'enfants à charge</label><input placeholder="0"></div>
+        <div class="form-row"><label>Âge des deux conjoints</label><input placeholder="32 ans / 29 ans"></div>
+        <div class="form-row"><label>Situation professionnelle</label><input placeholder="Gendarme / Secrétaire"></div>
+      </div>
+
+      <div class="card">
+        <h2>2. Objectifs et profil d'investisseur</h2>
+        <div class="form-row"><label>Horizon d'investissement</label><select><option selected="selected">Court terme (&lt; 5 ans)</option><option>Moyen terme (5-10 ans)</option><option>Long terme (10 ans et +)</option></select></div>
+        <div class="form-row"><label>Objectif principal</label><select><option selected="selected">Revenus complémentaires</option><option>Constitution de patrimoine</option><option>Transmission</option><option>Réduction d'impôt</option><option>Résidence future</option></select></div>
+        <div class="form-row"><label>Appétence au risque</label><select><option selected="selected">Prudente</option><option>Équilibrée</option><option>Dynamique</option></select></div>
+        <div class="form-row"><label>Capacité à mobiliser un apport</label><select><option selected="selected">Oui, sans difficulté</option><option>Oui, avec effort</option><option>Non, financement 110%</option></select></div>
+        <div class="form-row"><label>Épargne de précaution souhaitée</label><input placeholder="6 mois de charges — ex : 5 000 €"></div>
+      </div>
+
+      <div class="card">
+        <h2>3. Budget mensuel — Revenus</h2>
+        <div class="form-row"><label>Salaire net — Emmanuel</label><input placeholder="1 850 €"></div>
+        <div class="form-row"><label>Salaire net — Thérèse</label><input placeholder="1 800 €"></div>
+        <div class="form-row"><label>Revenus indépendants (BIC/BNC)</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Revenus fonciers nets (hors SCI)</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Dividendes / revenus de capitaux</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Pensions, retraites perçues</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Prestations familiales (CAF)</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Autres revenus réguliers</label><input placeholder="0 €"></div>
+      </div>
+
+      <div class="card">
+        <h2>4. Budget mensuel — Charges</h2>
+        <div class="card-sub">Chaque thématique se détaille en plusieurs lignes (ex : un forfait par personne)</div>
+
+        <div class="cat-block"><div class="cat-title">Logement</div>
+          <table><tbody>
+            <tr><td>Loyer / charges copropriété</td><td class="num">0 €</td></tr>
+            <tr><td>Assurance habitation</td><td class="num">210 €</td></tr>
+            <tr><td>Entretien courant</td><td class="num">680 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Logement</div><div class="val">890 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Alimentation</div>
+          <table><tbody>
+            <tr><td>Courses</td><td class="num">420 €</td></tr>
+            <tr><td>Cantine scolaire</td><td class="num">30 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Alimentation</div><div class="val">450 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Télécommunications</div>
+          <table><tbody>
+            <tr><td>Box internet</td><td class="num">35 €</td></tr>
+            <tr><td>Forfait mobile — Thérèse</td><td class="num">18 €</td></tr>
+            <tr><td>Forfait mobile — Emmanuel</td><td class="num">17 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Télécommunications</div><div class="val">70 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Santé</div>
+          <table><tbody>
+            <tr><td>Mutuelle — foyer</td><td class="num">75 €</td></tr>
+            <tr><td>Frais médicaux non remboursés</td><td class="num">15 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Santé</div><div class="val">90 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Transport</div>
+          <table><tbody>
+            <tr><td>Carburant</td><td class="num">180 €</td></tr>
+            <tr><td>Assurance auto</td><td class="num">65 €</td></tr>
+            <tr><td>Entretien véhicule</td><td class="num">55 €</td></tr>
+            <tr><td>Transports en commun</td><td class="num">40 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Transport</div><div class="val">340 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Enfants</div>
+          <table><tbody>
+            <tr><td>Scolarité / cantine</td><td class="num">120 €</td></tr>
+            <tr><td>Activités extrascolaires</td><td class="num">80 €</td></tr>
+            <tr><td>Garde</td><td class="num">80 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Enfants</div><div class="val">280 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Loisirs, vacances, restaurants</div>
+          <table><tbody>
+            <tr><td>Restaurants / sorties</td><td class="num">120 €</td></tr>
+            <tr><td>Vacances (provision mensuelle)</td><td class="num">140 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Loisirs</div><div class="val">260 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Vêtements</div>
+          <table><tbody>
+            <tr><td>Foyer</td><td class="num">60 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Vêtements</div><div class="val">60 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Abonnements divers</div>
+          <table><tbody>
+            <tr><td>Streaming (vidéo, musique)</td><td class="num">18 €</td></tr>
+            <tr><td>Salle de sport</td><td class="num">12 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Abonnements</div><div class="val">30 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Crédits en cours (hors immobilier SCI)</div>
+          <table><tbody>
+            <tr><td>Crédit résidence principale</td><td class="num">720 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Crédits</div><div class="val">720 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Impôts</div>
+          <table><tbody>
+            <tr><td>Impôt sur le revenu (mensualisé)</td><td class="num">310 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Impôts</div><div class="val">310 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Assurances vie / prévoyance</div>
+          <table><tbody>
+            <tr><td>Prévoyance — Emmanuel</td><td class="num">25 €</td></tr>
+            <tr><td>Prévoyance — Thérèse</td><td class="num">20 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Assurances</div><div class="val">45 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Pensions versées</div>
+          <table><tbody>
+            <tr><td colspan="2" style="color:var(--ink-soft); font-style:italic;">Aucune pension versée</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Pensions</div><div class="val">0 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Épargne régulière déjà en cours</div>
+          <table><tbody>
+            <tr><td>Virement mensuel Livret A</td><td class="num">100 €</td></tr>
+            <tr><td>Versement programmé assurance-vie</td><td class="num">50 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Épargne</div><div class="val">150 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Frais professionnels non remboursés</div>
+          <table><tbody>
+            <tr><td colspan="2" style="color:var(--ink-soft); font-style:italic;">Aucun frais renseigné</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Frais pro</div><div class="val">0 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Cotisations diverses</div>
+          <table><tbody>
+            <tr><td>Association / club</td><td class="num">20 €</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Cotisations</div><div class="val">20 €</div></div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Autres charges</div>
+          <table><tbody>
+            <tr><td colspan="2" style="color:var(--ink-soft); font-style:italic;">Aucune autre charge</td></tr>
+          </tbody><tfoot><tr style="background:var(--paper);"><td colspan="2" style="padding:6px;"><span class="addline">+ Ajouter une ligne</span></td></tr></tfoot></table>
+          <div class="rentab-row total"><div class="lbl">Sous-total Autres</div><div class="val">0 €</div></div>
+        </div>
+
+        <div class="total-row" style="display:flex; justify-content:space-between; padding-top:14px; margin-top:10px; border-top:1px solid var(--ink);">
+          <span>Total charges mensuelles</span>
+          <span class="amt neg" style="font-size:16px;">3 715 €</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>5. Patrimoine immobilier</h2>
+        <div class="form-row"><label>Résidence principale — valeur estimée</label><input placeholder="285 000 €"></div>
+        <div class="form-row"><label>Résidence secondaire — valeur estimée</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Biens locatifs en nom propre — valeur</label><input placeholder="0 €"></div>
+        <div class="form-row"><label>Parts de SCI — % de détention du foyer</label><input placeholder="50 % (25 % + 25 %)"></div>
+        <div class="form-row"><label>SCPI — valeur estimée</label><input placeholder="22 000 €"></div>
+      </div>
+
+      <div class="card">
+        <h2>6. Patrimoine financier</h2>
+        <div class="card-sub">Plusieurs lignes possibles par catégorie (ex : assurances-vie dans différents établissements)</div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">Livrets</div>
+        <table>
+          <thead><tr><th>Établissement</th><th>Type</th><th>Titulaire</th><th class="num">Solde</th></tr></thead>
+          <tbody>
+            <tr><td>Crédit Agricole</td><td>Livret A</td><td>Emmanuel</td><td class="num">5 200 €</td></tr>
+            <tr><td>Boursorama</td><td>LDDS</td><td>Thérèse</td><td class="num">2 800 €</td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="4" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter un livret</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:14px;"><div class="lbl">Sous-total Livrets</div><div class="val">8 000 €</div></div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">PEA</div>
+        <table>
+          <thead><tr><th>Établissement</th><th>Titulaire</th><th class="num">Valeur</th></tr></thead>
+          <tbody>
+            <tr><td colspan="3" style="color:var(--ink-soft); font-style:italic;">Aucun PEA renseigné</td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="3" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter un PEA</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:14px;"><div class="lbl">Sous-total PEA</div><div class="val">0 €</div></div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">Assurances-vie</div>
+        <table>
+          <thead><tr><th>Assureur</th><th>Contrat</th><th>Titulaire</th><th class="num">Valeur</th></tr></thead>
+          <tbody>
+            <tr><td>Generali</td><td>Contrat Épargne Avenir</td><td>Emmanuel</td><td class="num">6 500 €</td></tr>
+            <tr><td>BNP Paribas Cardif</td><td>Multiplacements</td><td>Thérèse</td><td class="num">4 000 €</td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="4" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter une assurance-vie</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:14px;"><div class="lbl">Sous-total Assurances-vie</div><div class="val">10 500 €</div></div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">Épargne retraite (PER)</div>
+        <table>
+          <thead><tr><th>Établissement</th><th>Titulaire</th><th class="num">Valeur</th></tr></thead>
+          <tbody>
+            <tr><td colspan="3" style="color:var(--ink-soft); font-style:italic;">Aucun PER renseigné</td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="3" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter un PER</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:14px;"><div class="lbl">Sous-total PER</div><div class="val">0 €</div></div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">Comptes courants d'associé</div>
+        <table>
+          <thead><tr><th>Société</th><th>Titulaire</th><th class="num">Créance</th></tr></thead>
+          <tbody>
+            <tr><td>SCI Les Bons Gascons</td><td>Foyer GEMINET</td><td class="num">19 825,07 € <span class="tag" style="color:var(--ink-soft);">(calculé depuis Gérer)</span></td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="3" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter une société</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:14px;"><div class="lbl">Sous-total Comptes courants</div><div class="val">19 825 €</div></div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:14px 0 8px;">Autres placements</div>
+        <table>
+          <thead><tr><th>Nature</th><th>Établissement</th><th class="num">Valeur</th></tr></thead>
+          <tbody>
+            <tr><td colspan="3" style="color:var(--ink-soft); font-style:italic;">Aucun autre placement renseigné</td></tr>
+          </tbody>
+          <tfoot><tr style="background:var(--paper);"><td colspan="3" style="padding:8px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter une ligne</span></td></tr></tfoot>
+        </table>
+        <div class="rentab-row total" style="margin-bottom:4px;"><div class="lbl">Sous-total Autres</div><div class="val">0 €</div></div>
+
+        <div class="total-row" style="display:flex; justify-content:space-between; padding-top:14px; margin-top:10px; border-top:1px solid var(--ink);">
+          <span>Total patrimoine financier</span>
+          <span class="amt pos" style="font-size:16px;">38 325 €</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>7. Emprunts en cours</h2>
+        <table>
+          <thead><tr><th>Objet</th><th class="num">Capital emprunté</th><th class="num">Taux</th><th>Durée restante</th><th class="num">Mensualité</th><th class="num">CRD</th></tr></thead>
+          <tbody>
+            <tr><td>Résidence principale</td><td class="num">245 000 €</td><td class="num">1,9 %</td><td>14 ans</td><td class="num">720 €</td><td class="num">198 400 €</td></tr>
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--paper);"><td colspan="6" style="padding:10px 6px;"><span style="color:var(--sage); cursor:pointer; font-weight:500;">+ Ajouter un emprunt</span></td></tr>
+          </tfoot>
+        </table>
+        <div class="placeholder-note">Les emprunts pris par la SCI 
+(visibles dans Gérer) ne se saisissent pas ici — ils sont déjà déduits 
+dans le calcul de la valeur des parts SCI ci-dessous.</div>
+      </div>
+
+      <div class="card">
+        <h2>Patrimoine actif / passif <span class="tag">calcul automatique</span></h2>
+        <div class="card-sub">Inclut la quote-part de SCI et le compte courant d'associé — recalculé depuis "Gérer"</div>
+        <div class="grid2" style="margin:0;">
+          <div>
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--sage); font-weight:600; margin-bottom:10px;">Actif</div>
+            <table>
+              <tbody><tr><td class="cat">Résidence principale</td><td class="amt">285 000 €</td></tr>
+              <tr><td class="cat">SCPI et placements financiers</td><td class="amt">22 000 €</td></tr>
+              <tr><td class="cat">Parts SCI — foyer GEMINET (50 %)</td><td class="amt">41 500 €</td></tr>
+              <tr><td class="cat">Compte courant d'associé (créance SCI)</td><td class="amt">19 825 €</td></tr>
+              <tr class="total-row"><td>Total actif</td><td class="amt pos">368 325 €</td></tr>
+            </tbody></table>
+          </div>
+          <div>
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--brick); font-weight:600; margin-bottom:10px;">Passif</div>
+            <table>
+              <tbody><tr><td class="cat">Crédit résidence principale (CRD)</td><td class="amt">198 400 €</td></tr>
+              <tr><td class="cat">Autres crédits personnels</td><td class="amt">0 €</td></tr>
+              <tr class="total-row"><td>Total passif</td><td class="amt neg">198 400 €</td></tr>
+            </tbody></table>
+            <div style="margin-top:16px; padding:12px 14px; background:var(--paper); border-radius:4px; font-size:11.5px; color:var(--ink-soft); line-height:1.5;">
+              Le crédit de la SCI (266 050 € CRD, quote-part 50 % = 133 
+025 €) n'est pas compté ici : il est déjà déduit dans le calcul de la 
+valeur des parts SCI ci-dessus.
+            </div>
+          </div>
+        </div>
+        <div class="total-row" style="display:flex; justify-content:space-between; padding-top:16px; margin-top:6px; border-top:1px solid var(--ink);">
+          <span>Patrimoine net</span>
+          <span class="amt pos" style="font-size:16px;">169 925 €</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVESTIR > ANALYSER LE BIEN -->
+    <section class="section" id="sec-investir-analyser">
+      <div class="crumb">Analyser un bien <b>› Investir › Analyser le bien</b></div>
+      <h1>Analyser le bien</h1>
+      <div class="pagesub">Pour un bien à l'étude, avant achat</div>
+
+      <div class="card">
+        <h2>Analyse globale du bien</h2>
+        <div class="card-sub">Reconstituée à partir de ton fichier "6 ACTIONS GESTION IDR" — scénario réel (TKT CVLF)</div>
+        <div class="form-row"><label>Adresse du bien</label><input placeholder="13 rue des Cordeliers, 45130 Meung-sur-Loire" value="13 rue des Cordeliers, 45130 Meung-sur-Loire"></div>
+
+        <div class="placeholder-note" style="margin-bottom:16px;">
+          Ton fichier compare deux scénarios (rénovation complète "TKT 
+CVLF" vs "sans cuisine"), mais les colonnes sont décalées d'une ligne 
+par rapport aux libellés, ce qui rend la lecture peu fiable par 
+endroits. J'ai reconstitué ci-dessous le scénario réel (celui 
+effectivement réalisé). On détaillera le second scénario une fois la 
+structure clarifiée.
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Bien</div>
+          <table><tbody>
+            <tr><td>Composition</td><td class="num">7 pièces — 150 m²</td></tr>
+            <tr><td>Dépendances</td><td class="num">Garage à vélo, grand garage, cour intérieure, 2 rangements (20 m²), cave</td></tr>
+            <tr><td>Surface assurable de l'immeuble</td><td class="num">160 m²</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Prix et négociation</div>
+          <table><tbody>
+            <tr><td>Prix de l'annonce</td><td class="num">167 680 €</td></tr>
+            <tr><td>Montant de l'offre</td><td class="num">117 000 €</td></tr>
+            <tr><td><b>Négociation obtenue</b></td><td class="num"><b>− 30,2 %</b></td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Coût total de l'opération</div>
+          <table><tbody>
+            <tr><td>Montant de l'offre</td><td class="num">117 000 €</td></tr>
+            <tr><td>Frais de notaire</td><td class="num">13 579,37 €</td></tr>
+            <tr><td>Travaux (rénovation complète)</td><td class="num">158 859,00 €</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Total achat</b></td><td class="num"><b>289 438,37 €</b></td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Financement</div>
+          <table><tbody>
+            <tr><td>Apport (frais de notaire autofinancés)</td><td class="num">13 579,37 €</td></tr>
+            <tr><td>Montant emprunté</td><td class="num">275 859,00 €</td></tr>
+            <tr><td>Taux</td><td class="num">3,60 %</td></tr>
+            <tr><td>Durée</td><td class="num">20 ans</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Mensualité</b></td><td class="num"><b>1 605,82 €</b></td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Vision banque — capacité d'emprunt</div>
+          <table><tbody>
+            <tr><td>Loyers HC mensuels (plein)</td><td class="num">2 130 €</td></tr>
+            <tr><td>Pondération appliquée par les banques</td><td class="num">70 %</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Loyers retenus dans le calcul d'endettement</b></td><td class="num"><b>1 491 €/mois</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">
+            En 2026, la quasi-totalité des banques ne retiennent que <b>70 % des loyers</b>
+ (prévisionnels ou perçus) dans le calcul du taux d'endettement — décote
+ censée couvrir vacance locative, charges et impayés. À l'inverse, 100 %
+ de la nouvelle mensualité (1 606 €) s'ajoute intégralement aux charges 
+du foyer : c'est ce qu'on appelle l'« effet ciseau ». Certaines banques 
+(CIC, Crédit Mutuel, HSBC...) utilisent une méthode différentielle plus 
+favorable pour les multi-biens — à vérifier avec ton courtier au cas par
+ cas.
+          </div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Prix au m² — après achat et rénovation</div>
+          <table><tbody>
+            <tr><td>Coût total de l'opération</td><td class="num">289 438,37 €</td></tr>
+            <tr><td>Surface habitable</td><td class="num">150 m²</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Prix de revient net au m²</b></td><td class="num"><b>1 930 €/m²</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">
+            Comparé au marché local (MeilleursAgents, juin 2026) : prix moyen au m² des appartements à Meung-sur-Loire ≈ <b>1 711 €/m²</b>
+ (fourchette 716-2 520 €). Ton prix de revient (1 930 €/m²) est cohérent
+ avec un bien intégralement rénové — logiquement au-dessus de la moyenne
+ brute du marché, mais dans la fourchette haute normale.<br><br>
+            Côté loyers : le marché local affiche un loyer moyen de <b>13,2 €/m²/mois</b> (fourchette 9,5-19,3 €). Ton loyer visé ressort à <b>14,2 €/m²/mois</b>
+ (2 130 € ÷ 150 m²) — légèrement au-dessus de la moyenne, ce qui est 
+cohérent avec un bien remis à neuf, et te donne un repère solide pour 
+fixer ou ajuster tes loyers.
+          </div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Cashflow réel (avec crédit)</div>
+          <table><tbody>
+            <tr><td>Loyers HC annuels</td><td class="num">25 560 €</td></tr>
+            <tr><td>Charges annuelles</td><td class="num">− 6 631 €</td></tr>
+            <tr><td>Mensualité de crédit (annuelle)</td><td class="num">− 19 270 €</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Cashflow avant impôt</b></td><td class="num"><b>− 341 €/an</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note" style="background:var(--brick-soft); color:var(--brick);">
+            Avec des charges complètes (gestion + provision travaux 
+ajoutées), le cashflow ressort légèrement négatif — plus réaliste que 
+les + 25 €/an du fichier initial, qui omettait ces deux postes. Ça ne 
+remet pas en cause l'investissement (l'essentiel de l'effort finance le 
+capital, pas une perte), mais ça confirme qu'il ne faut pas compter sur 
+un excédent de trésorerie mensuel tant que le crédit court.
+          </div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Revenus locatifs</div>
+          <table><tbody>
+            <tr><td>T3 RDC (accès cour)</td><td class="num">650 € HC + 30 € charges</td></tr>
+            <tr><td>T3 1er étage (accès cour)</td><td class="num">630 € HC + 30 € charges</td></tr>
+            <tr><td>T2 2e étage</td><td class="num">570 € HC + 30 € charges</td></tr>
+            <tr><td>Garage</td><td class="num">280 € HC + 20 € charges</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Loyers HC / mois (plein)</b></td><td class="num"><b>2 130 €</b></td></tr>
+            <tr><td><b>Loyers HC / an (plein)</b></td><td class="num"><b>25 560 €</b></td></tr>
+            <tr><td>Charges locatives récupérables / an</td><td class="num">1 320 €</td></tr>
+          </tbody></table>
+          <div class="placeholder-note">
+            J'ai corrigé une confusion du fichier source : la ligne 
+"TOTAL/AN AVEC CHARGES" (26 880 €) mélangeait loyers HC et charges 
+récupérables — or les charges sont neutres pour la rentabilité 
+(reversées aux fournisseurs), donc le calcul doit se baser sur les <b>loyers HC seuls</b>
+ (25 560 €), pas sur le total charges comprises. Écart avec le loyer 
+réellement perçu en 2025 (9 197 €) : normal, l'immeuble n'était pas 
+encore loué en totalité sur l'exercice.
+          </div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Charges annuelles à la charge du propriétaire</div>
+          <table><tbody>
+            <tr><td>Taxe foncière</td><td class="num">1 800 €</td></tr>
+            <tr><td>Assurance PNO immeuble (160 m² × 3,16 €/m²)</td><td class="num">505 €</td></tr>
+            <tr><td>Comptable</td><td class="num">1 100 €</td></tr>
+            <tr><td>Frais de gestion locative <span class="tag">estimé 7 % TTC</span></td><td class="num">1 882 €</td></tr>
+            <tr><td>Provision entretien / gros travaux <span class="tag">estimé 5 % des loyers</span></td><td class="num">1 344 €</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>Total charges annuelles</b></td><td class="num"><b>6 631 €</b></td></tr>
+          </tbody></table>
+          <div class="placeholder-note">
+            Le fichier ne renseignait ni frais de gestion ni provision 
+travaux — je les ai estimés à partir des moyennes de marché actuelles 
+(gestion locative : 5-8 % TTC des loyers encaissés selon les agences ; 
+provision entretien/gros travaux : 5 % des loyers est une règle 
+usuelle). À ajuster dès que tu as un vrai devis de gestionnaire. Non 
+inclus dans le calcul principal, à titre de sensibilité : une <b>GLI</b> (garantie loyers impayés) coûterait environ 2 à 4 % des loyers (≈ 672 €/an à 2,5 %), et une <b>vacance locative</b> de 6 % (usuelle hors zone tendue) réduirait les loyers encaissés d'environ 1 534 €/an.
+          </div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Rentabilité — méthodologie</div>
+          <div class="placeholder-note" style="background:var(--paper); color:var(--ink-soft); margin-bottom:12px;">
+            <b>Brute</b> = Loyers HC annuels ÷ Prix d'achat total (offre + notaire + travaux) &nbsp;·&nbsp;
+            <b>Nette</b> = (Loyers HC − charges annuelles) ÷ Prix d'achat total &nbsp;·&nbsp;
+            <b>Net-net</b> = (Loyers HC − charges − IS estimé) ÷ Prix 
+d'achat total. Les intérêts d'emprunt ne sont volontairement pas déduits
+ ici : ils relèvent du financement, pas de la performance intrinsèque du
+ bien (l'effet de levier se lit séparément, via le cashflow).
+          </div>
+          <table><tbody>
+            <tr><td>Prix d'achat total (dénominateur)</td><td class="num">289 438,37 €</td></tr>
+            <tr><td>Rentabilité brute</td><td class="num"><b>8,83 %</b></td></tr>
+            <tr><td>Rentabilité nette</td><td class="num"><b>6,54 %</b></td></tr>
+            <tr><td>IS estimé (taux réduit 15 %, simplifié)</td><td class="num">2 839 €</td></tr>
+            <tr><td><b>Rentabilité net-net</b></td><td class="num"><b>5,56 %</b></td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block">
+          <div class="card-sub" style="margin-bottom:8px;">Brute / nette / net-net</div>
+          <svg viewBox="0 0 400 175" width="100%" height="170">
+            <line x1="30" y1="145" x2="380" y2="145" stroke="#DEDACE" stroke-width="1"></line>
+            <g font-family="IBM Plex Mono" font-size="11" fill="#22261F">
+              <rect x="55" y="25" width="60" height="120" fill="#A8523A"></rect>
+              <text x="60" y="20">8,83 %</text>
+              <text x="62" y="160" font-size="10" fill="#5B5F53">Brute</text>
+
+              <rect x="170" y="56" width="60" height="89" fill="#B98A2E"></rect>
+              <text x="175" y="51">6,54 %</text>
+              <text x="172" y="160" font-size="10" fill="#5B5F53">Nette</text>
+
+              <rect x="285" y="69" width="60" height="76" fill="#5C7A5B"></rect>
+              <text x="286" y="64">5,56 %</text>
+              <text x="272" y="160" font-size="10" fill="#5B5F53">Net-net</text>
+            </g>
+          </svg>
+          <div class="chart-caption">Écart de 3,3 points entre brut et 
+net-net — cohérent avec les repères de marché (1 à 2,5 pts brut/net pour
+ un immeuble avec charges de copropriété, ici accentué par la gestion 
+déléguée et la provision travaux)</div>
+        </div>
+
+        <div class="cat-block">
+          <div class="card-sub" style="margin-bottom:2px;">Cashflow annuel — années 1 à 20 (pendant le crédit)</div>
+          <div style="font-size:11px; color:var(--ink-soft); margin-bottom:8px;">Loyers indexés IRL (+1,15 %/an) − charges (+2 %/an) − mensualité de crédit constante</div>
+          <svg viewBox="0 0 620 190" width="100%" height="185">
+            <line x1="15" y1="145" x2="605" y2="145" stroke="#8B876F" stroke-width="1"></line>
+            <rect x="20" y="145.0" width="24" height="12.3" fill="#A8523A"></rect>
+            <rect x="48" y="145.0" width="24" height="6.5" fill="#A8523A"></rect>
+            <rect x="76" y="145.0" width="24" height="0.6" fill="#A8523A"></rect>
+            <rect x="104" y="139.8" width="24" height="5.2" fill="#5C7A5B"></rect>
+            <rect x="132" y="133.9" width="24" height="11.1" fill="#5C7A5B"></rect>
+            <rect x="160" y="128.0" width="24" height="17.0" fill="#5C7A5B"></rect>
+            <rect x="188" y="122.0" width="24" height="23.0" fill="#5C7A5B"></rect>
+            <rect x="216" y="116.1" width="24" height="28.9" fill="#5C7A5B"></rect>
+            <rect x="244" y="110.1" width="24" height="34.9" fill="#5C7A5B"></rect>
+            <rect x="272" y="104.1" width="24" height="40.9" fill="#5C7A5B"></rect>
+            <rect x="300" y="98.1" width="24" height="46.9" fill="#5C7A5B"></rect>
+            <rect x="328" y="92.0" width="24" height="53.0" fill="#5C7A5B"></rect>
+            <rect x="356" y="86.0" width="24" height="59.0" fill="#5C7A5B"></rect>
+            <rect x="384" y="79.9" width="24" height="65.1" fill="#5C7A5B"></rect>
+            <rect x="412" y="73.8" width="24" height="71.2" fill="#5C7A5B"></rect>
+            <rect x="440" y="67.7" width="24" height="77.3" fill="#5C7A5B"></rect>
+            <rect x="468" y="61.5" width="24" height="83.5" fill="#5C7A5B"></rect>
+            <rect x="496" y="55.4" width="24" height="89.6" fill="#5C7A5B"></rect>
+            <rect x="524" y="49.2" width="24" height="95.8" fill="#5C7A5B"></rect>
+            <rect x="552" y="43.0" width="24" height="102.0" fill="#5C7A5B"></rect>
+            <g font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">
+              <text x="32" y="178" text-anchor="middle">An 1</text>
+              <text x="144" y="178" text-anchor="middle">An 5</text>
+              <text x="284" y="178" text-anchor="middle">An 10</text>
+              <text x="424" y="178" text-anchor="middle">An 15</text>
+              <text x="564" y="178" text-anchor="middle">An 20</text>
+            </g>
+            <text x="20" y="18" font-family="IBM Plex Mono" font-size="10" fill="var(--brick)">− 341 € (an 1)</text>
+            <text x="450" y="35" font-family="IBM Plex Mono" font-size="10" fill="var(--sage)">+ 2 832 € (an 20)</text>
+          </svg>
+          <div class="chart-caption">Le cashflow annuel redevient positif dès l'<b>année 4</b> (+145 €) et croît chaque année ensuite — l'effort d'épargne le plus lourd est concentré sur les 3 premières années</div>
+        </div>
+
+        <div class="cat-block">
+          <div class="card-sub" style="margin-bottom:2px;">Coût cumulé vs revenu cumulé — sur 25 ans</div>
+          <div style="font-size:11px; color:var(--ink-soft); margin-bottom:8px;">Ce que le bien te rapporte (loyers cumulés) comparé à ce qu'il te coûte (charges + mensualités cumulées)</div>
+          <svg viewBox="0 0 620 195" width="100%" height="190">
+            <line x1="15" y1="170" x2="605" y2="170" stroke="#8B876F" stroke-width="1"></line>
+            <polyline points="20.0,164.9 44.2,159.7 68.3,154.5 92.5,149.2 116.7,143.8 140.8,138.4 165.0,133.0 189.2,127.4 213.3,121.8 237.5,116.2 261.7,110.4 285.8,104.6 310.0,98.8 334.2,92.8 358.3,86.8 382.5,80.8 406.7,74.6 430.8,68.4 455.0,62.1 479.2,55.8 503.3,49.4 527.5,42.9 551.7,36.3 575.8,29.6 600.0,22.9" fill="none" stroke="#5C7A5B" stroke-width="2.5"></polyline>
+            <polyline points="20.0,164.8 44.2,159.6 68.3,154.4 92.5,149.1 116.7,143.8 140.8,138.5 165.0,133.2 189.2,127.8 213.3,122.4 237.5,116.9 261.7,111.5 285.8,106.0 310.0,100.4 334.2,94.9 358.3,89.3 382.5,83.6 406.7,77.9 430.8,72.2 455.0,66.5 479.2,60.7 503.3,58.7 527.5,56.7 551.7,54.7 575.8,52.6 600.0,50.4" fill="none" stroke="#A8523A" stroke-width="2.5" stroke-dasharray="5,3"></polyline>
+            <circle cx="140.8" cy="138.4" r="4" fill="var(--ink)"></circle>
+            <text x="148" y="128" font-family="IBM Plex Mono" font-size="10" fill="var(--ink)">An 6 — les courbes se croisent</text>
+            <line x1="140.8" y1="20" x2="140.8" y2="170" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2,3" opacity="0.4"></line>
+            <g font-family="IBM Plex Mono" font-size="9" fill="#5B5F53">
+              <text x="20" y="183">An 1</text><text x="140" y="183">An 6</text><text x="238" y="183">An 10</text>
+              <text x="358" y="183">An 15</text><text x="479" y="183">An 20</text><text x="580" y="183">An 25</text>
+            </g>
+            <text x="440" y="45" font-family="IBM Plex Mono" font-size="10" fill="#5C7A5B">Loyers cumulés : 735 473 €</text>
+            <text x="440" y="90" font-family="IBM Plex Mono" font-size="10" fill="#A8523A">Coûts cumulés : 597 790 €</text>
+          </svg>
+          <div class="chart-caption">Trait plein vert = loyers cumulés ·
+ trait pointillé brique = charges + mensualités cumulées. Le crédit 
+soldé en année 20 fait décrocher les deux courbes : les coûts se 
+stabilisent (plus de mensualité), les loyers continuent de grimper.</div>
+        </div>
+
+        <div class="placeholder-note" style="background:var(--sage-soft); color:var(--sage);">
+          <b>Réponse directe à tes questions :</b> l'effort d'épargne dure environ <b>3 ans</b> (le point bas du cumul est en année 3, à − 538 €), le cashflow annuel devient positif dès l'<b>année 4</b>, et l'investissement "rembourse" totalement l'effort cumulé des 3 premières années dès l'<b>année 6</b>.
+ À aucun moment après ça la courbe ne se réinverse — le bien ne 
+redevient jamais plus coûteux qu'il ne rapporte, et l'écart s'accélère 
+nettement après l'année 20 (fin de crédit). Sur 25 ans : + 137 683 € de 
+solde cumulé net.
+        </div>
+
+        <div class="cat-block">
+          <div class="card-sub" style="margin-bottom:8px;">Évolution des loyers HC annuels — réalisé 2025 puis projection avec indexation IRL (+1,15 %/an, IRL T2 2026)</div>
+          <svg viewBox="0 0 460 175" width="100%" height="170">
+            <line x1="0" y1="150" x2="460" y2="150" stroke="#DEDACE" stroke-width="1"></line>
+            <g font-family="IBM Plex Mono" font-size="9.5" fill="#22261F">
+              <rect x="20" y="114" width="48" height="36" fill="#DEDACE"></rect><text x="10" y="110">9 197 €</text><text x="24" y="163" fill="#5B5F53">2025*</text>
+              <rect x="90" y="24" width="48" height="126" fill="#A8523A"></rect><text x="80" y="20">25 560 €</text><text x="98" y="163" fill="#5B5F53">2026</text>
+              <rect x="160" y="21" width="48" height="129" fill="#A8523A" opacity="0.85"></rect><text x="150" y="17">25 867 €</text><text x="168" y="163" fill="#5B5F53">2027</text>
+              <rect x="230" y="18" width="48" height="132" fill="#A8523A" opacity="0.85"></rect><text x="220" y="14">26 178 €</text><text x="238" y="163" fill="#5B5F53">2028</text>
+              <rect x="300" y="15" width="48" height="135" fill="#A8523A" opacity="0.7"></rect><text x="290" y="11">26 492 €</text><text x="308" y="163" fill="#5B5F53">2029</text>
+              <rect x="370" y="12" width="48" height="138" fill="#A8523A" opacity="0.7"></rect><text x="360" y="8">26 810 €</text><text x="378" y="163" fill="#5B5F53">2030</text>
+            </g>
+          </svg>
+          <div class="chart-caption">*2025 : loyers réels, immeuble loué
+ progressivement (RDC entré en novembre) — 2026 : première année pleine,
+ 3 lots + garage loués toute l'année</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Ce qui manque encore pour une analyse pleinement professionnelle</h2>
+        <div class="empty" style="text-align:left; padding:10px 4px;">
+          <ul style="margin:0; padding-left:18px; line-height:1.9; font-size:12.5px; color:var(--ink);">
+            <li>Devis réel de gestionnaire (le 7 % utilisé est une moyenne de marché, pas un tarif négocié)</li>
+            <li>Choix définitif sur la GLI (à intégrer ou non selon ta tolérance au risque d'impayé)</li>
+            <li>Comparaison au prix du marché local (€/m²) pour objectiver la négociation de 30 %</li>
+            <li>Estimation de revalorisation à la revente et TRI (taux de rendement interne) sur la durée de détention</li>
+            <li>IS net-net affiné avec l'expert-comptable une fois le 
+résultat fiscal stabilisé hors phase travaux (le taux réduit 15 % 
+suppose un résultat sous 42 500 €)</li>
+            <li>Second scénario "sans cuisine" du fichier original, à reprendre une fois la structure des colonnes clarifiée avec toi</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVESTIR > ESTIMATIF DES TRAVAUX -->
+    <section class="section" id="sec-investir-travaux">
+      <div class="crumb">Analyser un bien <b>› Investir › Estimatif des travaux</b></div>
+      <h1>Estimatif des travaux</h1>
+      <div class="pagesub">Objectif : ne jamais sous-évaluer une rénovation — ça plombe la rentabilité du projet</div>
+
+      <div class="card">
+        <h2>Estimatif des travaux <span class="tag">calculateur détaillé</span></h2>
+        <div class="card-sub">Grille de prix 2026 construite à partir 
+des données FFB, retours d'artisans et plateformes spécialisées — calcul
+ par pièce × type de travaux, à ajuster selon les devis réels</div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:16px 0 8px;">Repère global — prix moyen au m² selon le niveau de rénovation</div>
+        <table>
+          <thead><tr><th>Niveau</th><th>Contenu</th><th class="num">Prix moyen €/m²</th></tr></thead>
+          <tbody>
+            <tr><td>Rafraîchissement</td><td>Peinture, sols, petites retouches</td><td class="num">150 - 400 €</td></tr>
+            <tr><td>Standard</td><td>+ cuisine, salle de bain, électricité partielle</td><td class="num">600 - 900 €</td></tr>
+            <tr><td>Complet</td><td>+ isolation, menuiseries, tous corps d'état</td><td class="num">900 - 1 500 €</td></tr>
+            <tr><td>Lourd</td><td>+ reprises de structure, gros œuvre</td><td class="num">1 500 - 2 000 €</td></tr>
+          </tbody>
+        </table>
+        <div class="placeholder-note">Île-de-France : +20 à 30 % sur 
+main-d'œuvre et matériaux. Bâti d'avant 1970 : +15 à 25 % (imprévus 
+structurels plus fréquents). Toujours prévoir une marge d'aléas de 15-25
+ % — c'est le principal facteur de sous-évaluation d'un budget travaux.</div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:20px 0 8px;">Grille de prix de référence par type de travaux</div>
+
+        <div class="cat-block"><div class="cat-title">Démolition et gros œuvre</div>
+          <table><tbody>
+            <tr><td>Dépose de cloison</td><td class="num">15 - 45 €/m²</td></tr>
+            <tr><td>Ouverture mur porteur (avec étude IPN)</td><td class="num">2 800 - 5 500 € /forfait</td></tr>
+            <tr><td>Évacuation gravats (benne 7 m³)</td><td class="num">350 - 600 € /forfait</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Électricité</div>
+          <table><tbody>
+            <tr><td>Réfection complète (tableau + appareillage)</td><td class="num">90 - 140 €/m²</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Plomberie</div>
+          <table><tbody>
+            <tr><td>Réseau neuf, par point d'eau créé</td><td class="num">800 - 1 500 € /point</td></tr>
+            <tr><td>VMC double flux (fourniture + pose)</td><td class="num">3 500 - 6 000 € /forfait</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Isolation</div>
+          <table><tbody>
+            <tr><td>Combles perdus (soufflage)</td><td class="num">20 - 70 €/m²</td></tr>
+            <tr><td>Combles aménageables (sous-rampants)</td><td class="num">50 - 250 €/m²</td></tr>
+          </tbody></table>
+          <div class="placeholder-note">Primes CEE mobilisables (jusqu'à
+ 13 €/m² en 2026) sous condition de recours à un artisan RGE — à déduire
+ du coût réel si tu factures les travaux via la SCI.</div>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Cloisons et plafonds (placo)</div>
+          <table><tbody>
+            <tr><td>Cloison BA13 standard, tout compris</td><td class="num">20 - 40 €/m²</td></tr>
+            <tr><td>Faux plafond</td><td class="num">30 - 70 €/m²</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Sols</div>
+          <table><tbody>
+            <tr><td>Réagréage (pose comprise)</td><td class="num">15 - 35 €/m²</td></tr>
+            <tr><td>Parquet flottant</td><td class="num">45 - 85 €/m²</td></tr>
+            <tr><td>Parquet massif</td><td class="num">90 - 160 €/m²</td></tr>
+            <tr><td>Carrelage (grès cérame)</td><td class="num">60 - 130 €/m²</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Peinture et finitions</div>
+          <table><tbody>
+            <tr><td>Peinture murs + plafond, tout compris</td><td class="num">35 - 70 €/m²</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Pièces techniques (forfaits)</div>
+          <table><tbody>
+            <tr><td>Salle de bain complète</td><td class="num">900 - 2 000 €/m² <span class="tag">soit 4 500-10 000 € pour 5 m²</span></td></tr>
+            <tr><td>Cuisine — rafraîchissement</td><td class="num">2 000 - 5 000 € /forfait</td></tr>
+            <tr><td>Cuisine — rénovation complète</td><td class="num">8 000 - 18 000 € /forfait</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="cat-block"><div class="cat-title">Main-d'œuvre horaire par corps de métier</div>
+          <table><tbody>
+            <tr><td>Peintre</td><td class="num">35 - 50 €/h</td></tr>
+            <tr><td>Plaquiste</td><td class="num">35 - 60 €/h</td></tr>
+            <tr><td>Plombier</td><td class="num">45 - 80 €/h</td></tr>
+            <tr><td>Carreleur</td><td class="num">40 - 65 €/h</td></tr>
+          </tbody></table>
+        </div>
+
+        <div class="placeholder-note" style="background:var(--sage-soft); color:var(--sage); margin-top:6px;">
+          <b>Fonctionnalité prévue :</b> l'appli pourra interroger le 
+web périodiquement pour rafraîchir automatiquement cette grille de 
+référence (prix matériaux, taux horaires artisans par région) plutôt que
+ de rester figée sur les chiffres du jour de sa création — pour que tes 
+estimations restent fiables dans la durée.
+        </div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-soft); font-weight:600; margin:22px 0 8px;">Calculateur — exemple pour un T3 à rénover entièrement</div>
+        <table>
+          <thead><tr><th>Pièce</th><th>Type de travaux</th><th class="num">Surface</th><th class="num">Prix/m² retenu</th><th class="num">Sous-total</th></tr></thead>
+          <tbody>
+            <tr><td>Séjour (22 m²)</td><td>Peinture</td><td class="num">22 m²</td><td class="num">50 €</td><td class="num">1 100 €</td></tr>
+            <tr><td>Séjour (22 m²)</td><td>Parquet flottant</td><td class="num">22 m²</td><td class="num">65 €</td><td class="num">1 430 €</td></tr>
+            <tr><td>Chambre 1 (12 m²)</td><td>Peinture + sol stratifié</td><td class="num">12 m²</td><td class="num">110 €</td><td class="num">1 320 €</td></tr>
+            <tr><td>Chambre 2 (10 m²)</td><td>Peinture + sol stratifié</td><td class="num">10 m²</td><td class="num">110 €</td><td class="num">1 100 €</td></tr>
+            <tr><td>Salle de bain (5 m²)</td><td>Rénovation complète</td><td class="num">5 m²</td><td class="num">1 400 €</td><td class="num">7 000 €</td></tr>
+            <tr><td>Cuisine (9 m²)</td><td>Rénovation complète (forfait)</td><td class="num">—</td><td class="num">—</td><td class="num">12 000 €</td></tr>
+            <tr><td>Ensemble du logement (58 m²)</td><td>Électricité — réfection complète</td><td class="num">58 m²</td><td class="num">115 €</td><td class="num">6 670 €</td></tr>
+            <tr><td>Grenier (30 m²)</td><td>Isolation combles perdus</td><td class="num">30 m²</td><td class="num">45 €</td><td class="num">1 350 €</td></tr>
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--paper);"><td colspan="5" style="padding:10px 6px;"><span class="addline">+ Ajouter une ligne (pièce → type de travaux → m²)</span></td></tr>
+          </tfoot>
+        </table>
+
+        <div class="grid2" style="margin-top:16px;">
+          <div class="card">
+            <h2>Répartition par thématique</h2>
+            <svg viewBox="0 0 280 175" width="100%" height="170">
+              <g font-family="IBM Plex Mono" font-size="10" fill="#22261F">
+                <rect x="10" y="15" width="230" height="16" fill="#A8523A"></rect><text x="245" y="27">Cuisine — 12 000 €</text>
+                <rect x="10" y="39" width="134" height="16" fill="#B98A2E"></rect><text x="149" y="51">SDB — 7 000 €</text>
+                <rect x="10" y="63" width="128" height="16" fill="#5C7A5B"></rect><text x="143" y="75">Électricité — 6 670 €</text>
+                <rect x="10" y="87" width="63" height="16" fill="#8B876F"></rect><text x="78" y="99">Sols — 3 300 €</text>
+                <rect x="10" y="111" width="42" height="16" fill="#C7A98A"></rect><text x="57" y="123">Peinture — 2 200 €</text>
+                <rect x="10" y="135" width="26" height="16" fill="#DEDACE"></rect><text x="41" y="147">Isolation — 1 350 €</text>
+              </g>
+            </svg>
+            <div class="chart-caption">Barres proportionnelles au montant de chaque poste</div>
+          </div>
+          <div class="card">
+            <h2>Synthèse</h2>
+            <table>
+              <tbody><tr><td>Surface totale rénovée</td><td class="num">58 m²</td></tr>
+              <tr><td>Montant total travaux</td><td class="num"><b>32 570 €</b></td></tr>
+              <tr style="border-top:1px solid var(--ink);"><td><b>Prix moyen de rénovation au m²</b></td><td class="num"><b>561 €/m²</b></td></tr>
+            </tbody></table>
+            <div class="placeholder-note">Ce niveau (561 €/m²) 
+correspond à une rénovation "standard" selon la grille ci-dessus — 
+cohérent pour un logement sans reprise de structure ni changement de 
+menuiseries. Ajoute une ligne "menuiseries" ou "isolation des murs" si 
+le DPE du bien l'exige.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVESTIR > CARNET DE VISITE -->
+    <section class="section" id="sec-investir-carnet">
+      <div class="crumb">Analyser un bien <b>› Investir › Carnet de visite</b></div>
+      <h1>Carnet de visite</h1>
+      <div class="pagesub">Checklist experte — 12 thématiques, à cocher en visite ou contre-visite</div>
+
+      <div class="card">
+        <div class="card-sub">Reconstitué à partir des obligations 
+légales en vigueur et des retours d'experts (notaires, diagnostiqueurs, 
+couvreurs, forums spécialisés)</div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">1</span>Urbanisme et administratif</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Certificat d'urbanisme</div><div class="visit-note">Demandé en mairie — confirme la constructibilité et l'absence de servitude ou projet d'expropriation.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">PLU (Plan Local d'Urbanisme)</div><div class="visit-note">Zone, règles de hauteur, emprise au sol — utile si extension ou surélévation envisagée.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Zone ABF (Architecte des Bâtiments de France)</div><div class="visit-note">~32
+ % des logements français en zone protégée (périmètre 500 m autour d'un 
+monument historique, site classé/inscrit). Toute modification extérieure
+ (façade, toiture, menuiseries) nécessite l'avis de l'ABF — <b>avis conforme</b> = s'impose à la mairie, <b>avis simple</b> = consultatif. Délai d'instruction allongé (3-4 mois au lieu de 2).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Conformité des travaux déjà réalisés</div><div class="visit-note">Vérifier
+ que les travaux visibles (extension, véranda, ouverture) ont bien fait 
+l'objet d'un permis/déclaration préalable et d'une DAACT — un défaut de 
+conformité retombe sur l'acheteur.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Litiges et contentieux en cours</div><div class="visit-note">Voisinage, procédures judiciaires, désaccords de bornage — à demander explicitement au vendeur, rarement mentionné spontanément.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Servitudes</div><div class="visit-note">Passage, vue, réseaux enterrés traversant la parcelle.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Historique du bien</div><div class="visit-note">Depuis
+ quand est-il en vente ? Pourquoi ? Sinistres déclarés en assurance sur 
+les 5 dernières années (dégât des eaux, incendie) ?</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">2</span>Assainissement</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Raccordement tout-à-l'égout (collectif) ou individuel</div><div class="visit-note">Si collectif : réseau <b>unitaire</b> (eaux usées + pluviales mélangées) ou <b>séparatif</b> (deux réseaux distincts) — impacte les travaux de raccordement et les eaux de pluie.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic SPANC (si assainissement individuel)</div><div class="visit-note">Obligatoire, doit dater de <b>moins de 3 ans</b>. Si non-conforme : mise en conformité obligatoire dans <b>l'année suivant l'achat</b> — chiffrer ce coût avant d'acheter.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Obligation de raccordement si réseau collectif disponible</div><div class="visit-note">Délai
+ légal de 2 ans pour se raccorder si le tout-à-l'égout passe devant la 
+parcelle et que l'installation est encore individuelle.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">3</span>Électricité</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic électrique</div><div class="visit-note">Obligatoire si installation de <b>plus de 15 ans</b>, valable 3 ans.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Compteur Linky</div><div class="visit-note">Présence
+ ou non — le remplacement par Enedis est gratuit et le propriétaire ne 
+peut pas s'y opposer légalement dans le cadre du déploiement national.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Tableau électrique aux normes</div><div class="visit-note">Disjoncteur différentiel 30 mA, mise à la terre effective, notamment dans les pièces humides (cuisine, salle de bain).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Puissance souscrite</div><div class="visit-note">Adaptée à l'usage prévu (chauffage électrique, nombre de lots).</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">4</span>Gaz</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic gaz</div><div class="visit-note">Obligatoire si installation de <b>plus de 15 ans</b>, valable 3 ans.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Mode d'alimentation</div><div class="visit-note">Réseau de ville, citerne, ou cuve enterrée — vérifier l'état et la conformité si cuve.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">5</span>Chauffage</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Type de système et âge</div><div class="visit-note">Gaz, électrique, fioul, pompe à chaleur, bois — l'âge conditionne le budget de remplacement à anticiper.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Contrat d'entretien annuel</div><div class="visit-note">Obligatoire pour les chaudières gaz/fioul — demander les 3 dernières attestations d'entretien.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Cuve à fioul enterrée</div><div class="visit-note">Risque de pollution des sols si ancienne ou non conforme — vérifier la réglementation locale et l'état.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">6</span>DPE — points pris en compte dans le calcul</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Isolation (murs, toiture, sol, combles)</div><div class="visit-note">Poste le plus déterminant dans la note — demander si des travaux d'isolation ont déjà été réalisés (et les justificatifs).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Vitrage et menuiseries</div><div class="visit-note">Simple, double ou triple vitrage ; matériau (bois, PVC, alu) — fort impact sur la note et les déperditions.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Système de chauffage et production d'eau chaude</div><div class="visit-note">Type
+ et rendement — un chauffage électrique ancien pénalise fortement la 
+note (méthode 2026 partiellement corrigée pour le chauffage électrique).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Ventilation</div><div class="visit-note">VMC simple flux, double flux, ou absence de ventilation mécanique.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Classe énergétique et conséquences locatives</div><div class="visit-note"><b>Interdiction de location</b> : classe G depuis 2025, classe F dès 2028. Un DPE F ou G impose un <b>audit énergétique</b> obligatoire (maison individuelle ou immeuble en monopropriété — donc applicable à votre SCI). Le DPE est <b>opposable</b> depuis 2021 : une erreur engage la responsabilité du vendeur et du diagnostiqueur.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">7</span>Menuiseries et huisseries</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Type de vitrage</div><div class="visit-note">Simple, double, triple — tester l'étanchéité à l'air (courant d'air au niveau des joints).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Matériau et état</div><div class="visit-note">Bois (entretien régulier), PVC (peu d'entretien), alu (déperditions si non rupteur de pont thermique).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Volets</div><div class="visit-note">Fonctionnement, état, motorisation le cas échéant.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">⚠ En zone ABF</div><div class="visit-note">Le remplacement de menuiseries est soumis à l'avis de l'ABF — matériaux et couleurs souvent imposés (bois plutôt que PVC).</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">8</span>Toiture — vigilance selon le type de couverture</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Ardoise naturelle <span class="tag">durée de vie 80-100 ans</span></div><div class="visit-note">Vérifier
+ la fixation (clous rouillés/oxydés = risque de glissement), les 
+fissures liées au gel/dégel, l'alignement général. Les termites peuvent 
+nicher sous les ardoises (terre fine entre deux ardoises) — signe à ne 
+pas négliger même si moins fréquent que dans la charpente.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Tuile mécanique <span class="tag">durée de vie 30-50 ans</span></div><div class="visit-note">Cassures, tuiles déplacées ou décalées, mousses et lichens (signe d'humidité stagnante).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Tuile plate <span class="tag">durée de vie 50-100 ans</span></div><div class="visit-note">Poids nettement supérieur à la tuile mécanique — vérifier que la charpente est dimensionnée en conséquence.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Toit terrasse</div><div class="visit-note">Étanchéité de la membrane, état des évacuations d'eaux pluviales — point de vigilance n°1, source fréquente d'infiltration.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Signes de mouvement de charpente</div><div class="visit-note">Ligne de faîtage ondulée, rive qui s'écarte du mur pignon, tuiles/ardoises qui ont bougé sans tempête récente.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Zinguerie et gouttières</div><div class="visit-note">Étanchéité des jonctions, état des descentes d'eaux pluviales.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">9</span>Charpente et parasites du bois</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">État général du bois</div><div class="visit-note">Taches sombres, gondolement, bois qui s'effrite ou se ramollit au toucher/à la pointe (s'enfonce = dégradation).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Insectes xylophages (termites, capricornes, vrillettes)</div><div class="visit-note">Petits trous ronds, sciure fine au sol des combles, galeries visibles, bois qui sonne creux.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic termites</div><div class="visit-note">Obligatoire uniquement dans les communes couvertes par un <b>arrêté préfectoral</b> (carte sur Géorisques) — validité <b>6 mois seulement</b>, à recaler avec le calendrier de la vente.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Mérule</div><div class="visit-note">Champignon lignivore, aspect cotonneux blanc puis brun, odeur de moisi caractéristique — peut détruire une structure en <b>1 à 2 ans</b>
+ en conditions favorables (humidité). Diagnostic généralement informatif
+ (non obligatoire), mais vivement recommandé si signes d'humidité en 
+toiture ou cave.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">10</span>Structure et gros œuvre</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Fissures en façade</div><div class="visit-note">Distinguer
+ une fissure superficielle (fine, stable) d'une fissure structurelle 
+(traverse le mur, s'élargit, en escalier) — particulièrement fréquent en
+ zone argileuse (retrait-gonflement des argiles).</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Humidité</div><div class="visit-note">Remontées capillaires en bas de mur, traces d'infiltration au plafond, odeur de moisi en cave/sous-sol.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic amiante</div><div class="visit-note">Obligatoire si permis de construire <b>antérieur au 1er juillet 1997</b> — validité illimitée si absence constatée, 3 ans si présence.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Diagnostic plomb (CREP)</div><div class="visit-note">Obligatoire si construction <b>antérieure au 1er janvier 1949</b> — validité illimitée si absence, 1 an en cas de vente si présence détectée.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">11</span>Réseaux et environnement</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Eau</div><div class="visit-note">Compteur individuel ou collectif, état du raccordement.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Éligibilité fibre / internet</div><div class="visit-note">Critère de plus en plus déterminant pour la location.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">État des Risques (ERP)</div><div class="visit-note">Inondation, mouvement de terrain, sismicité, pollution des sols — document obligatoire, validité <b>6 mois</b>.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Nuisances</div><div class="visit-note">Bruit (route, voie ferrée), proximité d'antennes-relais ou de lignes à haute tension.</div></div></div>
+          </div>
+
+          <div class="visit-theme">
+            <div class="visit-theme-title"><span class="n">12</span>Juridique et financier</div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Taxe foncière</div><div class="visit-note">Montant actuel et évolution des 3 dernières années.</div></div></div>
+            <div class="visit-item"><div class="visit-check"></div><div><div class="visit-label">Titre de propriété et bornage</div><div class="visit-note">Vérifier l'absence d'hypothèque en cours non purgée.</div></div></div>
+          </div>
+
+          <div class="placeholder-note" style="background:var(--sage-soft); color:var(--sage);">
+            <b>Récapitulatif des diagnostics obligatoires et leur validité</b>
+ — DPE : 10 ans · Amiante : illimité (absence) / 3 ans (présence) · 
+Plomb : illimité (absence) / 1 an (présence, vente) · Termites : 6 mois,
+ zones à arrêté préfectoral uniquement · Électricité/Gaz : 3 ans, si 
+installation &gt; 15 ans · ERP : 6 mois · Assainissement individuel 
+(SPANC) : 3 ans · Mesurage Carrez : illimité (copropriété uniquement, 
+non concerné ici en monopropriété) · Audit énergétique : requis si DPE F
+ ou G.
+          </div>
+        </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+document.querySelectorAll('.nav-item[data-target]').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item[data-target]').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+    document.getElementById('sec-' + item.dataset.target).classList.add('visible');
+    window.scrollTo(0,0);
+  });
+});
+document.querySelectorAll('.unit-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.unit-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  });
+});
+document.querySelectorAll('.jtab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.jtab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.jpanel').forEach(p => p.classList.remove('visible'));
+    document.getElementById(tab.dataset.jtarget).classList.add('visible');
+  });
+});
+document.querySelectorAll('.budtab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.budtab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.budpanel').forEach(p => p.classList.remove('visible'));
+    document.getElementById(tab.dataset.btarget).classList.add('visible');
+  });
+});
+</script>
+
+
+</body></html>
