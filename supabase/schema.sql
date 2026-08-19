@@ -121,8 +121,24 @@ create table if not exists journal_ecritures (
   lot_id uuid references lots(id) on delete set null,
   commentaire text,
   justificatif_path text,
+  -- 'banque_sci' : mouvement réel sur le compte bancaire de la SCI (compte dans le solde
+  -- bancaire). 'avance_associe' : payé personnellement par un associé (ex. CB perso) —
+  -- n'apparaît pas sur le relevé de la SCI, donc exclu du solde bancaire, mais reste une
+  -- vraie dépense de la SCI et alimente automatiquement son compte courant.
+  financement text not null default 'banque_sci' check (financement in ('banque_sci', 'avance_associe')),
+  -- Si renseigné, cette écriture alimente aussi le suivi des comptes courants d'associés
+  -- (apport/avance/remboursement) pour le foyer désigné — voir comptes_courants_mouvements.journal_ecriture_id.
+  associe_household_id uuid references households(id) on delete set null,
+  associe_mouvement_type text check (associe_mouvement_type in ('apport', 'avance', 'remboursement')),
   created_by uuid references profiles(id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint ecriture_associe_coherent check (
+    (associe_household_id is null and associe_mouvement_type is null) or
+    (associe_household_id is not null and associe_mouvement_type is not null and (
+      (financement = 'avance_associe' and associe_mouvement_type = 'avance') or
+      (financement = 'banque_sci' and associe_mouvement_type in ('apport', 'remboursement'))
+    ))
+  )
 );
 
 create table if not exists comptes_courants_mouvements (
@@ -133,6 +149,9 @@ create table if not exists comptes_courants_mouvements (
   type text not null check (type in ('apport', 'avance', 'remboursement')),
   montant_cents bigint not null,
   commentaire text,
+  -- Renseigné quand ce mouvement a été créé automatiquement depuis une écriture du
+  -- journal comptable ; supprimer l'écriture supprime alors ce mouvement avec elle.
+  journal_ecriture_id uuid references journal_ecritures(id) on delete cascade,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );

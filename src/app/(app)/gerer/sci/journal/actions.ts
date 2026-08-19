@@ -53,20 +53,66 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
 
   const bienId = formData.get("bien_id");
 
-  const { error } = await supabase.from("journal_ecritures").insert({
-    sci_id: sciId,
-    date,
-    type,
-    montant_cents: montant,
-    libelle,
-    mode_paiement: formData.get("mode_paiement") || null,
-    bien_id: bienId ? String(bienId) : null,
-    commentaire: formData.get("commentaire") || null,
-    created_by: userId,
-  });
+  const financement = String(formData.get("financement") ?? "banque_sci");
+  if (financement !== "banque_sci" && financement !== "avance_associe") return { error: "Financement invalide." };
 
-  if (error) return { error: "Erreur lors de l'enregistrement." };
+  let associeHouseholdId: string | null = null;
+  let associeMouvementType: "apport" | "avance" | "remboursement" | null = null;
+
+  if (financement === "avance_associe") {
+    associeHouseholdId = String(formData.get("associe_household_id") ?? "") || null;
+    if (!associeHouseholdId) return { error: "Choisis quel foyer a avancé cette dépense." };
+    associeMouvementType = "avance";
+  } else {
+    const lien = String(formData.get("associe_mouvement_type") ?? "");
+    if (lien === "apport" || lien === "remboursement") {
+      associeHouseholdId = String(formData.get("associe_household_id") ?? "") || null;
+      if (!associeHouseholdId) return { error: "Choisis quel foyer est concerné par cet apport/remboursement." };
+      associeMouvementType = lien;
+    }
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("journal_ecritures")
+    .insert({
+      sci_id: sciId,
+      date,
+      type,
+      montant_cents: montant,
+      libelle,
+      mode_paiement: formData.get("mode_paiement") || null,
+      bien_id: bienId ? String(bienId) : null,
+      commentaire: formData.get("commentaire") || null,
+      financement,
+      associe_household_id: associeHouseholdId,
+      associe_mouvement_type: associeMouvementType,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !inserted) return { error: "Erreur lors de l'enregistrement." };
+
+  if (associeHouseholdId && associeMouvementType) {
+    const { error: ccError } = await supabase.from("comptes_courants_mouvements").insert({
+      sci_id: sciId,
+      household_id: associeHouseholdId,
+      date,
+      type: associeMouvementType,
+      montant_cents: montant,
+      commentaire: libelle,
+      journal_ecriture_id: inserted.id,
+      created_by: userId,
+    });
+    if (ccError) {
+      revalidatePath(JOURNAL_PATH);
+      revalidatePath(COMPTES_COURANTS_PATH);
+      return { error: "Écriture enregistrée, mais le mouvement de compte courant lié n'a pas pu être créé." };
+    }
+  }
+
   revalidatePath(JOURNAL_PATH);
+  revalidatePath(COMPTES_COURANTS_PATH);
   return { success: true };
 }
 

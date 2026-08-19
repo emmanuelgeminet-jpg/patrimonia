@@ -30,6 +30,9 @@ export type Ecriture = {
   commentaire: string | null;
   justificatifPath: string | null;
   justificatifUrl: string | null;
+  financement: "banque_sci" | "avance_associe";
+  associeHouseholdId: string | null;
+  associeMouvementType: "apport" | "avance" | "remboursement" | null;
 };
 
 export type Associe = { householdId: string; nom: string; soldeOuvertureCents: number };
@@ -137,6 +140,7 @@ function PanelMensuel({
   const soldeDebut = useMemo(() => {
     let total = sci.soldeOuvertureCents;
     for (const e of ecritures) {
+      if (e.financement !== "banque_sci") continue; // n'a jamais transité par la banque de la SCI
       if (e.date >= firstOfMonth) continue;
       if (sci.soldeOuvertureDate && e.date < sci.soldeOuvertureDate) continue;
       total += e.type === "encaissement" ? e.montantCents : -e.montantCents;
@@ -149,11 +153,16 @@ function PanelMensuel({
     [ecritures, selectedMonth]
   );
 
-  const totalEncaisse = monthEcritures.filter((e) => e.type === "encaissement").reduce((s, e) => s + e.montantCents, 0);
-  const totalDecaisse = monthEcritures.filter((e) => e.type === "decaissement").reduce((s, e) => s + e.montantCents, 0);
+  const monthEcrituresBanque = monthEcritures.filter((e) => e.financement === "banque_sci");
+  const totalEncaisse = monthEcrituresBanque.filter((e) => e.type === "encaissement").reduce((s, e) => s + e.montantCents, 0);
+  const totalDecaisse = monthEcrituresBanque.filter((e) => e.type === "decaissement").reduce((s, e) => s + e.montantCents, 0);
   const soldeFin = soldeDebut + totalEncaisse - totalDecaisse;
+  const totalAvances = monthEcritures
+    .filter((e) => e.financement === "avance_associe")
+    .reduce((s, e) => s + e.montantCents, 0);
 
   const bienById = new Map(biens.map((b) => [b.id, b.label]));
+  const associeById = new Map(associes.map((a) => [a.householdId, a.nom]));
   const dateDefault = /^\d{4}-\d{2}$/.test(selectedMonth) ? `${selectedMonth}-01` : selectedMonth;
 
   return (
@@ -169,12 +178,18 @@ function PanelMensuel({
         </div>
       </div>
 
-      <div className="kpis" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 14 }}>
+      <div className="kpis" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 6 }}>
         <div className="kpi"><div className="label">Solde au 1er du mois</div><div className="value">{formatEuros(soldeDebut)}</div></div>
         <div className="kpi"><div className="label">Total encaissé</div><div className="value">{formatEuros(totalEncaisse)}</div></div>
         <div className="kpi"><div className="label">Total décaissé</div><div className="value">{formatEuros(totalDecaisse)}</div></div>
         <div className="kpi"><div className="label">Solde bancaire fin de mois</div><div className="value">{formatEuros(soldeFin)}</div></div>
       </div>
+      {totalAvances > 0 && (
+        <div className="placeholder-note" style={{ marginBottom: 14 }}>
+          Dont {formatEuros(totalAvances)} avancés personnellement par des associés ce mois-ci — de vraies dépenses
+          de la SCI, mais pas comptées dans le solde bancaire ci-dessus puisqu&apos;elles ne sont pas passées par son compte.
+        </div>
+      )}
 
       <SoldeOuvertureForm sci={sci} />
 
@@ -184,21 +199,26 @@ function PanelMensuel({
           <thead>
             <tr>
               <th>Date</th><th>Encaissement</th><th className="num">Montant E</th><th>Décaissement</th>
-              <th className="num">Montant D</th><th>Mode</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th><th></th>
+              <th className="num">Montant D</th><th>Mode</th><th>Financement</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th><th></th>
             </tr>
           </thead>
           <tbody>
             {monthEcritures.length === 0 && (
-              <tr><td colSpan={10} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune écriture ce mois-ci</td></tr>
+              <tr><td colSpan={11} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune écriture ce mois-ci</td></tr>
             )}
             {monthEcritures.map((e) => (
-              <EcritureRow key={e.id} ecriture={e} bienLabel={e.bienId ? bienById.get(e.bienId) ?? "—" : "—"} />
+              <EcritureRow
+                key={e.id}
+                ecriture={e}
+                bienLabel={e.bienId ? bienById.get(e.bienId) ?? "—" : "—"}
+                associeNom={e.associeHouseholdId ? associeById.get(e.associeHouseholdId) ?? null : null}
+              />
             ))}
           </tbody>
         </table>
       </div>
 
-      <AjouterEcritureForm biens={biens} defaultDate={dateDefault} />
+      <AjouterEcritureForm biens={biens} associes={associes} defaultDate={dateDefault} />
 
       <div className="grid2" style={{ marginTop: 14 }}>
         {associes.map((a) => (
@@ -214,7 +234,15 @@ function PanelMensuel({
   );
 }
 
-function EcritureRow({ ecriture, bienLabel }: { ecriture: Ecriture; bienLabel: string }) {
+function EcritureRow({
+  ecriture,
+  bienLabel,
+  associeNom,
+}: {
+  ecriture: Ecriture;
+  bienLabel: string;
+  associeNom: string | null;
+}) {
   const [, startTransition] = useTransition();
   return (
     <tr>
@@ -224,6 +252,17 @@ function EcritureRow({ ecriture, bienLabel }: { ecriture: Ecriture; bienLabel: s
       <td>{ecriture.type === "decaissement" ? ecriture.libelle : "—"}</td>
       <td className="num">{ecriture.type === "decaissement" ? formatEuros(ecriture.montantCents) : "—"}</td>
       <td>{ecriture.modePaiement ?? "—"}</td>
+      <td>
+        {ecriture.financement === "avance_associe" ? (
+          <span className="tag" style={{ color: "var(--brick)" }}>Avance {associeNom ?? ""}</span>
+        ) : ecriture.associeMouvementType ? (
+          <span className="tag" style={{ color: "var(--sage)" }}>
+            Banque SCI · {ecriture.associeMouvementType === "apport" ? "apport" : "rembours."} {associeNom ?? ""}
+          </span>
+        ) : (
+          <span className="tag">Banque SCI</span>
+        )}
+      </td>
       <td>{bienLabel}</td>
       <td>{ecriture.commentaire ?? "—"}</td>
       <td><JustificatifCell ecriture={ecriture} /></td>
@@ -270,8 +309,10 @@ function JustificatifCell({ ecriture }: { ecriture: Ecriture }) {
   );
 }
 
-function AjouterEcritureForm({ biens, defaultDate }: { biens: Bien[]; defaultDate: string }) {
+function AjouterEcritureForm({ biens, associes, defaultDate }: { biens: Bien[]; associes: Associe[]; defaultDate: string }) {
   const [state, formAction, pending] = useActionState(addEcriture, initialState);
+  const [financement, setFinancement] = useState<"banque_sci" | "avance_associe">("banque_sci");
+  const [lienCompteCourant, setLienCompteCourant] = useState<"aucun" | "apport" | "remboursement">("aucun");
 
   return (
     <div className="card" style={{ marginTop: 14 }}>
@@ -284,14 +325,62 @@ function AjouterEcritureForm({ biens, defaultDate }: { biens: Bien[]; defaultDat
         </select>
         <input name="libelle" placeholder="Libellé (ex : Taxe foncière)" required style={{ maxWidth: 200 }} />
         <input name="montant" placeholder="Montant €" style={{ maxWidth: 100 }} />
-        <input name="mode_paiement" placeholder="Mode (ex : Banque SCI)" style={{ maxWidth: 140 }} />
+        <input name="mode_paiement" placeholder="Mode (ex : CB perso)" style={{ maxWidth: 130 }} />
         <select name="bien_id" style={{ maxWidth: 170 }} defaultValue="">
           <option value="">Bien concerné (optionnel)</option>
           {biens.map((b) => (
             <option key={b.id} value={b.id}>{b.label}</option>
           ))}
         </select>
-        <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 160 }} />
+        <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 150 }} />
+
+        <select
+          name="financement"
+          value={financement}
+          onChange={(e) => {
+            setFinancement(e.target.value as typeof financement);
+            setLienCompteCourant("aucun");
+          }}
+          style={{ maxWidth: 250 }}
+        >
+          <option value="banque_sci">Payé depuis le compte bancaire de la SCI</option>
+          <option value="avance_associe">Avancé personnellement par un associé (ex : CB perso)</option>
+        </select>
+
+        {financement === "avance_associe" && (
+          <select name="associe_household_id" required style={{ maxWidth: 150 }} defaultValue="">
+            <option value="" disabled>Quel foyer a avancé ?</option>
+            {associes.map((a) => (
+              <option key={a.householdId} value={a.householdId}>{a.nom}</option>
+            ))}
+          </select>
+        )}
+
+        {financement === "banque_sci" && (
+          <>
+            <select
+              value={lienCompteCourant}
+              onChange={(e) => setLienCompteCourant(e.target.value as typeof lienCompteCourant)}
+              style={{ maxWidth: 210 }}
+            >
+              <option value="aucun">Sans lien avec un compte courant</option>
+              <option value="apport">= un apport d&apos;associé</option>
+              <option value="remboursement">= un remboursement à un associé</option>
+            </select>
+            {lienCompteCourant !== "aucun" && (
+              <>
+                <input type="hidden" name="associe_mouvement_type" value={lienCompteCourant} />
+                <select name="associe_household_id" required style={{ maxWidth: 150 }} defaultValue="">
+                  <option value="" disabled>Quel foyer ?</option>
+                  {associes.map((a) => (
+                    <option key={a.householdId} value={a.householdId}>{a.nom}</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </>
+        )}
+
         <button
           type="submit"
           disabled={pending}
@@ -301,6 +390,10 @@ function AjouterEcritureForm({ biens, defaultDate }: { biens: Bien[]; defaultDat
         </button>
       </form>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+      <div className="card-sub" style={{ marginTop: 8 }}>
+        Une avance ou un apport/remboursement lié à un foyer alimente automatiquement son suivi dans &quot;Comptes
+        courants associés&quot; — pas besoin de le ressaisir là-bas.
+      </div>
     </div>
   );
 }

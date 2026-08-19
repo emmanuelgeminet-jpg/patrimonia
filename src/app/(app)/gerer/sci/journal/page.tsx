@@ -78,6 +78,9 @@ export default async function JournalPage() {
           commentaire: e.commentaire as string | null,
           justificatifPath: e.justificatif_path as string | null,
           justificatifUrl: e.justificatif_path ? urlByPath.get(e.justificatif_path as string) ?? null : null,
+          financement: e.financement as "banque_sci" | "avance_associe",
+          associeHouseholdId: e.associe_household_id as string | null,
+          associeMouvementType: e.associe_mouvement_type as "apport" | "avance" | "remboursement" | null,
         }))}
         associes={associes}
         mouvements={(mouvementsRows ?? []).map((m) => ({

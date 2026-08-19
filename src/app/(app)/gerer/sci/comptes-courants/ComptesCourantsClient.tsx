@@ -161,6 +161,10 @@ function AjouterMouvementForm({ associes }: { associes: Associe[] }) {
         </button>
       </form>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+      <div className="card-sub" style={{ marginTop: 8 }}>
+        Si ce mouvement correspond aussi à une écriture bancaire de la SCI ou à une avance personnelle, ajoute-le
+        plutôt depuis le Journal comptable — il alimentera automatiquement ce suivi.
+      </div>
     </div>
   );
 }
