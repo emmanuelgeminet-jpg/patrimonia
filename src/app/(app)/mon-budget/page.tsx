@@ -3,6 +3,7 @@ import { ensureDefaultCategories } from "@/lib/budget";
 import ImportCard from "./ImportCard";
 import BudgetTabs from "./BudgetTabs";
 import NewCategoryForm from "./NewCategoryForm";
+import CategoryExplorer from "./CategoryExplorer";
 
 export type Transaction = {
   id: string;
@@ -66,6 +67,11 @@ export default async function MonBudgetPage() {
       </div>
 
       <BudgetTabs
+        transactions={(transactions as Transaction[]) ?? []}
+        categories={(categories as Category[]) ?? []}
+      />
+
+      <CategoryExplorer
         transactions={(transactions as Transaction[]) ?? []}
         categories={(categories as Category[]) ?? []}
       />

@@ -279,3 +279,33 @@ export function formatMonthLabel(dateStr: string): string {
   const monthIndex = parseInt(month, 10) - 1;
   return `${MOIS_FR[monthIndex] ?? month} ${year}`;
 }
+
+/** Lundi de la semaine ISO contenant cette date, au format YYYY-MM-DD. */
+export function getWeekStart(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const day = date.getUTCDay(); // 0 = dimanche ... 6 = samedi
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  date.setUTCDate(date.getUTCDate() - diffToMonday);
+  return date.toISOString().slice(0, 10);
+}
+
+/** "2024-03-25" -> "Sem. du 25/03" */
+export function formatWeekLabel(mondayDateStr: string): string {
+  const [, month, day] = mondayDateStr.split("-");
+  return `Sem. du ${day}/${month}`;
+}
+
+export type Granularite = "semaine" | "mois" | "annee";
+
+export function bucketKey(dateStr: string, granularite: Granularite): string {
+  if (granularite === "semaine") return getWeekStart(dateStr);
+  if (granularite === "annee") return dateStr.slice(0, 4);
+  return dateStr.slice(0, 7);
+}
+
+export function formatBucketLabel(key: string, granularite: Granularite): string {
+  if (granularite === "semaine") return formatWeekLabel(key);
+  if (granularite === "annee") return key;
+  return formatMonthLabel(key);
+}
