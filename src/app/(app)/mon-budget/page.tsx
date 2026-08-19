@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import ImportCard from "./ImportCard";
 import BudgetTabs from "./BudgetTabs";
+import NewCategoryForm from "./NewCategoryForm";
 
 export type Transaction = {
   id: string;
@@ -49,6 +50,18 @@ export default async function MonBudgetPage() {
       </div>
 
       <ImportCard transactions={(transactions as Transaction[]) ?? []} />
+
+      <div className="card">
+        <h2>Catégories</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+          {(categories as Category[] | null)?.map((c) => (
+            <span key={c.id} className="pill" style={{ background: "var(--paper)", color: "var(--ink-soft)" }}>
+              {c.nom}
+            </span>
+          ))}
+        </div>
+        <NewCategoryForm />
+      </div>
 
       <BudgetTabs
         transactions={(transactions as Transaction[]) ?? []}

@@ -159,3 +159,31 @@ export async function flipTransactionSign(transactionId: string, currentMontantC
     .eq("id", transactionId);
   revalidatePath("/mon-budget");
 }
+
+export type CreateCategoryState = {
+  error?: string;
+};
+
+export async function createCategory(_prevState: CreateCategoryState, formData: FormData): Promise<CreateCategoryState> {
+  const nom = String(formData.get("nom") ?? "").trim();
+  const groupe = String(formData.get("groupe") ?? "");
+
+  if (!nom) {
+    return { error: "Donne un nom à la catégorie." };
+  }
+  if (!["besoin", "envie", "epargne"].includes(groupe)) {
+    return { error: "Choisis un type de catégorie." };
+  }
+
+  const { supabase, householdId } = await getHouseholdId();
+  const { error } = await supabase
+    .from("budget_categories")
+    .insert({ household_id: householdId, nom, groupe });
+
+  if (error) {
+    return { error: "Impossible de créer cette catégorie — réessaie." };
+  }
+
+  revalidatePath("/mon-budget");
+  return {};
+}
