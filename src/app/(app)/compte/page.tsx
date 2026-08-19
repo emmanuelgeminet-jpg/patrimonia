@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import PasswordForm from "./PasswordForm";
 import InviteLink from "./InviteLink";
+import HouseholdNameForm from "./HouseholdNameForm";
 
 export default async function ComptePage() {
   const supabase = await createClient();
@@ -33,6 +34,7 @@ export default async function ComptePage() {
           (budget, SCI, biens...). Ne partage ce lien qu&apos;avec une personne de confiance.
         </div>
         {householdId && <InviteLink link={`${origin}/login?invite=${householdId}`} />}
+        <HouseholdNameForm currentName={householdName ?? ""} />
       </div>
 
       <PasswordForm />

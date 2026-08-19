@@ -341,7 +341,14 @@ function AjouterEcritureForm({ biens, associes, defaultDate }: { biens: Bien[]; 
         </select>
         <input name="libelle" placeholder="Libellé (ex : Taxe foncière)" required style={{ maxWidth: 200 }} />
         <input name="montant" placeholder="Montant €" style={{ maxWidth: 100 }} />
-        <input name="mode_paiement" placeholder="Mode (ex : CB perso)" style={{ maxWidth: 130 }} />
+        <select name="mode_paiement" defaultValue="Virement" style={{ maxWidth: 140 }}>
+          <option value="Virement">Virement</option>
+          <option value="Prélèvement">Prélèvement</option>
+          <option value="Chèque">Chèque</option>
+          <option value="Carte bancaire">Carte bancaire</option>
+          <option value="Espèces">Espèces</option>
+          <option value="Autre">Autre</option>
+        </select>
         <select name="bien_id" style={{ maxWidth: 170 }} defaultValue="">
           <option value="">Bien concerné (optionnel)</option>
           {biens.map((b) => (

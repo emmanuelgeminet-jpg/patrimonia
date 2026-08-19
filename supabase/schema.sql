@@ -450,7 +450,7 @@ alter table devis_travaux enable row level security;
 alter table carnet_visite_reponses enable row level security;
 
 drop policy if exists "own household" on households;
-create policy "own household" on households for select using (is_household_member(id));
+create policy "own household" on households for all using (is_household_member(id)) with check (is_household_member(id));
 
 drop policy if exists "own profile" on profiles;
 create policy "own profile" on profiles for select using (id = auth.uid());
