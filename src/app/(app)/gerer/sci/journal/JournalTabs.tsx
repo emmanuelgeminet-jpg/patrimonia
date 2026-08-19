@@ -160,6 +160,12 @@ function PanelMensuel({
   const totalAvances = monthEcritures
     .filter((e) => e.financement === "avance_associe")
     .reduce((s, e) => s + e.montantCents, 0);
+  const totalApportsBanque = monthEcrituresBanque
+    .filter((e) => e.associeMouvementType === "apport")
+    .reduce((s, e) => s + e.montantCents, 0);
+  const totalRemboursementsBanque = monthEcrituresBanque
+    .filter((e) => e.associeMouvementType === "remboursement")
+    .reduce((s, e) => s + e.montantCents, 0);
 
   const bienById = new Map(biens.map((b) => [b.id, b.label]));
   const associeById = new Map(associes.map((a) => [a.householdId, a.nom]));
@@ -185,9 +191,19 @@ function PanelMensuel({
         <div className="kpi"><div className="label">Solde bancaire fin de mois</div><div className="value">{formatEuros(soldeFin)}</div></div>
       </div>
       {totalAvances > 0 && (
-        <div className="placeholder-note" style={{ marginBottom: 14 }}>
+        <div className="placeholder-note" style={{ marginBottom: 6 }}>
           Dont {formatEuros(totalAvances)} avancés personnellement par des associés ce mois-ci — de vraies dépenses
           de la SCI, mais pas comptées dans le solde bancaire ci-dessus puisqu&apos;elles ne sont pas passées par son compte.
+        </div>
+      )}
+      {(totalApportsBanque > 0 || totalRemboursementsBanque > 0) && (
+        <div className="placeholder-note" style={{ marginBottom: 14 }}>
+          Dont, dans les totaux ci-dessus (mouvements réels sur le compte de la SCI) :{" "}
+          {totalApportsBanque > 0 && <>{formatEuros(totalApportsBanque)} d&apos;apports d&apos;associés</>}
+          {totalApportsBanque > 0 && totalRemboursementsBanque > 0 && " et "}
+          {totalRemboursementsBanque > 0 && <>{formatEuros(totalRemboursementsBanque)} de remboursements à des associés</>}
+          {" "}— des mouvements de financement, pas du chiffre d&apos;affaires ni des charges d&apos;exploitation ;
+          à exclure quand on calculera plus tard le vrai résultat de la SCI.
         </div>
       )}
 
