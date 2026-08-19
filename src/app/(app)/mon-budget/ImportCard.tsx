@@ -24,7 +24,7 @@ export default function ImportCard({ transactions }: { transactions: Transaction
   return (
     <div className="card">
       <h2>Importer un relevé bancaire</h2>
-      <div className="card-sub">Fichier CSV exporté depuis ta banque — une catégorie est proposée automatiquement pour chaque ligne déjà vue par le passé</div>
+      <div className="card-sub">CSV ou PDF exporté depuis ta banque — une catégorie est proposée automatiquement pour chaque ligne déjà vue par le passé</div>
 
       <form ref={formRef} action={formAction}>
         <div
@@ -32,7 +32,7 @@ export default function ImportCard({ transactions }: { transactions: Transaction
           onClick={() => inputRef.current?.click()}
         >
           <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 10 }}>Clique pour choisir ton fichier CSV</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-soft)", marginBottom: 10 }}>Clique pour choisir ton fichier CSV ou PDF</div>
           <span style={{ background: "var(--ink)", color: "#fff", padding: "8px 18px", borderRadius: 20, fontSize: 12, cursor: "pointer" }}>
             Choisir un fichier
           </span>
@@ -40,12 +40,16 @@ export default function ImportCard({ transactions }: { transactions: Transaction
             ref={inputRef}
             type="file"
             name="file"
-            accept=".csv,text/csv"
+            accept=".csv,.pdf,text/csv,application/pdf"
             style={{ display: "none" }}
             onChange={() => formRef.current?.requestSubmit()}
           />
         </div>
       </form>
+
+      <div className="placeholder-note" style={{ marginTop: 10 }}>
+        Le PDF est reconnu automatiquement, mais moins fiable que le CSV selon la mise en page de ta banque (le sens dépense/recette peut se tromper — corrigeable ligne par ligne avec le bouton ↕ dans le tableau plus bas). Si ta banque propose les deux formats, préfère le CSV.
+      </div>
 
       {pending && <div className="placeholder-note">Import en cours...</div>}
       {state.error && <div className="auth-error" style={{ marginTop: 12 }}>{state.error}</div>}

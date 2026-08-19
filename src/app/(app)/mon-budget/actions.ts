@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseCsv, DEFAULT_CATEGORIES } from "@/lib/budget";
+import { parseCsv, parsePdfText, DEFAULT_CATEGORIES } from "@/lib/budget";
 
 async function getHouseholdId() {
   const supabase = await createClient();
@@ -40,11 +40,25 @@ export type ImportState = {
 export async function importCsv(_prevState: ImportState, formData: FormData): Promise<ImportState> {
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) {
-    return { error: "Choisis un fichier CSV avant d'importer." };
+    return { error: "Choisis un fichier avant d'importer." };
   }
 
-  const content = await file.text();
-  const { transactions, errors } = parseCsv(content);
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+  let transactions;
+  let errors: string[];
+
+  if (isPdf) {
+    const { PDFParse } = await import("pdf-parse");
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText({ cellSeparator: "\t" });
+    await parser.destroy();
+    ({ transactions, errors } = parsePdfText(result.text));
+  } else {
+    const content = await file.text();
+    ({ transactions, errors } = parseCsv(content));
+  }
 
   if (transactions.length === 0) {
     return { error: errors[0] ?? "Aucune transaction reconnue dans ce fichier." };
@@ -102,5 +116,14 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
 export async function updateTransactionCategory(transactionId: string, categorieId: string) {
   const { supabase } = await getHouseholdId();
   await supabase.from("budget_transactions").update({ categorie_id: categorieId }).eq("id", transactionId);
+  revalidatePath("/mon-budget");
+}
+
+export async function flipTransactionSign(transactionId: string, currentMontantCents: number) {
+  const { supabase } = await getHouseholdId();
+  await supabase
+    .from("budget_transactions")
+    .update({ montant_cents: -currentMontantCents })
+    .eq("id", transactionId);
   revalidatePath("/mon-budget");
 }

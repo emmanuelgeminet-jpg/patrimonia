@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateTransactionCategory } from "./actions";
+import { updateTransactionCategory, flipTransactionSign } from "./actions";
 import { formatEuros } from "@/lib/budget";
 import type { Transaction, Category } from "./page";
 
@@ -170,7 +170,7 @@ function PanelUnMois({
       <div className="card">
         <h2>Transactions — {period} <span className="tag">clique une catégorie pour la modifier</span></h2>
         <table>
-          <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th>Catégorie</th></tr></thead>
+          <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th></th><th>Catégorie</th></tr></thead>
           <tbody>
             {monthTx.map((t) => (
               <TransactionRow key={t.id} transaction={t} categories={categories} />
@@ -184,13 +184,29 @@ function PanelUnMois({
 
 function TransactionRow({ transaction, categories }: { transaction: Transaction; categories: Category[] }) {
   const [categorieId, setCategorieId] = useState(transaction.categorie_id ?? "");
+  const [montantCents, setMontantCents] = useState(transaction.montant_cents);
   const [isPending, startTransition] = useTransition();
 
   return (
     <tr>
       <td>{new Date(transaction.date).toLocaleDateString("fr-FR")}</td>
       <td>{transaction.libelle}</td>
-      <td className="num">{formatEuros(transaction.montant_cents)}</td>
+      <td className="num">{formatEuros(montantCents)}</td>
+      <td>
+        <span
+          title="Inverser dépense / recette"
+          style={{ cursor: "pointer", color: "var(--ink-soft)" }}
+          onClick={() => {
+            const next = -montantCents;
+            setMontantCents(next);
+            startTransition(() => {
+              flipTransactionSign(transaction.id, montantCents);
+            });
+          }}
+        >
+          ↕
+        </span>
+      </td>
       <td>
         <select
           value={categorieId}

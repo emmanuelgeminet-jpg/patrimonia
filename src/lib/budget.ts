@@ -140,6 +140,66 @@ export function parseCsv(content: string): { transactions: ParsedTransaction[]; 
   return { transactions, errors };
 }
 
+const POSITIVE_HINTS = /\b(SALAIRE|VIREMENT RECU|VIR RECU|REMBOURSEMENT|REMISE|CREDIT)\b/i;
+
+/**
+ * Reconstruit des "cellules" par ligne à partir du texte PDF extrait avec un
+ * séparateur de colonnes (cellSeparator), puis applique la même logique de
+ * détection date/libellé/montant que le CSV. Best-effort : la mise en page
+ * varie d'une banque à l'autre, d'où le bouton "inverser" pour corriger le
+ * sens dépense/recette a posteriori.
+ */
+export function parsePdfText(text: string): { transactions: ParsedTransaction[]; errors: string[] } {
+  const lines = text.split(/\r?\n/);
+  const transactions: ParsedTransaction[] = [];
+  let skipped = 0;
+
+  for (const rawLine of lines) {
+    const cells = rawLine.split("\t").map((c) => c.trim()).filter(Boolean);
+    if (cells.length < 2) continue;
+
+    const dateIndex = cells.findIndex((c) => parseDate(c) !== null);
+    if (dateIndex === -1) continue;
+    const date = parseDate(cells[dateIndex]);
+    if (!date) continue;
+
+    const amountCells: { index: number; cents: number }[] = [];
+    for (let i = dateIndex + 1; i < cells.length; i++) {
+      const amount = parseAmount(cells[i]);
+      if (amount !== null) amountCells.push({ index: i, cents: amount });
+    }
+    if (amountCells.length === 0) continue;
+
+    const libelle = cells.slice(dateIndex + 1, amountCells[0].index).join(" ").trim();
+    if (!libelle) {
+      skipped++;
+      continue;
+    }
+
+    let montant_cents: number;
+    if (amountCells.length >= 2) {
+      // Convention la plus courante : colonne débit puis colonne crédit.
+      const debit = Math.abs(amountCells[0].cents);
+      const credit = Math.abs(amountCells[1].cents);
+      montant_cents = credit - debit;
+    } else {
+      const isPositive = POSITIVE_HINTS.test(libelle);
+      montant_cents = isPositive ? Math.abs(amountCells[0].cents) : -Math.abs(amountCells[0].cents);
+    }
+
+    transactions.push({ date, libelle, montant_cents });
+  }
+
+  const errors: string[] = [];
+  if (skipped > 0) errors.push(`${skipped} ligne(s) avec un montant repéré mais sans libellé ignorée(s).`);
+  if (transactions.length === 0) {
+    errors.push(
+      "Aucune ligne de transaction reconnue dans ce PDF — la mise en page de ta banque n'est peut-être pas prise en charge. Essaie l'export CSV si ta banque le propose, c'est plus fiable."
+    );
+  }
+  return { transactions, errors };
+}
+
 export const DEFAULT_CATEGORIES: { nom: string; groupe: "besoin" | "envie" | "epargne" }[] = [
   { nom: "Alimentation", groupe: "besoin" },
   { nom: "Logement", groupe: "besoin" },
