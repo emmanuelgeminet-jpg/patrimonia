@@ -56,6 +56,17 @@ export default function Sidebar({ displayName }: { displayName: string }) {
           Mon compte
         </Link>
         {" · "}
+        <Link
+          href="/suggestions"
+          style={{
+            color: "#B7B29F",
+            textDecoration: "underline",
+            fontSize: 11,
+          }}
+        >
+          Suggestions
+        </Link>
+        {" · "}
         <form action={signOut} style={{ display: "inline" }}>
           <button
             type="submit"

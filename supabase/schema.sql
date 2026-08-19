@@ -21,6 +21,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   household_id uuid not null references households(id) on delete restrict,
   display_name text,
+  is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -166,6 +167,17 @@ create table if not exists documents (
   storage_path text not null,
   taille_octets bigint,
   uploaded_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- =====================================================================
+-- 6bis. SUGGESTIONS (boîte à idées — visible uniquement par les admins)
+-- =====================================================================
+
+create table if not exists feedback_messages (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid not null references profiles(id) on delete cascade,
+  message text not null,
   created_at timestamptz not null default now()
 );
 
@@ -380,6 +392,15 @@ as $$
   );
 $$;
 
+create or replace function is_admin()
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select coalesce((select is_admin from profiles where id = auth.uid()), false);
+$$;
+
 alter table households enable row level security;
 alter table profiles enable row level security;
 alter table sci enable row level security;
@@ -392,6 +413,7 @@ alter table comptes_courants_mouvements enable row level security;
 alter table budget_categories enable row level security;
 alter table budget_transactions enable row level security;
 alter table documents enable row level security;
+alter table feedback_messages enable row level security;
 alter table profil_investisseur enable row level security;
 alter table profil_charges_lignes enable row level security;
 alter table profil_patrimoine_financier_lignes enable row level security;
@@ -485,6 +507,16 @@ create policy "documents accessibles" on documents for all using (
     and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
   ))
 );
+
+-- Chacun voit ses propres suggestions (confirmation d'envoi) ; seuls les
+-- comptes administrateurs voient la boîte à idées complète.
+drop policy if exists "voir ses suggestions ou tout si admin" on feedback_messages;
+create policy "voir ses suggestions ou tout si admin" on feedback_messages for select using (
+  author_id = auth.uid() or is_admin()
+);
+
+drop policy if exists "envoyer une suggestion" on feedback_messages;
+create policy "envoyer une suggestion" on feedback_messages for insert with check (author_id = auth.uid());
 
 drop policy if exists "profil de mon foyer" on profil_investisseur;
 create policy "profil de mon foyer" on profil_investisseur for all using (is_household_member(household_id)) with check (is_household_member(household_id));
