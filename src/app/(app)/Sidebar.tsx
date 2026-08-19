@@ -45,6 +45,17 @@ export default function Sidebar({ displayName }: { displayName: string }) {
       <div className="sidebar-foot">
         Connecté — {displayName}
         <br />
+        <Link
+          href="/compte"
+          style={{
+            color: "#B7B29F",
+            textDecoration: "underline",
+            fontSize: 11,
+          }}
+        >
+          Mon compte
+        </Link>
+        {" · "}
         <form action={signOut} style={{ display: "inline" }}>
           <button
             type="submit"

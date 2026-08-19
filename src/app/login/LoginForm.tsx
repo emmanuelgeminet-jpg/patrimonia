@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { signIn, signUp, type AuthState } from "./actions";
 
 const initialState: AuthState = {};
@@ -43,6 +44,14 @@ export default function LoginForm() {
             {pending ? "..." : mode === "signin" ? "Se connecter" : "Créer mon compte"}
           </button>
         </form>
+
+        {mode === "signin" && (
+          <div style={{ textAlign: "center", marginTop: 12, fontSize: 12 }}>
+            <Link href="/login/reset-password" style={{ color: "var(--ink-soft)" }}>
+              Mot de passe oublié ?
+            </Link>
+          </div>
+        )}
 
         <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--ink-soft)" }}>
           {mode === "signin" ? (
