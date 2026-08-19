@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateTransactionCategory, flipTransactionSign } from "./actions";
-import { formatEuros } from "@/lib/budget";
+import { formatEuros, formatMonthLabel } from "@/lib/budget";
 import type { Transaction, Category } from "./page";
 
 type TabKey = "1m" | "6m" | "1a" | "5a";
@@ -106,7 +106,7 @@ function PanelUnMois({
 
   return (
     <div>
-      <div className="pagesub" style={{ marginBottom: 14 }}>{period}</div>
+      <div className="pagesub" style={{ marginBottom: 14 }}>{formatMonthLabel(period)}</div>
 
       <div className="kpis">
         <div className="kpi"><div className="label">Revenus du foyer</div><div className="value">{formatEuros(revenus)}</div></div>
@@ -168,7 +168,7 @@ function PanelUnMois({
       )}
 
       <div className="card">
-        <h2>Transactions — {period} <span className="tag">clique une catégorie pour la modifier</span></h2>
+        <h2>Transactions — {formatMonthLabel(period)} <span className="tag">clique une catégorie pour la modifier</span></h2>
         <table>
           <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th></th><th>Catégorie</th></tr></thead>
           <tbody>
@@ -273,7 +273,7 @@ function PanelTendance({
           <tbody>
             {rows.map((r) => (
               <tr key={r.period}>
-                <td>{r.period}</td>
+                <td>{formatMonthLabel(r.period)}</td>
                 <td className="num">{formatEuros(r.revenus)}</td>
                 <td className="num">{formatEuros(r.depenses)}</td>
                 <td className="num">{formatEuros(r.revenus - r.depenses)}</td>

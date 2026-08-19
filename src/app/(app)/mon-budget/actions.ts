@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseCsv, parsePdfText, DEFAULT_CATEGORIES } from "@/lib/budget";
+import { parseCsv, parsePdfText, decodeFileContent, DEFAULT_CATEGORIES } from "@/lib/budget";
 
 async function getHouseholdId() {
   const supabase = await createClient();
@@ -56,7 +56,7 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
     await parser.destroy();
     ({ transactions, errors } = parsePdfText(result.text));
   } else {
-    const content = await file.text();
+    const content = decodeFileContent(await file.arrayBuffer());
     ({ transactions, errors } = parseCsv(content));
   }
 
@@ -74,43 +74,75 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
   const nonCategorise = categories?.find((c) => c.nom === "Non catégorisé")?.id ?? null;
 
   const dates = transactions.map((t) => t.date).sort();
-  const moisImport = `${dates[0]} – ${dates[dates.length - 1]}`;
 
   // Réutilise la catégorie déjà choisie pour un libellé identique, sinon "Non catégorisé".
   const libelles = [...new Set(transactions.map((t) => t.libelle))];
-  const { data: previous } = await supabase
+  const { data: existing } = await supabase
     .from("budget_transactions")
-    .select("libelle, categorie_id")
+    .select("date, libelle, montant_cents, categorie_id")
     .eq("household_id", householdId)
-    .in("libelle", libelles)
-    .not("categorie_id", "is", null)
-    .order("date", { ascending: false });
+    .gte("date", dates[0])
+    .lte("date", dates[dates.length - 1])
+    .in("libelle", libelles);
 
   const guessByLibelle = new Map<string, string>();
-  for (const row of previous ?? []) {
+  for (const row of existing ?? []) {
     if (!guessByLibelle.has(row.libelle) && row.categorie_id) {
       guessByLibelle.set(row.libelle, row.categorie_id);
     }
   }
 
-  const rows = transactions.map((t) => ({
-    household_id: householdId,
-    date: t.date,
-    libelle: t.libelle,
-    montant_cents: t.montant_cents,
-    categorie_id: guessByLibelle.get(t.libelle) ?? nonCategorise,
-    mois_import: moisImport,
-    source_fichier: file.name,
-  }));
+  // Une transaction déjà présente (même date + libellé + montant) est
+  // considérée comme un doublon — utile quand un nouvel export recouvre
+  // une période déjà importée.
+  const existingCounts = new Map<string, number>();
+  for (const row of existing ?? []) {
+    const key = `${row.date}|${row.libelle}|${row.montant_cents}`;
+    existingCounts.set(key, (existingCounts.get(key) ?? 0) + 1);
+  }
 
-  const { error } = await supabase.from("budget_transactions").insert(rows);
-  if (error) {
-    return { error: "Erreur lors de l'enregistrement — réessaie." };
+  const rows: {
+    household_id: string;
+    date: string;
+    libelle: string;
+    montant_cents: number;
+    categorie_id: string | null;
+    mois_import: string;
+    source_fichier: string;
+  }[] = [];
+  let doublons = 0;
+
+  for (const t of transactions) {
+    const key = `${t.date}|${t.libelle}|${t.montant_cents}`;
+    const remaining = existingCounts.get(key) ?? 0;
+    if (remaining > 0) {
+      existingCounts.set(key, remaining - 1);
+      doublons++;
+      continue;
+    }
+    rows.push({
+      household_id: householdId,
+      date: t.date,
+      libelle: t.libelle,
+      montant_cents: t.montant_cents,
+      categorie_id: guessByLibelle.get(t.libelle) ?? nonCategorise,
+      mois_import: t.date.slice(0, 7),
+      source_fichier: file.name,
+    });
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("budget_transactions").insert(rows);
+    if (error) {
+      return { error: "Erreur lors de l'enregistrement — réessaie." };
+    }
   }
 
   revalidatePath("/mon-budget");
-  const ignored = errors.length > 0 ? ` (${errors.length} ligne(s) ignorée(s))` : "";
-  return { success: `${transactions.length} ligne(s) importée(s)${ignored}.` };
+  const parts = [`${rows.length} ligne(s) importée(s)`];
+  if (doublons > 0) parts.push(`${doublons} déjà présente(s) ignorée(s)`);
+  if (errors.length > 0) parts.push(`${errors.length} ligne(s) illisible(s) ignorée(s)`);
+  return { success: parts.join(" — ") + "." };
 }
 
 export async function updateTransactionCategory(transactionId: string, categorieId: string) {

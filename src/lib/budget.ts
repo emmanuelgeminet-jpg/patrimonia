@@ -4,6 +4,20 @@ export type ParsedTransaction = {
   montant_cents: number; // positif = encaissement, négatif = dépense
 };
 
+/**
+ * Beaucoup d'exports bancaires français (CIC, Crédit Agricole, La Banque
+ * Postale...) sont encodés en Windows-1252/Latin-1 plutôt qu'en UTF-8.
+ * On tente l'UTF-8 en mode strict et on bascule automatiquement sur
+ * Windows-1252 si ça échoue, pour rester indépendant de la banque.
+ */
+export function decodeFileContent(buffer: ArrayBuffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+  } catch {
+    return new TextDecoder("windows-1252").decode(buffer);
+  }
+}
+
 const HEADER_ALIASES = {
   date: ["date"],
   libelle: ["libelle", "libellé", "label", "description", "intitule", "intitulé"],
@@ -223,4 +237,16 @@ export const DEFAULT_CATEGORIES: { nom: string; groupe: "besoin" | "envie" | "ep
 
 export function formatEuros(cents: number): string {
   return (cents / 100).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+}
+
+const MOIS_FR = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+
+/** "2024-03-25" -> "Mars 2024" */
+export function formatMonthLabel(dateStr: string): string {
+  const [year, month] = dateStr.split("-");
+  const monthIndex = parseInt(month, 10) - 1;
+  return `${MOIS_FR[monthIndex] ?? month} ${year}`;
 }

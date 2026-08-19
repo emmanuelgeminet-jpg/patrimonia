@@ -2,6 +2,7 @@
 
 import { useActionState, useRef } from "react";
 import { importCsv, type ImportState } from "./actions";
+import { formatMonthLabel } from "@/lib/budget";
 import type { Transaction } from "./page";
 
 const initialState: ImportState = {};
@@ -67,7 +68,7 @@ export default function ImportCard({ transactions }: { transactions: Transaction
           <tbody>
             {periodRows.map(([period, { total, categorized }]) => (
               <tr key={period}>
-                <td>{period}</td>
+                <td>{formatMonthLabel(period)}</td>
                 <td><span className="pill ok">Importé</span></td>
                 <td className="num">{categorized} / {total}</td>
               </tr>
