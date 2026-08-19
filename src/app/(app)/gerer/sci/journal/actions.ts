@@ -1,0 +1,180 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+export type SaveState = { error?: string; success?: boolean };
+
+const JOURNAL_PATH = "/gerer/sci/journal";
+const COMPTES_COURANTS_PATH = "/gerer/sci/comptes-courants";
+const MAX_SIZE_OCTETS = 15 * 1024 * 1024; // 15 Mo
+
+async function getSciContext() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Non connecté");
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+  if (!profile) throw new Error("Profil introuvable");
+
+  const { data: associe } = await supabase
+    .from("sci_associes")
+    .select("sci_id")
+    .eq("household_id", profile.household_id)
+    .limit(1)
+    .maybeSingle();
+  if (!associe) throw new Error("Aucune SCI associée à ce foyer");
+
+  return { supabase, userId: user.id, householdId: profile.household_id as string, sciId: associe.sci_id as string };
+}
+
+function toCentsOrNull(value: FormDataEntryValue | null): number | null {
+  if (value === null || value === "") return null;
+  const n = Math.round(parseFloat(String(value).replace(",", ".")) * 100);
+  return Number.isNaN(n) ? null : n;
+}
+
+export async function addEcriture(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId, userId } = await getSciContext();
+
+  const type = String(formData.get("type") ?? "");
+  if (type !== "encaissement" && type !== "decaissement") return { error: "Type invalide." };
+
+  const date = String(formData.get("date") ?? "");
+  if (!date) return { error: "La date est obligatoire." };
+
+  const libelle = String(formData.get("libelle") ?? "").trim();
+  if (!libelle) return { error: "Le libellé est obligatoire." };
+
+  const montant = toCentsOrNull(formData.get("montant"));
+  if (!montant || montant <= 0) return { error: "Montant invalide." };
+
+  const bienId = formData.get("bien_id");
+
+  const { error } = await supabase.from("journal_ecritures").insert({
+    sci_id: sciId,
+    date,
+    type,
+    montant_cents: montant,
+    libelle,
+    mode_paiement: formData.get("mode_paiement") || null,
+    bien_id: bienId ? String(bienId) : null,
+    commentaire: formData.get("commentaire") || null,
+    created_by: userId,
+  });
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(JOURNAL_PATH);
+  return { success: true };
+}
+
+export async function deleteEcriture(id: string) {
+  const { supabase } = await getSciContext();
+  await supabase.from("journal_ecritures").delete().eq("id", id);
+  revalidatePath(JOURNAL_PATH);
+}
+
+export async function uploadJustificatif(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+  const ecritureId = String(formData.get("ecriture_id") ?? "");
+  const file = formData.get("file") as File | null;
+  if (!ecritureId) return { error: "Écriture introuvable." };
+  if (!file || file.size === 0) return { error: "Choisis un fichier." };
+  if (file.size > MAX_SIZE_OCTETS) return { error: "Fichier trop volumineux (15 Mo maximum)." };
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+  const storagePath = `sci/${sciId}/journal/${ecritureId}/${Date.now()}_${safeName}`;
+
+  const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
+    contentType: file.type || undefined,
+  });
+  if (uploadError) return { error: "Erreur lors de l'envoi du fichier." };
+
+  const { error: dbError } = await supabase
+    .from("journal_ecritures")
+    .update({ justificatif_path: storagePath })
+    .eq("id", ecritureId);
+  if (dbError) {
+    await supabase.storage.from("documents").remove([storagePath]);
+    return { error: "Erreur lors de l'enregistrement." };
+  }
+
+  revalidatePath(JOURNAL_PATH);
+  return { success: true };
+}
+
+export async function removeJustificatif(ecritureId: string, storagePath: string) {
+  const { supabase } = await getSciContext();
+  await supabase.storage.from("documents").remove([storagePath]);
+  await supabase.from("journal_ecritures").update({ justificatif_path: null }).eq("id", ecritureId);
+  revalidatePath(JOURNAL_PATH);
+}
+
+export async function saveSoldeOuverture(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+  const { error } = await supabase
+    .from("sci")
+    .update({
+      solde_ouverture_cents: toCentsOrNull(formData.get("solde")) ?? 0,
+      solde_ouverture_date: formData.get("date") || null,
+    })
+    .eq("id", sciId);
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(JOURNAL_PATH);
+  return { success: true };
+}
+
+export async function addMouvementCompteCourant(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId, userId } = await getSciContext();
+
+  const type = String(formData.get("type") ?? "");
+  if (!["apport", "avance", "remboursement"].includes(type)) return { error: "Type invalide." };
+
+  const date = String(formData.get("date") ?? "");
+  if (!date) return { error: "La date est obligatoire." };
+
+  const householdId = String(formData.get("household_id") ?? "");
+  if (!householdId) return { error: "Foyer manquant." };
+
+  const montant = toCentsOrNull(formData.get("montant"));
+  if (!montant || montant <= 0) return { error: "Montant invalide." };
+
+  const { error } = await supabase.from("comptes_courants_mouvements").insert({
+    sci_id: sciId,
+    household_id: householdId,
+    date,
+    type,
+    montant_cents: montant,
+    commentaire: formData.get("commentaire") || null,
+    created_by: userId,
+  });
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(COMPTES_COURANTS_PATH);
+  revalidatePath(JOURNAL_PATH);
+  return { success: true };
+}
+
+export async function deleteMouvementCompteCourant(id: string) {
+  const { supabase } = await getSciContext();
+  await supabase.from("comptes_courants_mouvements").delete().eq("id", id);
+  revalidatePath(COMPTES_COURANTS_PATH);
+  revalidatePath(JOURNAL_PATH);
+}
+
+export async function saveSoldeOuvertureAssocie(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+  const householdId = String(formData.get("household_id") ?? "");
+  if (!householdId) return { error: "Foyer manquant." };
+
+  const { error } = await supabase
+    .from("sci_associes")
+    .update({ solde_ouverture_cents: toCentsOrNull(formData.get("solde")) ?? 0 })
+    .eq("sci_id", sciId)
+    .eq("household_id", householdId);
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(COMPTES_COURANTS_PATH);
+  return { success: true };
+}

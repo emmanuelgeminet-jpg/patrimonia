@@ -1,45 +1,59 @@
-export default function ComptesCourantsPage() {
+import { createClient } from "@/lib/supabase/server";
+import ComptesCourantsClient from "./ComptesCourantsClient";
+
+export default async function ComptesCourantsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user!.id).single();
+  const householdId = profile?.household_id as string;
+
+  const { data: associeRow } = await supabase
+    .from("sci_associes")
+    .select("sci_id")
+    .eq("household_id", householdId)
+    .limit(1)
+    .maybeSingle();
+  const sciId = associeRow?.sci_id as string | undefined;
+
+  if (!sciId) {
+    return (
+      <section className="section">
+        <div className="crumb">Gérer <b>› Comptes courants</b></div>
+        <h1>Comptes courants associés</h1>
+        <div className="empty" style={{ padding: "20px 4px" }}>Ton foyer n&apos;est associé à aucune SCI pour le moment.</div>
+      </section>
+    );
+  }
+
+  const [{ data: associesRows }, { data: mouvementsRows }] = await Promise.all([
+    supabase.from("sci_associes").select("household_id, solde_ouverture_cents, households(name)").eq("sci_id", sciId),
+    supabase.from("comptes_courants_mouvements").select("*").eq("sci_id", sciId).order("date", { ascending: false }),
+  ]);
+
+  const associes = (associesRows ?? []).map((a) => ({
+    householdId: a.household_id as string,
+    nom: (a.households as unknown as { name: string } | null)?.name ?? "Foyer",
+    soldeOuvertureCents: a.solde_ouverture_cents as number,
+  }));
+
+  const mouvements = (mouvementsRows ?? []).map((m) => ({
+    id: m.id as string,
+    householdId: m.household_id as string,
+    date: m.date as string,
+    type: m.type as "apport" | "avance" | "remboursement",
+    montantCents: m.montant_cents as number,
+    commentaire: m.commentaire as string | null,
+  }));
+
   return (
     <section className="section">
       <div className="crumb">Gérer <b>› Comptes courants</b></div>
       <h1>Comptes courants associés</h1>
       <div className="pagesub">Suivi des apports, avances de frais et remboursements</div>
-      <div className="grid2">
-        <div className="card">
-          <h2>Foyer GEMINET</h2>
-          <table>
-            <tbody>
-              <tr><td>Solde au 31/12/2024</td><td className="num">10 688,61 €</td></tr>
-              <tr><td>Mouvement net 2025 (apports + avances)</td><td className="num">+ 9 136,46 €</td></tr>
-              <tr><td><b>Dette SCI → foyer au 31/12/2025</b></td><td className="num"><b>19 825,07 €</b></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="card">
-          <h2>Foyer PAPIN</h2>
-          <table>
-            <tbody>
-              <tr><td>Solde au 31/12/2024</td><td className="num">10 214,21 €</td></tr>
-              <tr><td>Mouvement net 2025 (apports + avances)</td><td className="num">+ 9 892,88 €</td></tr>
-              <tr><td><b>Dette SCI → foyer au 31/12/2025</b></td><td className="num"><b>20 107,09 €</b></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>Suivi détaillé — apports et remboursements 2025</h2>
-        <table>
-          <thead><tr><th>Date</th><th>Foyer</th><th>Type</th><th className="num">Montant</th></tr></thead>
-          <tbody>
-            <tr><td>24/01</td><td>GEMINET</td><td>Apport</td><td className="num">+ 500,00 €</td></tr>
-            <tr><td>03/02</td><td>PAPIN</td><td>Apport (retard janvier)</td><td className="num">+ 500,00 €</td></tr>
-            <tr><td>21/02</td><td>GEMINET</td><td>Avance de frais — VDL conseil</td><td className="num">+ 270,00 €</td></tr>
-            <tr><td>07/03</td><td>PAPIN</td><td>Apport</td><td className="num">+ 500,00 €</td></tr>
-          </tbody>
-        </table>
-        <div className="placeholder-note">Squelette — vue complète des 12 mois, filtrable par foyer, avec export pour la déclaration fiscale</div>
-      </div>
+      <ComptesCourantsClient associes={associes} mouvements={mouvements} />
     </section>
   );
 }

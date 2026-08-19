@@ -1,6 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState, useActionState, useTransition } from "react";
+import {
+  addEcriture,
+  deleteEcriture,
+  uploadJustificatif,
+  removeJustificatif,
+  saveSoldeOuverture,
+  type SaveState,
+} from "./actions";
+import { formatEuros, formatMonthLabel } from "@/lib/budget";
 
 type TabKey = "mensuel" | "annuel" | "global";
 
@@ -10,8 +19,63 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "global", label: "Bilan global depuis achat" },
 ];
 
-export default function JournalTabs() {
+export type Ecriture = {
+  id: string;
+  date: string;
+  type: "encaissement" | "decaissement";
+  montantCents: number;
+  libelle: string;
+  modePaiement: string | null;
+  bienId: string | null;
+  commentaire: string | null;
+  justificatifPath: string | null;
+  justificatifUrl: string | null;
+};
+
+export type Associe = { householdId: string; nom: string; soldeOuvertureCents: number };
+export type Mouvement = {
+  id: string;
+  householdId: string;
+  date: string;
+  type: "apport" | "avance" | "remboursement";
+  montantCents: number;
+};
+export type Bien = { id: string; label: string };
+export type SciInfo = { id: string; soldeOuvertureCents: number; soldeOuvertureDate: string | null };
+
+const initialState: SaveState = {};
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function formatDateShort(dateStr: string): string {
+  const [, month, day] = dateStr.split("-");
+  return `${day}/${month}`;
+}
+
+export default function JournalTabs({
+  sci,
+  biens,
+  ecritures,
+  associes,
+  mouvements,
+}: {
+  sci: SciInfo;
+  biens: Bien[];
+  ecritures: Ecriture[];
+  associes: Associe[];
+  mouvements: Mouvement[];
+}) {
   const [active, setActive] = useState<TabKey>("mensuel");
+
+  const months = useMemo(() => {
+    const set = new Set(ecritures.map((e) => e.date.slice(0, 7)));
+    set.add(todayKey());
+    return [...set].sort().reverse();
+  }, [ecritures]);
+
+  const [selectedMonth, setSelectedMonth] = useState(months[0]);
 
   return (
     <>
@@ -31,83 +95,270 @@ export default function JournalTabs() {
         ))}
       </div>
 
-      {active === "mensuel" && <PanelMensuel />}
+      {active === "mensuel" && (
+        <PanelMensuel
+          sci={sci}
+          biens={biens}
+          ecritures={ecritures}
+          associes={associes}
+          mouvements={mouvements}
+          months={months}
+          selectedMonth={selectedMonth}
+          onSelectMonth={setSelectedMonth}
+        />
+      )}
       {active === "annuel" && <PanelAnnuel />}
       {active === "global" && <PanelGlobal />}
     </>
   );
 }
 
-function PanelMensuel() {
+function PanelMensuel({
+  sci,
+  biens,
+  ecritures,
+  associes,
+  mouvements,
+  months,
+  selectedMonth,
+  onSelectMonth,
+}: {
+  sci: SciInfo;
+  biens: Bien[];
+  ecritures: Ecriture[];
+  associes: Associe[];
+  mouvements: Mouvement[];
+  months: string[];
+  selectedMonth: string;
+  onSelectMonth: (m: string) => void;
+}) {
+  const firstOfMonth = `${selectedMonth}-01`;
+
+  const soldeDebut = useMemo(() => {
+    let total = sci.soldeOuvertureCents;
+    for (const e of ecritures) {
+      if (e.date >= firstOfMonth) continue;
+      if (sci.soldeOuvertureDate && e.date < sci.soldeOuvertureDate) continue;
+      total += e.type === "encaissement" ? e.montantCents : -e.montantCents;
+    }
+    return total;
+  }, [ecritures, sci, firstOfMonth]);
+
+  const monthEcritures = useMemo(
+    () => ecritures.filter((e) => e.date.slice(0, 7) === selectedMonth).sort((a, b) => a.date.localeCompare(b.date)),
+    [ecritures, selectedMonth]
+  );
+
+  const totalEncaisse = monthEcritures.filter((e) => e.type === "encaissement").reduce((s, e) => s + e.montantCents, 0);
+  const totalDecaisse = monthEcritures.filter((e) => e.type === "decaissement").reduce((s, e) => s + e.montantCents, 0);
+  const soldeFin = soldeDebut + totalEncaisse - totalDecaisse;
+
+  const bienById = new Map(biens.map((b) => [b.id, b.label]));
+  const dateDefault = /^\d{4}-\d{2}$/.test(selectedMonth) ? `${selectedMonth}-01` : selectedMonth;
+
   return (
     <div>
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="form-row" style={{ border: "none", padding: 0 }}>
           <label>Mois</label>
-          <select defaultValue="Décembre 2025">
-            <option>Décembre 2025</option>
-            <option>Novembre 2025</option>
-            <option>...</option>
-            <option>Janvier 2025</option>
+          <select value={selectedMonth} onChange={(e) => onSelectMonth(e.target.value)}>
+            {months.map((m) => (
+              <option key={m} value={m}>{formatMonthLabel(m)}</option>
+            ))}
           </select>
         </div>
       </div>
 
       <div className="kpis" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 14 }}>
-        <div className="kpi"><div className="label">Solde au 1er du mois</div><div className="value">3 144,77 €</div></div>
-        <div className="kpi"><div className="label">Total encaissé</div><div className="value">650,00 €</div></div>
-        <div className="kpi"><div className="label">Total décaissé</div><div className="value">3 011,34 €</div></div>
-        <div className="kpi"><div className="label">Solde bancaire fin de mois</div><div className="value">1 166,00 €</div></div>
+        <div className="kpi"><div className="label">Solde au 1er du mois</div><div className="value">{formatEuros(soldeDebut)}</div></div>
+        <div className="kpi"><div className="label">Total encaissé</div><div className="value">{formatEuros(totalEncaisse)}</div></div>
+        <div className="kpi"><div className="label">Total décaissé</div><div className="value">{formatEuros(totalDecaisse)}</div></div>
+        <div className="kpi"><div className="label">Solde bancaire fin de mois</div><div className="value">{formatEuros(soldeFin)}</div></div>
       </div>
 
+      <SoldeOuvertureForm sci={sci} />
+
       <div className="card">
-        <h2>Écritures — Décembre 2025 <span className="tag">+ nouvelle écriture ci-dessous</span></h2>
+        <h2>Écritures — {formatMonthLabel(selectedMonth)}</h2>
         <table>
           <thead>
             <tr>
               <th>Date</th><th>Encaissement</th><th className="num">Montant E</th><th>Décaissement</th>
-              <th className="num">Montant D</th><th>Mode</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th>
+              <th className="num">Montant D</th><th>Mode</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th><th></th>
             </tr>
           </thead>
           <tbody>
-            <tr><td>05/12</td><td>—</td><td className="num">—</td><td>Taxe foncière</td><td className="num">2 153,00 €</td><td>Banque SCI</td><td>Immeuble</td><td>Avis 2025</td><td><span className="pill ok" style={{ cursor: "pointer" }}>📎</span></td></tr>
-            <tr><td>05/12</td><td>—</td><td className="num">—</td><td>Assurance PNO</td><td className="num">46,43 €</td><td>Banque SCI</td><td>Immeuble</td><td>Prélèvement mensuel</td><td><span className="tag" style={{ color: "var(--brick)", cursor: "pointer" }}>+</span></td></tr>
-            <tr><td>10/12</td><td>—</td><td className="num">—</td><td>Échéance prêt</td><td className="num">811,91 €</td><td>Banque SCI</td><td>Immeuble</td><td>Mensualité</td><td><span className="tag" style={{ color: "var(--brick)", cursor: "pointer" }}>+</span></td></tr>
-            <tr><td>10/12</td><td>Loyer HC</td><td className="num">650,00 €</td><td>—</td><td className="num">—</td><td>Virement</td><td>RDC</td><td>Noiraud</td><td><span className="tag" style={{ color: "var(--brick)", cursor: "pointer" }}>+</span></td></tr>
+            {monthEcritures.length === 0 && (
+              <tr><td colSpan={10} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune écriture ce mois-ci</td></tr>
+            )}
+            {monthEcritures.map((e) => (
+              <EcritureRow key={e.id} ecriture={e} bienLabel={e.bienId ? bienById.get(e.bienId) ?? "—" : "—"} />
+            ))}
           </tbody>
-          <tfoot>
-            <tr style={{ background: "var(--paper)" }}>
-              <td colSpan={9} style={{ padding: "10px 6px" }}>
-                <span style={{ color: "var(--sage)", cursor: "pointer", fontWeight: 500 }}>+ Ajouter une écriture</span>
-                <span style={{ color: "var(--ink-soft)", fontSize: 11, marginLeft: 10 }}>Date · Encaissement/Décaissement · Montant · Mode · Bien concerné · Commentaire · Justificatif</span>
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
 
+      <AjouterEcritureForm biens={biens} defaultDate={dateDefault} />
+
       <div className="grid2" style={{ marginTop: 14 }}>
-        <div className="card">
-          <h2>Flux — Foyer GEMINET</h2>
-          <table>
-            <tbody>
-              <tr><td>Apports du mois</td><td className="num">0,00 €</td></tr>
-              <tr><td>Avances de frais</td><td className="num">0,00 €</td></tr>
-              <tr><td>Remboursements reçus</td><td className="num">0,00 €</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="card">
-          <h2>Flux — Foyer PAPIN</h2>
-          <table>
-            <tbody>
-              <tr><td>Apports du mois</td><td className="num">0,00 €</td></tr>
-              <tr><td>Avances de frais</td><td className="num">0,00 €</td></tr>
-              <tr><td>Remboursements reçus</td><td className="num">0,00 €</td></tr>
-            </tbody>
-          </table>
-        </div>
+        {associes.map((a) => (
+          <FluxCard
+            key={a.householdId}
+            associe={a}
+            mouvements={mouvements.filter((m) => m.householdId === a.householdId)}
+            selectedMonth={selectedMonth}
+          />
+        ))}
       </div>
+    </div>
+  );
+}
+
+function EcritureRow({ ecriture, bienLabel }: { ecriture: Ecriture; bienLabel: string }) {
+  const [, startTransition] = useTransition();
+  return (
+    <tr>
+      <td>{formatDateShort(ecriture.date)}</td>
+      <td>{ecriture.type === "encaissement" ? ecriture.libelle : "—"}</td>
+      <td className="num">{ecriture.type === "encaissement" ? formatEuros(ecriture.montantCents) : "—"}</td>
+      <td>{ecriture.type === "decaissement" ? ecriture.libelle : "—"}</td>
+      <td className="num">{ecriture.type === "decaissement" ? formatEuros(ecriture.montantCents) : "—"}</td>
+      <td>{ecriture.modePaiement ?? "—"}</td>
+      <td>{bienLabel}</td>
+      <td>{ecriture.commentaire ?? "—"}</td>
+      <td><JustificatifCell ecriture={ecriture} /></td>
+      <td>
+        <span
+          style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}
+          onClick={() => startTransition(() => { deleteEcriture(ecriture.id); })}
+        >
+          Supprimer
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function JustificatifCell({ ecriture }: { ecriture: Ecriture }) {
+  const [state, formAction, pending] = useActionState(uploadJustificatif, initialState);
+  const [, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  if (ecriture.justificatifUrl) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <a href={ecriture.justificatifUrl} target="_blank" rel="noreferrer" style={{ color: "var(--sage)" }}>📎</a>
+        <span
+          style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}
+          onClick={() => startTransition(() => { removeJustificatif(ecriture.id, ecriture.justificatifPath!); })}
+        >
+          ×
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <form ref={formRef} action={formAction}>
+      <input type="hidden" name="ecriture_id" value={ecriture.id} />
+      <label style={{ color: "var(--brick)", cursor: "pointer", fontSize: 12 }}>
+        {pending ? "..." : "+"}
+        <input type="file" name="file" style={{ display: "none" }} onChange={() => formRef.current?.requestSubmit()} />
+      </label>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 10 }}>{state.error}</div>}
+    </form>
+  );
+}
+
+function AjouterEcritureForm({ biens, defaultDate }: { biens: Bien[]; defaultDate: string }) {
+  const [state, formAction, pending] = useActionState(addEcriture, initialState);
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <h2>+ Ajouter une écriture</h2>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input type="date" name="date" defaultValue={defaultDate} required style={{ maxWidth: 140 }} />
+        <select name="type" defaultValue="decaissement" style={{ maxWidth: 130 }}>
+          <option value="decaissement">Décaissement</option>
+          <option value="encaissement">Encaissement</option>
+        </select>
+        <input name="libelle" placeholder="Libellé (ex : Taxe foncière)" required style={{ maxWidth: 200 }} />
+        <input name="montant" placeholder="Montant €" style={{ maxWidth: 100 }} />
+        <input name="mode_paiement" placeholder="Mode (ex : Banque SCI)" style={{ maxWidth: 140 }} />
+        <select name="bien_id" style={{ maxWidth: 170 }} defaultValue="">
+          <option value="">Bien concerné (optionnel)</option>
+          {biens.map((b) => (
+            <option key={b.id} value={b.id}>{b.label}</option>
+          ))}
+        </select>
+        <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 160 }} />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--sage)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          + Ajouter
+        </button>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+    </div>
+  );
+}
+
+function SoldeOuvertureForm({ sci }: { sci: SciInfo }) {
+  const [state, formAction, pending] = useActionState(saveSoldeOuverture, initialState);
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h2>Solde de départ <span className="tag">reprise de ta comptabilité existante</span></h2>
+      <div className="card-sub">
+        Le solde bancaire de la SCI à une date de référence — tout ce qui est saisi ci-dessous s&apos;ajoute à partir
+        de cette date, sans avoir à ressaisir tout l&apos;historique déjà tenu ailleurs
+      </div>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input type="date" name="date" defaultValue={sci.soldeOuvertureDate ?? ""} style={{ maxWidth: 150 }} />
+        <input
+          name="solde"
+          placeholder="Solde € à cette date"
+          defaultValue={sci.soldeOuvertureCents ? (sci.soldeOuvertureCents / 100).toString() : ""}
+          style={{ maxWidth: 160 }}
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--ink)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Enregistrer
+        </button>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+    </div>
+  );
+}
+
+function FluxCard({
+  associe,
+  mouvements,
+  selectedMonth,
+}: {
+  associe: Associe;
+  mouvements: Mouvement[];
+  selectedMonth: string;
+}) {
+  const monthMouvements = mouvements.filter((m) => m.date.slice(0, 7) === selectedMonth);
+  const apports = monthMouvements.filter((m) => m.type === "apport").reduce((s, m) => s + m.montantCents, 0);
+  const avances = monthMouvements.filter((m) => m.type === "avance").reduce((s, m) => s + m.montantCents, 0);
+  const remboursements = monthMouvements.filter((m) => m.type === "remboursement").reduce((s, m) => s + m.montantCents, 0);
+
+  return (
+    <div className="card">
+      <h2>Flux — {associe.nom}</h2>
+      <table>
+        <tbody>
+          <tr><td>Apports du mois</td><td className="num">{formatEuros(apports)}</td></tr>
+          <tr><td>Avances de frais</td><td className="num">{formatEuros(avances)}</td></tr>
+          <tr><td>Remboursements reçus</td><td className="num">{formatEuros(remboursements)}</td></tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -115,6 +366,10 @@ function PanelMensuel() {
 function PanelAnnuel() {
   return (
     <div>
+      <div className="placeholder-note" style={{ marginBottom: 14 }}>
+        Squelette — ces chiffres viendront des comptes annuels certifiés par ton comptable une fois qu&apos;on aura
+        prévu un endroit pour les saisir. Ceux affichés ci-dessous sont un exemple, pas encore tes vraies données.
+      </div>
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="form-row" style={{ border: "none", padding: 0 }}>
           <label>Exercice</label>
@@ -204,6 +459,10 @@ function PanelAnnuel() {
 function PanelGlobal() {
   return (
     <div>
+      <div className="placeholder-note" style={{ marginBottom: 14 }}>
+        Squelette — comme pour le bilan annuel, ces chiffres viendront de tes comptes certifiés. Exemple affiché en
+        attendant, pas encore tes vraies données.
+      </div>
       <div className="pagesub" style={{ marginBottom: 16 }}>
         SCI créée le 28/06/2024 — comptes annuels certifiés par VDL Conseil pour 2024 (6 mois) et 2025 (12 mois)
       </div>

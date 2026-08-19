@@ -36,6 +36,11 @@ create table if not exists sci (
   capital_social_cents bigint,
   date_creation date,
   regime_fiscal text,
+  -- Solde bancaire connu à une date de référence (reprise de la compta existante,
+  -- ex. un fichier Excel tenu avant l'appli) — sert de base au calcul du solde
+  -- courant dans le journal comptable, sans devoir ressaisir tout l'historique.
+  solde_ouverture_cents bigint not null default 0,
+  solde_ouverture_date date,
   created_at timestamptz not null default now()
 );
 
@@ -46,6 +51,8 @@ create table if not exists sci_associes (
   household_id uuid not null references households(id) on delete cascade,
   parts integer not null default 0,
   pourcentage numeric(5,2),
+  -- Solde du compte courant d'associé à la date de reprise (voir sci.solde_ouverture_date).
+  solde_ouverture_cents bigint not null default 0,
   created_at timestamptz not null default now(),
   unique (sci_id, household_id)
 );
@@ -430,10 +437,10 @@ drop policy if exists "own profile" on profiles;
 create policy "own profile" on profiles for select using (id = auth.uid());
 
 drop policy if exists "sci of my household" on sci;
-create policy "sci of my household" on sci for select using (is_sci_member(id));
+create policy "sci of my household" on sci for all using (is_sci_member(id)) with check (is_sci_member(id));
 
 drop policy if exists "sci_associes of my sci" on sci_associes;
-create policy "sci_associes of my sci" on sci_associes for select using (is_sci_member(sci_id));
+create policy "sci_associes of my sci" on sci_associes for all using (is_sci_member(sci_id)) with check (is_sci_member(sci_id));
 
 drop policy if exists "biens visibles" on biens;
 create policy "biens visibles" on biens for all using (
@@ -527,18 +534,26 @@ create policy "documents accessibles" on documents for all using (
 -- =====================================================================
 -- 6ter. STOCKAGE DES FICHIERS (bucket Supabase Storage "documents")
 -- =====================================================================
--- Bucket privé : chaque fichier est rangé sous {household_id}/{entity_type}/{entity_id}/...
--- si bien le premier dossier du chemin correspond au foyer propriétaire.
+-- Bucket privé : chaque fichier est rangé sous hh/{household_id}/... (documents
+-- d'un foyer) ou sci/{sci_id}/... (documents d'une SCI, ex. justificatifs du
+-- journal comptable) — le premier dossier du chemin indique lequel des deux.
 
 insert into storage.buckets (id, name, public)
 values ('documents', 'documents', false)
 on conflict (id) do nothing;
 
 drop policy if exists "documents bucket - foyer" on storage.objects;
-create policy "documents bucket - foyer" on storage.objects for all using (
-  bucket_id = 'documents' and is_household_member(((storage.foldername(name))[1])::uuid)
+drop policy if exists "documents bucket - acces" on storage.objects;
+create policy "documents bucket - acces" on storage.objects for all using (
+  bucket_id = 'documents' and (
+    ((storage.foldername(name))[1] = 'hh' and is_household_member(((storage.foldername(name))[2])::uuid)) or
+    ((storage.foldername(name))[1] = 'sci' and is_sci_member(((storage.foldername(name))[2])::uuid))
+  )
 ) with check (
-  bucket_id = 'documents' and is_household_member(((storage.foldername(name))[1])::uuid)
+  bucket_id = 'documents' and (
+    ((storage.foldername(name))[1] = 'hh' and is_household_member(((storage.foldername(name))[2])::uuid)) or
+    ((storage.foldername(name))[1] = 'sci' and is_sci_member(((storage.foldername(name))[2])::uuid))
+  )
 );
 
 -- Chacun voit ses propres suggestions (confirmation d'envoi) ; seuls les

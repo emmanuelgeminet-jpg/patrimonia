@@ -35,7 +35,7 @@ export async function uploadDocument(_prev: SaveState, formData: FormData): Prom
   if (!profile) return { error: "Profil introuvable." };
 
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-  const storagePath = `${profile.household_id}/${entityType}/${entityId}/${Date.now()}_${safeName}`;
+  const storagePath = `hh/${profile.household_id}/${entityType}/${entityId}/${Date.now()}_${safeName}`;
 
   const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
     contentType: file.type || undefined,
