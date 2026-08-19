@@ -3,6 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { addEmprunt, deleteEmprunt, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
+import DocumentsCell, { type DocItem } from "./DocumentsCell";
 
 export type Emprunt = {
   id: string;
@@ -16,7 +17,13 @@ export type Emprunt = {
 
 const initialState: SaveState = {};
 
-export default function EmpruntsSection({ emprunts }: { emprunts: Emprunt[] }) {
+export default function EmpruntsSection({
+  emprunts,
+  docsByEntity = {},
+}: {
+  emprunts: Emprunt[];
+  docsByEntity?: Record<string, DocItem[]>;
+}) {
   const [state, formAction, pending] = useActionState(addEmprunt, initialState);
   const [, startTransition] = useTransition();
 
@@ -27,12 +34,12 @@ export default function EmpruntsSection({ emprunts }: { emprunts: Emprunt[] }) {
         <thead>
           <tr>
             <th>Objet</th><th className="num">Capital</th><th className="num">Taux</th>
-            <th>Durée</th><th className="num">Mensualité</th><th className="num">CRD</th><th></th>
+            <th>Durée</th><th className="num">Mensualité</th><th className="num">CRD</th><th>Documents</th><th></th>
           </tr>
         </thead>
         <tbody>
           {emprunts.length === 0 && (
-            <tr><td colSpan={7} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucun emprunt renseigné</td></tr>
+            <tr><td colSpan={8} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucun emprunt renseigné</td></tr>
           )}
           {emprunts.map((e) => (
             <tr key={e.id}>
@@ -42,6 +49,9 @@ export default function EmpruntsSection({ emprunts }: { emprunts: Emprunt[] }) {
               <td>{e.duree_mois ? `${Math.round(e.duree_mois / 12)} ans` : "—"}</td>
               <td className="num">{e.mensualite_cents ? formatEuros(e.mensualite_cents) : "—"}</td>
               <td className="num">{e.crd_cents ? formatEuros(e.crd_cents) : "—"}</td>
+              <td>
+                <DocumentsCell entityType="emprunt" entityId={e.id} documents={docsByEntity[e.id] ?? []} />
+              </td>
               <td>
                 <span
                   style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}

@@ -6,6 +6,7 @@ import RevenusChargesSummary from "./RevenusChargesSummary";
 import PatrimoineImmobilierForm from "./PatrimoineImmobilierForm";
 import PatrimoineFinancierSection, { type PatrimoineLigne } from "./PatrimoineFinancierSection";
 import EmpruntsSection, { type Emprunt } from "./EmpruntsSection";
+import { type DocItem } from "./DocumentsCell";
 import { formatEuros } from "@/lib/budget";
 
 const CATEGORIES_FINANCIERES: { key: string; titre: string }[] = [
@@ -45,6 +46,7 @@ export default async function ProfilInvestisseurPage() {
     { data: emprunts },
     { data: transactions },
     { data: categories },
+    { data: documentsRows },
   ] = await Promise.all([
     supabase.from("profil_investisseur").select("*").eq("household_id", householdId).maybeSingle(),
     supabase.from("profil_patrimoine_financier_lignes").select("*").eq("household_id", householdId),
@@ -54,7 +56,26 @@ export default async function ProfilInvestisseurPage() {
       .select("montant_cents, categorie_id, mois_import")
       .eq("household_id", householdId),
     supabase.from("budget_categories").select("id, nom, groupe").eq("household_id", householdId),
+    supabase
+      .from("documents")
+      .select("id, entity_id, nom_fichier, storage_path")
+      .in("entity_type", ["emprunt", "patrimoine_ligne"]),
   ]);
+
+  // Regroupe les documents attachés par emprunt / ligne de patrimoine, avec un lien de
+  // téléchargement temporaire (le bucket Storage est privé).
+  const docRows = documentsRows ?? [];
+  const paths = docRows.map((d) => d.storage_path);
+  const { data: signedUrls } = paths.length
+    ? await supabase.storage.from("documents").createSignedUrls(paths, 3600)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const urlByPath = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+
+  const docsByEntity: Record<string, DocItem[]> = {};
+  for (const d of docRows) {
+    const item: DocItem = { id: d.id, nom_fichier: d.nom_fichier, url: urlByPath.get(d.storage_path) ?? null };
+    (docsByEntity[d.entity_id] ??= []).push(item);
+  }
 
   const txList = (transactions ?? []) as { montant_cents: number; categorie_id: string | null; mois_import: string | null }[];
   const catList = (categories ?? []) as { id: string; nom: string; groupe: "besoin" | "envie" | "epargne" | null }[];
@@ -131,6 +152,7 @@ export default async function ProfilInvestisseurPage() {
             categorie={c.key}
             titre={c.titre}
             lignes={lignes.filter((l) => l.categorie === c.key)}
+            docsByEntity={docsByEntity}
           />
         ))}
         <div className="total-row" style={{ paddingTop: 14, marginTop: 10, borderTop: "1px solid var(--ink)" }}>
@@ -139,7 +161,7 @@ export default async function ProfilInvestisseurPage() {
         </div>
       </div>
 
-      <EmpruntsSection emprunts={empruntsList} />
+      <EmpruntsSection emprunts={empruntsList} docsByEntity={docsByEntity} />
 
       <div className="card">
         <h2>Patrimoine actif / passif <span className="tag">calcul automatique</span></h2>

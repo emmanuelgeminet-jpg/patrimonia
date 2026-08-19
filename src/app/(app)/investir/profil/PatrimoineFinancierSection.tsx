@@ -3,6 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { addPatrimoineLigne, deletePatrimoineLigne, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
+import DocumentsCell, { type DocItem } from "./DocumentsCell";
 
 export type PatrimoineLigne = {
   id: string;
@@ -19,10 +20,12 @@ export default function PatrimoineFinancierSection({
   categorie,
   titre,
   lignes,
+  docsByEntity = {},
 }: {
   categorie: string;
   titre: string;
   lignes: PatrimoineLigne[];
+  docsByEntity?: Record<string, DocItem[]>;
 }) {
   const [state, formAction, pending] = useActionState(addPatrimoineLigne, initialState);
   const [, startTransition] = useTransition();
@@ -35,11 +38,11 @@ export default function PatrimoineFinancierSection({
       </div>
       <table>
         <thead>
-          <tr><th>Établissement</th><th>Type</th><th>Titulaire</th><th className="num">Valeur</th><th></th></tr>
+          <tr><th>Établissement</th><th>Type</th><th>Titulaire</th><th className="num">Valeur</th><th>Documents</th><th></th></tr>
         </thead>
         <tbody>
           {lignes.length === 0 && (
-            <tr><td colSpan={5} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune ligne renseignée</td></tr>
+            <tr><td colSpan={6} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune ligne renseignée</td></tr>
           )}
           {lignes.map((l) => (
             <tr key={l.id}>
@@ -47,6 +50,9 @@ export default function PatrimoineFinancierSection({
               <td>{l.type_produit ?? "—"}</td>
               <td>{l.titulaire ?? "—"}</td>
               <td className="num">{formatEuros(l.valeur_cents)}</td>
+              <td>
+                <DocumentsCell entityType="patrimoine_ligne" entityId={l.id} documents={docsByEntity[l.id] ?? []} />
+              </td>
               <td>
                 <span
                   style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}

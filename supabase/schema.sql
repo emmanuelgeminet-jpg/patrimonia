@@ -483,6 +483,14 @@ drop policy if exists "documents accessibles" on documents;
 create policy "documents accessibles" on documents for all using (
   (entity_type = 'household' and is_household_member(entity_id)) or
   (entity_type = 'sci' and is_sci_member(entity_id)) or
+  (entity_type = 'emprunt' and exists (
+    select 1 from profil_emprunts
+    where profil_emprunts.id = documents.entity_id and is_household_member(profil_emprunts.household_id)
+  )) or
+  (entity_type = 'patrimoine_ligne' and exists (
+    select 1 from profil_patrimoine_financier_lignes
+    where profil_patrimoine_financier_lignes.id = documents.entity_id and is_household_member(profil_patrimoine_financier_lignes.household_id)
+  )) or
   (entity_type = 'bien' and exists (
     select 1 from biens
     where biens.id = documents.entity_id
@@ -496,6 +504,14 @@ create policy "documents accessibles" on documents for all using (
 ) with check (
   (entity_type = 'household' and is_household_member(entity_id)) or
   (entity_type = 'sci' and is_sci_member(entity_id)) or
+  (entity_type = 'emprunt' and exists (
+    select 1 from profil_emprunts
+    where profil_emprunts.id = documents.entity_id and is_household_member(profil_emprunts.household_id)
+  )) or
+  (entity_type = 'patrimoine_ligne' and exists (
+    select 1 from profil_patrimoine_financier_lignes
+    where profil_patrimoine_financier_lignes.id = documents.entity_id and is_household_member(profil_patrimoine_financier_lignes.household_id)
+  )) or
   (entity_type = 'bien' and exists (
     select 1 from biens
     where biens.id = documents.entity_id
@@ -506,6 +522,23 @@ create policy "documents accessibles" on documents for all using (
     where lots.id = documents.entity_id
     and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
   ))
+);
+
+-- =====================================================================
+-- 6ter. STOCKAGE DES FICHIERS (bucket Supabase Storage "documents")
+-- =====================================================================
+-- Bucket privé : chaque fichier est rangé sous {household_id}/{entity_type}/{entity_id}/...
+-- si bien le premier dossier du chemin correspond au foyer propriétaire.
+
+insert into storage.buckets (id, name, public)
+values ('documents', 'documents', false)
+on conflict (id) do nothing;
+
+drop policy if exists "documents bucket - foyer" on storage.objects;
+create policy "documents bucket - foyer" on storage.objects for all using (
+  bucket_id = 'documents' and is_household_member(((storage.foldername(name))[1])::uuid)
+) with check (
+  bucket_id = 'documents' and is_household_member(((storage.foldername(name))[1])::uuid)
 );
 
 -- Chacun voit ses propres suggestions (confirmation d'envoi) ; seuls les
