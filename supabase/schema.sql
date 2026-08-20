@@ -510,6 +510,34 @@ as $$
   select coalesce((select is_admin from profiles where id = auth.uid()), false);
 $$;
 
+-- Un foyer déjà associé d'une SCI peut générer un lien d'invitation pour un
+-- AUTRE foyer associé de cette même SCI, mais seulement si ce foyer n'a
+-- encore aucun compte utilisateur (cas typique : le foyer a été créé lors
+-- de la mise en place de la SCI, en attendant que la personne concernée
+-- crée elle-même son compte). Dès qu'un foyer a au moins un compte actif,
+-- seul ce foyer peut générer son propre lien (depuis Mon compte) — évite
+-- qu'un associé puisse à volonté réinviter n'importe qui dans le foyer
+-- d'un autre.
+create or replace function can_invite_sci_associe(target_household_id uuid)
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select
+    exists (
+      select 1
+      from sci_associes mine
+      join sci_associes theirs on theirs.sci_id = mine.sci_id
+      join profiles on profiles.household_id = mine.household_id
+      where profiles.id = auth.uid()
+        and theirs.household_id = target_household_id
+    )
+    and not exists (
+      select 1 from profiles where profiles.household_id = target_household_id
+    );
+$$;
+
 alter table households enable row level security;
 alter table profiles enable row level security;
 alter table sci enable row level security;

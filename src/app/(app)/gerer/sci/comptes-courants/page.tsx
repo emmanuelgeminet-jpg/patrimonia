@@ -1,8 +1,11 @@
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import ComptesCourantsClient from "./ComptesCourantsClient";
 
 export default async function ComptesCourantsPage() {
   const supabase = await createClient();
+  const host = (await headers()).get("host") ?? "";
+  const origin = `${host.startsWith("localhost") ? "http" : "https"}://${host}`;
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -33,11 +36,18 @@ export default async function ComptesCourantsPage() {
     supabase.from("comptes_courants_mouvements").select("*").eq("sci_id", sciId).order("date", { ascending: false }),
   ]);
 
-  const associes = (associesRows ?? []).map((a) => ({
-    householdId: a.household_id as string,
-    nom: (a.households as unknown as { name: string } | null)?.name ?? "Foyer",
-    soldeOuvertureCents: a.solde_ouverture_cents as number,
-  }));
+  const associes = await Promise.all(
+    (associesRows ?? []).map(async (a) => {
+      const householdId = a.household_id as string;
+      const { data: peutInviter } = await supabase.rpc("can_invite_sci_associe", { target_household_id: householdId });
+      return {
+        householdId,
+        nom: (a.households as unknown as { name: string } | null)?.name ?? "Foyer",
+        soldeOuvertureCents: a.solde_ouverture_cents as number,
+        peutInviter: Boolean(peutInviter),
+      };
+    })
+  );
 
   const mouvements = (mouvementsRows ?? []).map((m) => ({
     id: m.id as string,
@@ -53,7 +63,7 @@ export default async function ComptesCourantsPage() {
       <div className="crumb">Gérer <b>› Comptes courants</b></div>
       <h1>Comptes courants associés</h1>
       <div className="pagesub">Suivi des apports, avances de frais et remboursements</div>
-      <ComptesCourantsClient associes={associes} mouvements={mouvements} />
+      <ComptesCourantsClient associes={associes} mouvements={mouvements} origin={origin} />
     </section>
   );
 }

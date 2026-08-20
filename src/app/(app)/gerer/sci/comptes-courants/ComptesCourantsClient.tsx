@@ -8,8 +8,9 @@ import {
   type SaveState,
 } from "../journal/actions";
 import { formatEuros } from "@/lib/budget";
+import InviteLink from "../../../compte/InviteLink";
 
-export type Associe = { householdId: string; nom: string; soldeOuvertureCents: number };
+export type Associe = { householdId: string; nom: string; soldeOuvertureCents: number; peutInviter: boolean };
 export type Mouvement = {
   id: string;
   householdId: string;
@@ -44,10 +45,14 @@ function formatDateShort(dateStr: string): string {
 export default function ComptesCourantsClient({
   associes,
   mouvements,
+  origin,
 }: {
   associes: Associe[];
   mouvements: Mouvement[];
+  origin: string;
 }) {
+  const aInviter = associes.filter((a) => a.peutInviter);
+
   return (
     <>
       <div className="grid2">
@@ -55,6 +60,24 @@ export default function ComptesCourantsClient({
           <SoldeCard key={a.householdId} associe={a} solde={soldeFor(a, mouvements)} />
         ))}
       </div>
+
+      {aInviter.length > 0 && (
+        <div className="card">
+          <h2>Associés sans compte actif</h2>
+          <div className="card-sub">
+            Ces foyers font partie de la SCI mais n&apos;ont pas encore de compte Patrimonia. Partage le lien
+            correspondant avec eux : en créant leur compte, ils auront accès aux données de la SCI (journal,
+            bilan, comptes courants, documents) — mais pas à ton budget personnel ni à tes biens propres, qui
+            restent privés à ton foyer.
+          </div>
+          {aInviter.map((a) => (
+            <div key={a.householdId} style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600 }}>{a.nom}</label>
+              <InviteLink link={`${origin}/login?invite=${a.householdId}`} />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <h2>Suivi détaillé — apports, avances et remboursements</h2>
