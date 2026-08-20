@@ -95,6 +95,7 @@ create table if not exists locataires (
   id uuid primary key default gen_random_uuid(),
   lot_id uuid not null references lots(id) on delete cascade,
   nom text not null,
+  email text,
   date_entree date,
   date_sortie date,
   loyer_hc_cents bigint not null default 0,
@@ -289,6 +290,7 @@ create table if not exists analyses_biens (
   taux_pct numeric(5,3),
   duree_annees integer,
   charges_annuelles_cents bigint,
+  surface_m2 numeric(6,2),
   notes text,
   created_at timestamptz not null default now()
 );
