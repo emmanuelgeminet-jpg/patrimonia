@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState, useTransition } from "react";
-import { addLocataire, markLocataireSorti, deleteLocataire, type SaveState } from "./actions";
+import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
 
 export type Locataire = {
@@ -97,13 +97,14 @@ function LotContent({ bienId, lot }: { bienId: string; lot: Lot }) {
               </tr>
             </tbody>
           </table>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
             <span
               style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}
               onClick={() => startTransition(() => { markLocataireSorti(actif.id, bienId); })}
             >
               Marquer sorti
             </span>
+            <QuittanceButton lotId={lot.id} />
           </div>
         </>
       ) : (
@@ -170,5 +171,33 @@ function AjouterLocataireForm({ bienId, lotId }: { bienId: string; lotId: string
       </button>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, width: "100%" }}>{state.error}</div>}
     </form>
+  );
+}
+
+function QuittanceButton({ lotId }: { lotId: string }) {
+  const [mois, setMois] = useState(() => new Date().toISOString().slice(0, 7));
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const onGenerer = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await genererQuittance(lotId, mois);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.url) window.open(result.url, "_blank");
+    });
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      <input type="month" value={mois} onChange={(e) => setMois(e.target.value)} style={{ maxWidth: 130, fontSize: 11 }} />
+      <span style={{ color: "var(--sage)", cursor: "pointer", fontSize: 11 }} onClick={onGenerer}>
+        {pending ? "Génération..." : "Générer la quittance"}
+      </span>
+      {error && <span style={{ color: "var(--brick)", fontSize: 11 }}>{error}</span>}
+    </div>
   );
 }
