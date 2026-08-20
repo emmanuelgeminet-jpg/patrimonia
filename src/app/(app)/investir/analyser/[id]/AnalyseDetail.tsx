@@ -19,6 +19,9 @@ export type Analyse = {
   dureeAnnees: number | null;
   chargesAnnuellesCents: number | null;
   surfaceM2: number | null;
+  vacanceLocativePct: number | null;
+  gliPct: number | null;
+  fraisGestionPct: number | null;
   notes: string | null;
 };
 
@@ -53,14 +56,22 @@ export default function AnalyseDetail({
       <div className="kpis">
         <div className="kpi"><div className="label">Rentabilité net-net</div><div className="value">{kpis.rentabiliteNetNette !== null ? `${kpis.rentabiliteNetNette.toFixed(1)} %` : "—"}</div><div className="sub">après IS estimé à 15 %, simplifié</div></div>
         <div className="kpi"><div className="label">Cashflow annuel avant impôt</div><div className="value">{formatEuros(kpis.cashflowAnnuelCents)}</div></div>
+        <div className="kpi"><div className="label">Cash-on-cash</div><div className="value">{kpis.cashOnCash !== null ? `${kpis.cashOnCash.toFixed(1)} %` : "—"}</div><div className="sub">cashflow ÷ apport — rendement sur ta mise de départ</div></div>
         <div className="kpi"><div className="label">Prix de revient au m²</div><div className="value">{kpis.prixM2Cents !== null ? formatEuros(kpis.prixM2Cents) : "—"}</div></div>
+      </div>
+      <div className="kpis">
         <div className="kpi"><div className="label">Loyers HC annuels (plein)</div><div className="value">{formatEuros(kpis.loyersHcAnnuelsCents)}</div></div>
+        <div className="kpi"><div className="label">Loyers HC effectifs</div><div className="value">{formatEuros(kpis.loyersHcEffectifsCents)}</div><div className="sub">après vacance locative</div></div>
+        <div className="kpi"><div className="label">GLI + gestion locative</div><div className="value">{formatEuros(kpis.gliCents + kpis.fraisGestionCents)}</div><div className="sub">inclus dans les charges ci-dessus</div></div>
+        <div className="kpi"><div className="label">Charges totales retenues</div><div className="value">{formatEuros(kpis.chargesTotalesCents)}</div></div>
       </div>
 
       <div className="placeholder-note">
-        Brute = loyers HC ÷ coût total · Nette = (loyers HC − charges) ÷ coût total · Net-net = (loyers HC − charges −
-        IS estimé) ÷ coût total. Les intérêts d&apos;emprunt ne sont pas déduits des rentabilités (ça relève du
-        financement, pas de la performance du bien) — ils se lisent dans le cashflow.
+        Brute = loyers HC ÷ coût total · Nette = (loyers HC effectifs − charges) ÷ coût total · Net-net = (... − IS
+        estimé) ÷ coût total. Loyers effectifs = loyers HC − vacance locative. Charges totales = charges saisies +
+        GLI + frais de gestion (tous deux en % des loyers HC, si renseignés). Les intérêts d&apos;emprunt ne sont pas
+        déduits des rentabilités (ça relève du financement, pas de la performance du bien) — ils se lisent dans le
+        cashflow et le cash-on-cash.
       </div>
 
       <div className="card">
@@ -102,7 +113,19 @@ export default function AnalyseDetail({
 
           <div className="cat-block"><div className="cat-title">Charges annuelles à la charge du propriétaire</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input name="charges_annuelles" defaultValue={euros(analyse.chargesAnnuellesCents)} placeholder="Total charges €/an (taxe foncière, assurance, gestion, comptable, provision travaux...)" style={{ minWidth: 320 }} />
+              <input name="charges_annuelles" defaultValue={euros(analyse.chargesAnnuellesCents)} placeholder="Autres charges €/an (taxe foncière, assurance, comptable, provision travaux...)" style={{ minWidth: 320 }} />
+            </div>
+          </div>
+
+          <div className="cat-block"><div className="cat-title">Hypothèses de marché <span className="tag">optionnel</span></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <input name="vacance_locative" defaultValue={analyse.vacanceLocativePct ?? ""} placeholder="Vacance locative %" style={{ maxWidth: 150 }} />
+              <input name="gli" defaultValue={analyse.gliPct ?? ""} placeholder="GLI (loyers impayés) %" style={{ maxWidth: 170 }} />
+              <input name="frais_gestion" defaultValue={analyse.fraisGestionPct ?? ""} placeholder="Frais de gestion locative %" style={{ maxWidth: 190 }} />
+            </div>
+            <div className="card-sub" style={{ marginTop: 6 }}>
+              Laisse vide si tu gères toi-même sans intermédiaire et sans hypothèse de vacance — ces trois champs sont
+              à 0 par défaut, donc sans effet tant que tu ne les remplis pas.
             </div>
           </div>
 

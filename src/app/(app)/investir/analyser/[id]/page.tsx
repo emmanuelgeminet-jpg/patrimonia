@@ -31,6 +31,9 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     dureeAnnees: analyseRow.duree_annees as number | null,
     chargesAnnuellesCents: analyseRow.charges_annuelles_cents as number | null,
     surfaceM2: analyseRow.surface_m2 as number | null,
+    vacanceLocativePct: analyseRow.vacance_locative_pct as number | null,
+    gliPct: analyseRow.gli_pct as number | null,
+    fraisGestionPct: analyseRow.frais_gestion_pct as number | null,
     notes: analyseRow.notes as string | null,
   };
 
@@ -45,11 +48,15 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     prixOffreCents: analyse.prixOffreCents,
     fraisNotaireCents: analyse.fraisNotaireCents,
     travauxEstimesCents: analyse.travauxEstimesCents,
+    apportCents: analyse.apportCents,
     montantEmprunteCents: analyse.montantEmprunteCents,
     tauxPct: analyse.tauxPct,
     dureeAnnees: analyse.dureeAnnees,
     chargesAnnuellesCents: analyse.chargesAnnuellesCents,
     surfaceM2: analyse.surfaceM2,
+    vacanceLocativePct: analyse.vacanceLocativePct,
+    gliPct: analyse.gliPct,
+    fraisGestionPct: analyse.fraisGestionPct,
     lots: lignes.map((l) => ({ loyerHcCents: l.loyerHcCents, chargesCents: l.chargesCents })),
   });
 

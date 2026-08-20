@@ -83,6 +83,9 @@ export async function saveAnalyse(_prev: SaveState, formData: FormData): Promise
       duree_annees: toIntOrNull(formData.get("duree")),
       charges_annuelles_cents: toCentsOrNull(formData.get("charges_annuelles")),
       surface_m2: toNumOrNull(formData.get("surface")),
+      vacance_locative_pct: toNumOrNull(formData.get("vacance_locative")),
+      gli_pct: toNumOrNull(formData.get("gli")),
+      frais_gestion_pct: toNumOrNull(formData.get("frais_gestion")),
       notes: formData.get("notes") || null,
     })
     .eq("id", id);

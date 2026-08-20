@@ -300,6 +300,12 @@ create table if not exists analyses_biens (
   duree_annees integer,
   charges_annuelles_cents bigint,
   surface_m2 numeric(6,2),
+  -- Hypothèses de marché ajustables, appliquées aux loyers HC pour affiner la rentabilité
+  -- (courant dans les grilles d'analyse professionnelles) — laissées à 0 par défaut, donc
+  -- sans effet tant qu'elles ne sont pas renseignées.
+  vacance_locative_pct numeric(5,2),
+  gli_pct numeric(5,2),
+  frais_gestion_pct numeric(5,2),
   notes text,
   created_at timestamptz not null default now()
 );
