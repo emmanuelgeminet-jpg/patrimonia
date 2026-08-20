@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
 import CaracteristiquesForm from "./CaracteristiquesForm";
+import FicheImmeubleForm from "./FicheImmeubleForm";
 
 export default async function ImmeublePage() {
   const supabase = await createClient();
@@ -140,13 +141,18 @@ export default async function ImmeublePage() {
         </div>
       </div>
 
-      <div className="card">
-        <h2>Fiche immeuble <span className="tag">squelette</span></h2>
-        <div className="empty">
-          <div className="big">À détailler</div>
-          Historique du prêt, travaux réalisés, DPE, copropriété/mono-propriété...
-        </div>
-      </div>
+      <FicheImmeubleForm
+        fiche={{
+          bienId: bien.id as string,
+          dpeClasse: bien.dpe_classe as string | null,
+          dpeDate: bien.dpe_date as string | null,
+          monopropriete: (bien.monopropriete as boolean) ?? true,
+          numeroImmatriculation: bien.numero_immatriculation_copropriete as string | null,
+          assuranceCompagnie: bien.assurance_pno_compagnie as string | null,
+          assurancePolice: bien.assurance_pno_police as string | null,
+          notes: bien.notes as string | null,
+        }}
+      />
     </section>
   );
 }

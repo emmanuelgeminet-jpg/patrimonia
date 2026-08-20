@@ -76,6 +76,13 @@ create table if not exists biens (
   mode_detention text,
   mode_location text,
   regime_fiscal text,
+  dpe_classe text check (dpe_classe in ('A', 'B', 'C', 'D', 'E', 'F', 'G')),
+  dpe_date date,
+  monopropriete boolean not null default true,
+  numero_immatriculation_copropriete text,
+  assurance_pno_compagnie text,
+  assurance_pno_police text,
+  notes text,
   created_at timestamptz not null default now(),
   constraint bien_owner_coherent check (
     (owner_type = 'sci' and sci_id is not null and household_id is null) or

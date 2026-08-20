@@ -28,3 +28,26 @@ export async function saveCaracteristiques(_prev: SaveState, formData: FormData)
   revalidatePath("/gerer/sci/immeuble");
   return { success: true };
 }
+
+export async function saveFicheImmeuble(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const bienId = String(formData.get("bien_id") ?? "");
+  if (!bienId) return { error: "Bien introuvable." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("biens")
+    .update({
+      dpe_classe: formData.get("dpe_classe") || null,
+      dpe_date: formData.get("dpe_date") || null,
+      monopropriete: formData.get("monopropriete") === "oui",
+      numero_immatriculation_copropriete: formData.get("numero_immatriculation") || null,
+      assurance_pno_compagnie: formData.get("assurance_compagnie") || null,
+      assurance_pno_police: formData.get("assurance_police") || null,
+      notes: formData.get("notes") || null,
+    })
+    .eq("id", bienId);
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath("/gerer/sci/immeuble");
+  return { success: true };
+}
