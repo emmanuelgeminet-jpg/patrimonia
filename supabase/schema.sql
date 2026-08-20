@@ -104,6 +104,9 @@ create table if not exists lots (
   bien_id uuid not null references biens(id) on delete cascade,
   nom text not null,
   surface_m2 numeric(6,2),
+  -- Estimation manuelle de la valeur vénale du lot — sert uniquement à calculer une
+  -- rentabilité par appartement (loyers / valeur), pas de source officielle branchée.
+  valeur_venale_cents bigint,
   created_at timestamptz not null default now()
 );
 

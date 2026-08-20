@@ -40,6 +40,22 @@ export async function addLocataire(_prev: SaveState, formData: FormData): Promis
   return { success: true };
 }
 
+export async function saveValeurVenale(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const lotId = String(formData.get("lot_id") ?? "");
+  if (!lotId) return { error: "Lot introuvable." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("lots")
+    .update({ valeur_venale_cents: toCentsOrNull(formData.get("valeur_venale")) })
+    .eq("id", lotId);
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(PATH_APPARTEMENTS);
+  revalidatePath(PATH_VISION_GLOBALE);
+  return { success: true };
+}
+
 export async function markLocataireSorti(id: string) {
   const supabase = await createClient();
   await supabase

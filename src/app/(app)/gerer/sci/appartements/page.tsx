@@ -75,7 +75,7 @@ export default async function AppartementsPage() {
       actif ? { loyerHcCents: actif.loyerHcCents, chargesCents: actif.chargesCents } : undefined,
       (ecrituresRows ?? []).map((e) => ({ lotId: e.lot_id, type: e.type, montantCents: e.montant_cents, financement: e.financement }))
     );
-    return { id: l.id as string, nom: l.nom as string, locataires, statut };
+    return { id: l.id as string, nom: l.nom as string, locataires, statut, valeurVenaleCents: l.valeur_venale_cents as number | null };
   });
 
   return (

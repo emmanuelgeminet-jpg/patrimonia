@@ -3,6 +3,7 @@ import { formatEuros } from "@/lib/budget";
 import { statutLoyerDuMois, STATUT_LOYER_LABELS } from "@/lib/loyers";
 import { soldesMensuels } from "@/lib/tresorerie";
 import TresorerieChart from "./TresorerieChart";
+import RentabiliteChart from "./RentabiliteChart";
 
 type Ecriture = {
   date: string;
@@ -95,8 +96,8 @@ export default async function VisionGlobalePage() {
 
   const bienIds = (biensRows ?? []).map((b) => b.id as string);
   const { data: lotsRows } = bienIds.length
-    ? await supabase.from("lots").select("id, nom").in("bien_id", bienIds).order("nom")
-    : { data: [] as { id: string; nom: string }[] };
+    ? await supabase.from("lots").select("id, nom, valeur_venale_cents").in("bien_id", bienIds).order("nom")
+    : { data: [] as { id: string; nom: string; valeur_venale_cents: number | null }[] };
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
   const { data: locatairesRows } = lotIds.length
     ? await supabase
@@ -121,8 +122,15 @@ export default async function VisionGlobalePage() {
       actif ? { loyerHcCents: actif.loyer_hc_cents, chargesCents: actif.charges_cents } : undefined,
       ecrituresDuMois.map((e) => ({ lotId: e.lot_id, type: e.type, montantCents: e.montant_cents, financement: e.financement }))
     );
-    return { lot: l.nom, locataire: actif?.nom ?? "—", statut, loyerHc: actif?.loyer_hc_cents ?? 0 };
+    const valeurVenaleCents = l.valeur_venale_cents as number | null;
+    const rentabiliteBrute =
+      valeurVenaleCents && actif ? (((actif.loyer_hc_cents + actif.charges_cents) * 12) / valeurVenaleCents) * 100 : null;
+    return { lot: l.nom, locataire: actif?.nom ?? "—", statut, loyerHc: actif?.loyer_hc_cents ?? 0, rentabiliteBrute };
   });
+
+  const rentabilites = appartements.filter(
+    (a): a is typeof a & { rentabiliteBrute: number } => a.rentabiliteBrute !== null
+  );
 
   return (
     <section className="section">
@@ -142,10 +150,20 @@ export default async function VisionGlobalePage() {
         <TresorerieChart points={pointsTresorerie} />
       </div>
 
-      <div className="placeholder-note">
-        Squelette — rentabilité par appartement pas encore en graphique : il manque la valeur vénale de chaque lot,
-        qui n&apos;existe pas encore dans la fiche du bien.
-      </div>
+      {rentabilites.length > 0 ? (
+        <div className="card">
+          <h2>Rentabilité par appartement <span className="tag">brute, sur valeur vénale estimée</span></h2>
+          <RentabiliteChart points={rentabilites.map((a) => ({ lot: a.lot, rentabiliteBrute: a.rentabiliteBrute }))} />
+          <div className="placeholder-note">
+            Calculée sur les lots où une valeur vénale a été renseignée (onglet Par appartement) — les autres n&apos;apparaissent pas ici.
+          </div>
+        </div>
+      ) : (
+        <div className="placeholder-note">
+          Rentabilité par appartement pas encore affichable : renseigne une valeur vénale estimée pour au moins un lot
+          depuis l&apos;onglet &quot;Par appartement&quot;.
+        </div>
+      )}
 
       <div className="grid2">
         <div className="card">

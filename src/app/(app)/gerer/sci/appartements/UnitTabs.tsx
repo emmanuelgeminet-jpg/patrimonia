@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState, useTransition } from "react";
-import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
+import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, saveValeurVenale, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
 import { STATUT_LOYER_LABELS, type StatutLoyer } from "@/lib/loyers";
 
@@ -18,7 +18,7 @@ export type Locataire = {
   depotGarantieMode: string | null;
 };
 
-export type Lot = { id: string; nom: string; locataires: Locataire[]; statut: StatutLoyer };
+export type Lot = { id: string; nom: string; locataires: Locataire[]; statut: StatutLoyer; valeurVenaleCents: number | null };
 
 const STATUT_PILL_CLASS: Record<StatutLoyer, string> = { paye: "ok", partiel: "warn", en_attente: "due", vacant: "vac" };
 
@@ -145,7 +145,42 @@ function LotContent({ lot }: { lot: Lot }) {
         </div>
       )}
 
+      <ValeurVenaleForm lot={lot} />
+
       <AjouterLocataireForm lotId={lot.id} />
+    </div>
+  );
+}
+
+function ValeurVenaleForm({ lot }: { lot: Lot }) {
+  const [state, formAction, pending] = useActionState(saveValeurVenale, initialState);
+  const actif = lot.locataires.find((l) => !l.dateSortie);
+  const rentabilite =
+    lot.valeurVenaleCents && actif ? (((actif.loyerHcCents + actif.chargesCents) * 12) / lot.valeurVenaleCents) * 100 : null;
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input type="hidden" name="lot_id" value={lot.id} />
+        <label style={{ fontSize: 12 }}>Valeur vénale estimée :</label>
+        <input
+          name="valeur_venale"
+          placeholder="€"
+          defaultValue={lot.valeurVenaleCents ? (lot.valeurVenaleCents / 100).toString() : ""}
+          style={{ maxWidth: 130 }}
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--ink)", color: "#fff", border: "none", padding: "5px 12px", borderRadius: 20, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Enregistrer
+        </button>
+        {rentabilite !== null && (
+          <span className="tag" style={{ color: "var(--sage)" }}>Rentabilité brute : {rentabilite.toFixed(1)} %</span>
+        )}
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
     </div>
   );
 }
