@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import DocumentsFolders, { type DocItem } from "./DocumentsFolders";
 
-const DOSSIERS = ["Statuts", "Assemblées générales", "Factures & justificatifs", "Assurances & diagnostics"];
+const DOSSIERS = ["Statuts", "Assemblées générales", "Factures & justificatifs", "Assurances & diagnostics", "Quittances"];
 
 export default async function DocumentsPage() {
   const supabase = await createClient();
@@ -58,14 +58,11 @@ export default async function DocumentsPage() {
 
       <DocumentsFolders sciId={sciId} dossiers={DOSSIERS} documents={documents} />
 
-      <div className="card" style={{ marginTop: 18 }}>
-        <h2>Quittances <span className="tag">à construire</span></h2>
-        <div className="placeholder-note">
-          Squelette — la génération automatique de la quittance (PDF) et son envoi par email au locataire ne sont pas
-          encore construits (ça demande d&apos;enregistrer l&apos;email de chaque locataire, un générateur de PDF, et
-          un service d&apos;envoi d&apos;email). En attendant, tu peux déjà déposer un justificatif directement sur
-          chaque écriture du Journal comptable.
-        </div>
+      <div className="placeholder-note" style={{ marginTop: 12 }}>
+        Le dossier &quot;Quittances&quot; se remplit automatiquement quand tu génères une quittance depuis la fiche
+        d&apos;un logement (onglet Par appartement). L&apos;envoi automatique par email au locataire n&apos;est pas
+        encore construit — ça demande de choisir un service d&apos;envoi d&apos;email, ce qu&apos;on fera ensemble
+        quand tu voudras. En attendant, tu peux télécharger la quittance ici et l&apos;envoyer toi-même.
       </div>
     </section>
   );

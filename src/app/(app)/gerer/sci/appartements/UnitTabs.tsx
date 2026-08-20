@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useActionState, useTransition } from "react";
-import { addLocataire, markLocataireSorti, deleteLocataire, type SaveState } from "./actions";
+import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
 import { STATUT_LOYER_LABELS, type StatutLoyer } from "@/lib/loyers";
 
 export type Locataire = {
   id: string;
   nom: string;
+  email: string | null;
   dateEntree: string | null;
   dateSortie: string | null;
   loyerHcCents: number;
@@ -79,6 +80,7 @@ function LotContent({ lot }: { lot: Lot }) {
         <>
           <table>
             <tbody>
+              <tr><td>Email</td><td className="num">{actif.email ?? "—"}</td></tr>
               <tr><td>Loyer HC</td><td className="num">{formatEuros(actif.loyerHcCents)}</td></tr>
               <tr><td>Charges (provisions)</td><td className="num">{formatEuros(actif.chargesCents)}</td></tr>
               <tr><td><b>Total loyer + charges</b></td><td className="num"><b>{formatEuros(actif.loyerHcCents + actif.chargesCents)}</b></td></tr>
@@ -93,13 +95,14 @@ function LotContent({ lot }: { lot: Lot }) {
               </tr>
             </tbody>
           </table>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 14, alignItems: "center" }}>
             <span
               style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}
               onClick={() => startTransition(() => { markLocataireSorti(actif.id); })}
             >
               Marquer sorti
             </span>
+            <QuittanceButton lotId={lot.id} />
           </div>
           <div className="placeholder-note" style={{ marginTop: 10 }}>
             Le statut du mois se calcule depuis le Journal comptable — pense à choisir ce logement dans le champ
@@ -153,6 +156,7 @@ function AjouterLocataireForm({ lotId }: { lotId: string }) {
     <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 14 }}>
       <input type="hidden" name="lot_id" value={lotId} />
       <input name="nom" placeholder="Nom du locataire" required style={{ maxWidth: 160 }} />
+      <input type="email" name="email" placeholder="Email (optionnel)" style={{ maxWidth: 180 }} />
       <input type="date" name="date_entree" style={{ maxWidth: 140 }} />
       <input name="loyer_hc" placeholder="Loyer HC €" style={{ maxWidth: 100 }} />
       <input name="charges" placeholder="Charges €" style={{ maxWidth: 90 }} />
@@ -168,5 +172,33 @@ function AjouterLocataireForm({ lotId }: { lotId: string }) {
       </button>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, width: "100%" }}>{state.error}</div>}
     </form>
+  );
+}
+
+function QuittanceButton({ lotId }: { lotId: string }) {
+  const [mois, setMois] = useState(() => new Date().toISOString().slice(0, 7));
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const onGenerer = () => {
+    setError(null);
+    startTransition(async () => {
+      const result = await genererQuittance(lotId, mois);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.url) window.open(result.url, "_blank");
+    });
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+      <input type="month" value={mois} onChange={(e) => setMois(e.target.value)} style={{ maxWidth: 130, fontSize: 11 }} />
+      <span style={{ color: "var(--sage)", cursor: "pointer", fontSize: 11 }} onClick={onGenerer}>
+        {pending ? "Génération..." : "Générer la quittance"}
+      </span>
+      {error && <span style={{ color: "var(--brick)", fontSize: 11 }}>{error}</span>}
+    </div>
   );
 }

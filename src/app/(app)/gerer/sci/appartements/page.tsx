@@ -60,6 +60,7 @@ export default async function AppartementsPage() {
       .map((loc) => ({
         id: loc.id as string,
         nom: loc.nom as string,
+        email: loc.email as string | null,
         dateEntree: loc.date_entree as string | null,
         dateSortie: loc.date_sortie as string | null,
         loyerHcCents: loc.loyer_hc_cents as number,
