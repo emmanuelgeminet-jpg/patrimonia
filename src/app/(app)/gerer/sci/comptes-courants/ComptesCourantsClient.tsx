@@ -81,7 +81,7 @@ function SoldeCard({ associe, solde }: { associe: Associe; solde: number }) {
   const [state, formAction, pending] = useActionState(saveSoldeOuvertureAssocie, initialState);
   return (
     <div className="card">
-      <h2>Foyer {associe.nom}</h2>
+      <h2>{associe.nom}</h2>
       <table>
         <tbody>
           <tr><td><b>Solde actuel — ce que la SCI doit à ce foyer</b></td><td className="num"><b>{formatEuros(solde)}</b></td></tr>
