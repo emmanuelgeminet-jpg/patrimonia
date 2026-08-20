@@ -83,6 +83,14 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
     }
   }
 
+  // Rattacher une écriture à un emprunt n'a de sens que pour une mensualité réellement
+  // décaissée du compte SCI, sans lien par ailleurs avec un compte courant — même
+  // contrainte que côté base (ecriture_emprunt_coherent).
+  let empruntId: string | null = null;
+  if (financement === "banque_sci" && type === "decaissement" && !associeMouvementType) {
+    empruntId = String(formData.get("emprunt_id") ?? "") || null;
+  }
+
   const { data: inserted, error } = await supabase
     .from("journal_ecritures")
     .insert({
@@ -98,6 +106,7 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
       financement,
       associe_household_id: associeHouseholdId,
       associe_mouvement_type: associeMouvementType,
+      emprunt_id: empruntId,
       created_by: userId,
     })
     .select("id")

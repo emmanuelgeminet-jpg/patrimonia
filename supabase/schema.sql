@@ -41,6 +41,10 @@ create table if not exists sci (
   -- courant dans le journal comptable, sans devoir ressaisir tout l'historique.
   solde_ouverture_cents bigint not null default 0,
   solde_ouverture_date date,
+  -- Résultat comptable cumulé (certifié par le comptable) à la date solde_ouverture_date —
+  -- même principe de reprise que solde_ouverture_cents, pour ne pas devoir reconstruire le
+  -- détail des exercices passés. Le compte de résultat calculé par l'appli part de là.
+  resultat_reporte_cents bigint not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -122,6 +126,38 @@ create table if not exists locataires (
 -- 4. COMPTABILITÉ SCI
 -- =====================================================================
 
+-- Prêts bancaires de la SCI : conditions d'origine, saisies une fois — le capital restant
+-- dû et la part d'intérêts/capital d'une mensualité à une date donnée se recalculent
+-- ensuite tout seuls (formule d'annuité), pas besoin de reprise séparée.
+create table if not exists sci_emprunts (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid not null references sci(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  libelle text not null,
+  capital_emprunte_cents bigint not null,
+  taux_pct numeric(5,3) not null,
+  duree_mois integer not null,
+  date_debut date not null,
+  -- Montant informatif de l'assurance emprunteur mensuelle — à saisir comme une écriture
+  -- de charge à part dans le journal (pas rattachée à emprunt_id), ce champ ne sert qu'à
+  -- vérifier que le bon montant est bien saisi chaque mois.
+  assurance_emprunteur_cents bigint,
+  created_at timestamptz not null default now()
+);
+
+-- Immobilisations amortissables de la SCI (un immeuble, ou un composant — toiture, gros
+-- œuvre... si Emmanuel veut amortir par composants, plusieurs lignes par bien_id).
+create table if not exists sci_immobilisations (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid not null references sci(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  libelle text not null,
+  valeur_amortissable_cents bigint not null,
+  duree_annees numeric(5,2) not null,
+  date_mise_en_service date not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists journal_ecritures (
   id uuid primary key default gen_random_uuid(),
   sci_id uuid not null references sci(id) on delete cascade,
@@ -143,6 +179,11 @@ create table if not exists journal_ecritures (
   -- (apport/avance/remboursement) pour le foyer désigné — voir comptes_courants_mouvements.journal_ecriture_id.
   associe_household_id uuid references households(id) on delete set null,
   associe_mouvement_type text check (associe_mouvement_type in ('apport', 'avance', 'remboursement')),
+  -- Si renseigné, cette écriture EST la mensualité d'un emprunt SCI : sa part d'intérêts
+  -- est comptée comme charge dans le compte de résultat (calculée depuis sci_emprunts,
+  -- pas depuis ce montant), sa part de capital réduit juste la dette — donc le montant
+  -- de cette écriture est exclu des charges "cash" pour ne pas compter deux fois.
+  emprunt_id uuid references sci_emprunts(id) on delete set null,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint ecriture_associe_coherent check (
@@ -151,6 +192,10 @@ create table if not exists journal_ecritures (
       (financement = 'avance_associe' and associe_mouvement_type = 'avance') or
       (financement = 'banque_sci' and associe_mouvement_type in ('apport', 'remboursement'))
     ))
+  ),
+  constraint ecriture_emprunt_coherent check (
+    emprunt_id is null or
+    (financement = 'banque_sci' and type = 'decaissement' and associe_mouvement_type is null)
   )
 );
 
@@ -462,6 +507,8 @@ alter table sci_associes enable row level security;
 alter table biens enable row level security;
 alter table lots enable row level security;
 alter table locataires enable row level security;
+alter table sci_emprunts enable row level security;
+alter table sci_immobilisations enable row level security;
 alter table journal_ecritures enable row level security;
 alter table comptes_courants_mouvements enable row level security;
 alter table budget_categories enable row level security;
@@ -517,6 +564,12 @@ create policy "locataires visibles" on locataires for all using (
          (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
   )
 );
+
+drop policy if exists "emprunts de ma sci" on sci_emprunts;
+create policy "emprunts de ma sci" on sci_emprunts for all using (is_sci_member(sci_id)) with check (is_sci_member(sci_id));
+
+drop policy if exists "immobilisations de ma sci" on sci_immobilisations;
+create policy "immobilisations de ma sci" on sci_immobilisations for all using (is_sci_member(sci_id)) with check (is_sci_member(sci_id));
 
 drop policy if exists "journal de ma sci" on journal_ecritures;
 create policy "journal de ma sci" on journal_ecritures for all using (is_sci_member(sci_id)) with check (is_sci_member(sci_id));

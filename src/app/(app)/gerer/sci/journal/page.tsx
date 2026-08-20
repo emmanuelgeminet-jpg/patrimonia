@@ -34,12 +34,16 @@ export default async function JournalPage() {
     { data: biensRows },
     { data: ecrituresRows },
     { data: mouvementsRows },
+    { data: empruntsRows },
+    { data: immobilisationsRows },
   ] = await Promise.all([
     supabase.from("sci").select("*").eq("id", sciId).single(),
     supabase.from("sci_associes").select("household_id, solde_ouverture_cents, households(name)").eq("sci_id", sciId),
     supabase.from("biens").select("id, adresse, type").eq("sci_id", sciId).eq("owner_type", "sci"),
     supabase.from("journal_ecritures").select("*").eq("sci_id", sciId).order("date", { ascending: false }),
     supabase.from("comptes_courants_mouvements").select("*").eq("sci_id", sciId).order("date", { ascending: false }),
+    supabase.from("sci_emprunts").select("*").eq("sci_id", sciId).order("date_debut"),
+    supabase.from("sci_immobilisations").select("*").eq("sci_id", sciId).order("date_mise_en_service"),
   ]);
 
   const bienIds = (biensRows ?? []).map((b) => b.id as string);
@@ -70,6 +74,8 @@ export default async function JournalPage() {
           id: sci!.id as string,
           soldeOuvertureCents: sci!.solde_ouverture_cents as number,
           soldeOuvertureDate: sci!.solde_ouverture_date as string | null,
+          capitalSocialCents: (sci!.capital_social_cents as number | null) ?? 0,
+          resultatReporteCents: (sci!.resultat_reporte_cents as number | null) ?? 0,
         }}
         biens={(biensRows ?? []).map((b) => ({ id: b.id as string, label: b.adresse as string }))}
         lots={(lotsRows ?? []).map((l) => ({ id: l.id as string, nom: l.nom as string, bienId: l.bien_id as string }))}
@@ -88,6 +94,7 @@ export default async function JournalPage() {
           financement: e.financement as "banque_sci" | "avance_associe",
           associeHouseholdId: e.associe_household_id as string | null,
           associeMouvementType: e.associe_mouvement_type as "apport" | "avance" | "remboursement" | null,
+          empruntId: e.emprunt_id as string | null,
         }))}
         associes={associes}
         mouvements={(mouvementsRows ?? []).map((m) => ({
@@ -96,6 +103,24 @@ export default async function JournalPage() {
           date: m.date as string,
           type: m.type as "apport" | "avance" | "remboursement",
           montantCents: m.montant_cents as number,
+        }))}
+        emprunts={(empruntsRows ?? []).map((e) => ({
+          id: e.id as string,
+          bienId: e.bien_id as string | null,
+          libelle: e.libelle as string,
+          capitalEmprunteCents: e.capital_emprunte_cents as number,
+          tauxPct: e.taux_pct as number,
+          dureeMois: e.duree_mois as number,
+          dateDebut: e.date_debut as string,
+          assuranceEmprunteurCents: e.assurance_emprunteur_cents as number | null,
+        }))}
+        immobilisations={(immobilisationsRows ?? []).map((i) => ({
+          id: i.id as string,
+          bienId: i.bien_id as string | null,
+          libelle: i.libelle as string,
+          valeurAmortissableCents: i.valeur_amortissable_cents as number,
+          dureeAnnees: i.duree_annees as number,
+          dateMiseEnService: i.date_mise_en_service as string,
         }))}
       />
     </section>
