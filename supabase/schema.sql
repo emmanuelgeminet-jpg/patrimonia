@@ -306,6 +306,11 @@ create table if not exists profil_investisseur (
   residence_secondaire_valeur_cents bigint default 0,
   biens_locatifs_valeur_cents bigint default 0,
   scpi_valeur_cents bigint default 0,
+  -- Loyer mensuel visé pour un futur investissement locatif — sert uniquement à
+  -- calculer la capacité d'emprunt "investissement locatif" (règle bancaire des
+  -- 70 % : le loyer futur compte pour 70 % de sa valeur dans le calcul du taux
+  -- d'endettement), distincte de la capacité d'emprunt "résidence principale".
+  loyer_vise_locatif_cents bigint,
   updated_at timestamptz not null default now()
 );
 

@@ -76,6 +76,24 @@ export async function saveObjectifs(_prev: SaveState, formData: FormData): Promi
   return { success: true };
 }
 
+export async function saveLoyerVise(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, householdId } = await getHouseholdId();
+  const { error } = await supabase
+    .from("profil_investisseur")
+    .upsert(
+      {
+        household_id: householdId,
+        loyer_vise_locatif_cents: toCentsOrNull(formData.get("loyer_vise")) ?? 0,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "household_id" }
+    );
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath("/investir/profil");
+  return { success: true };
+}
+
 export async function savePatrimoineImmobilier(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const { supabase, householdId } = await getHouseholdId();
   const { error } = await supabase

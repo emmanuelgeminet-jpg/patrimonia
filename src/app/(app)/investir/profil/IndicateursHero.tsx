@@ -1,4 +1,5 @@
 import { formatEuros } from "@/lib/budget";
+import LoyerViseForm from "./LoyerViseForm";
 
 function EndettementGauge({ pct }: { pct: number }) {
   const clamped = Math.max(0, Math.min(1, pct / 0.5)); // jauge graduée jusqu'à 50%
@@ -64,7 +65,9 @@ export default function IndicateursHero({
   capaciteEpargne,
   resteAVivre,
   patrimoineNet,
-  capaciteEmprunt,
+  capaciteEmpruntRP,
+  capaciteEmpruntLocatif,
+  loyerViseLocatifCents,
   apportMobilisable,
   objectifLibelle,
   objectifMontantCents,
@@ -73,7 +76,9 @@ export default function IndicateursHero({
   capaciteEpargne: number;
   resteAVivre: number;
   patrimoineNet: number;
-  capaciteEmprunt: number;
+  capaciteEmpruntRP: number;
+  capaciteEmpruntLocatif: number;
+  loyerViseLocatifCents: number | null;
   apportMobilisable: number;
   objectifLibelle: string | null;
   objectifMontantCents: number | null;
@@ -146,9 +151,18 @@ export default function IndicateursHero({
         )}
         <div className={`hero-stat${tauxEndettement > 0.3 ? " warn-border" : ""}`}>
           <div className="hs-icon">🏦</div>
-          <div className="hs-label">Capacité d&apos;emprunt résiduelle</div>
-          <div className="hs-value warn">≈ {formatEuros(capaciteEmprunt)}</div>
-          <div className="hs-foot">À 20 ans, taux estimé 3,8 %</div>
+          <div className="hs-label">Capacité d&apos;emprunt — résidence principale</div>
+          <div className="hs-value warn">≈ {formatEuros(capaciteEmpruntRP)}</div>
+          <div className="hs-foot">À 20 ans, taux estimé 3,8 % — sans revenu locatif</div>
+        </div>
+        <div className={`hero-stat${tauxEndettement > 0.3 ? " warn-border" : ""}`}>
+          <div className="hs-icon">🏦</div>
+          <div className="hs-label">Capacité d&apos;emprunt — investissement locatif</div>
+          <div className="hs-value warn">≈ {formatEuros(capaciteEmpruntLocatif)}</div>
+          <div className="hs-foot">
+            Idem + 70 % du loyer visé compté en revenus (règle bancaire)
+            <LoyerViseForm loyerViseCents={loyerViseLocatifCents} />
+          </div>
         </div>
         <div className="hero-stat">
           <div className="hs-icon">💰</div>

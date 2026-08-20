@@ -113,8 +113,16 @@ export default async function ProfilInvestisseurPage() {
     (profil?.scpi_valeur_cents ?? 0);
   const patrimoineNet = totalImmobilier + totalFinancier - crdTotal;
 
-  const margeMensuelle = Math.max(0, revenus * 0.35 - mensualitesTotal);
-  const capaciteEmprunt = capaciteEmpruntDepuisMensualite(margeMensuelle, 0.038, 20);
+  // Deux capacités distinctes : une banque n'applique pas le même calcul de taux
+  // d'endettement selon qu'on achète une résidence principale (aucun loyer à
+  // compter) ou un investissement locatif (le loyer visé compte pour 70 % de sa
+  // valeur en revenus — "règle des 70 %", même principe que vueBanque70 dans
+  // Analyser un bien).
+  const loyerViseLocatifCents = (profil?.loyer_vise_locatif_cents as number | null) ?? 0;
+  const margeMensuelleRP = Math.max(0, revenus * 0.35 - mensualitesTotal);
+  const capaciteEmpruntRP = capaciteEmpruntDepuisMensualite(margeMensuelleRP, 0.038, 20);
+  const margeMensuelleLocatif = Math.max(0, (revenus + 0.7 * loyerViseLocatifCents) * 0.35 - mensualitesTotal);
+  const capaciteEmpruntLocatif = capaciteEmpruntDepuisMensualite(margeMensuelleLocatif, 0.038, 20);
 
   const liquide = lignes
     .filter((l) => ["livret", "compte_courant", "pea", "assurance_vie"].includes(l.categorie))
@@ -132,7 +140,9 @@ export default async function ProfilInvestisseurPage() {
         capaciteEpargne={capaciteEpargne}
         resteAVivre={resteAVivre}
         patrimoineNet={patrimoineNet}
-        capaciteEmprunt={capaciteEmprunt}
+        capaciteEmpruntRP={capaciteEmpruntRP}
+        capaciteEmpruntLocatif={capaciteEmpruntLocatif}
+        loyerViseLocatifCents={loyerViseLocatifCents || null}
         apportMobilisable={apportMobilisable}
         objectifLibelle={(profil?.objectif_libelle as string | null) ?? null}
         objectifMontantCents={(profil?.objectif_montant_cents as number | null) ?? null}
