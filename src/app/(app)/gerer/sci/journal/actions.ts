@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { parseCsv, parsePdfText, decodeFileContent } from "@/lib/budget";
+import { rapprocher } from "@/lib/rapprochement";
 
 export type SaveState = { error?: string; success?: boolean };
 
@@ -233,4 +235,68 @@ export async function saveSoldeOuvertureAssocie(_prev: SaveState, formData: Form
   if (error) return { error: "Erreur lors de l'enregistrement." };
   revalidatePath(COMPTES_COURANTS_PATH);
   return { success: true };
+}
+
+export type RapprochementState = {
+  error?: string;
+  resultat?: {
+    matches: number;
+    lignesBancairesSansEcriture: { date: string; libelle: string; montantCents: number }[];
+    ecrituresSansLigneBancaire: { id: string; date: string; libelle: string; montantCents: number; type: "encaissement" | "decaissement" }[];
+  };
+};
+
+export async function rapprocherReleve(_prev: RapprochementState, formData: FormData): Promise<RapprochementState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Choisis un relevé avant de lancer le rapprochement." };
+
+  const { supabase, sciId } = await getSciContext();
+
+  const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  let transactions;
+  let errors: string[];
+  if (isPdf) {
+    const { PDFParse } = await import("pdf-parse");
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const parser = new PDFParse({ data: buffer });
+    const result = await parser.getText({ cellSeparator: "\t" });
+    await parser.destroy();
+    ({ transactions, errors } = parsePdfText(result.text));
+  } else {
+    const content = decodeFileContent(await file.arrayBuffer());
+    ({ transactions, errors } = parseCsv(content));
+  }
+
+  if (transactions.length === 0) return { error: errors[0] ?? "Aucune transaction reconnue dans ce fichier." };
+
+  const dates = transactions.map((t) => t.date).sort();
+  const { data: ecrituresRows } = await supabase
+    .from("journal_ecritures")
+    .select("id, date, type, montant_cents, libelle")
+    .eq("sci_id", sciId)
+    .eq("financement", "banque_sci")
+    .gte("date", dates[0])
+    .lte("date", dates[dates.length - 1]);
+
+  const ecritures = (ecrituresRows ?? []).map((e) => ({
+    id: e.id as string,
+    date: e.date as string,
+    type: e.type as "encaissement" | "decaissement",
+    montantCents: e.montant_cents as number,
+    libelle: e.libelle as string,
+  }));
+
+  const resultat = rapprocher(transactions, ecritures);
+
+  return {
+    resultat: {
+      matches: resultat.matches,
+      lignesBancairesSansEcriture: resultat.lignesBancairesSansEcriture.map((l) => ({
+        date: l.date,
+        libelle: l.libelle,
+        montantCents: l.montant_cents,
+      })),
+      ecrituresSansLigneBancaire: resultat.ecrituresSansLigneBancaire,
+    },
+  };
 }

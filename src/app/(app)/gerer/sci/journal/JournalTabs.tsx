@@ -7,16 +7,19 @@ import {
   uploadJustificatif,
   removeJustificatif,
   saveSoldeOuverture,
+  rapprocherReleve,
   type SaveState,
+  type RapprochementState,
 } from "./actions";
 import { formatEuros, formatMonthLabel } from "@/lib/budget";
 
-type TabKey = "mensuel" | "annuel" | "global";
+type TabKey = "mensuel" | "annuel" | "global" | "rapprochement";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "mensuel", label: "Détail mensuel" },
   { key: "annuel", label: "Bilan annuel" },
   { key: "global", label: "Bilan global depuis achat" },
+  { key: "rapprochement", label: "Rapprochement bancaire" },
 ];
 
 export type Ecriture = {
@@ -117,6 +120,7 @@ export default function JournalTabs({
       )}
       {active === "annuel" && <PanelAnnuel />}
       {active === "global" && <PanelGlobal />}
+      {active === "rapprochement" && <PanelRapprochement />}
     </>
   );
 }
@@ -507,6 +511,93 @@ function FluxCard({
           <tr><td>Remboursements reçus</td><td className="num">{formatEuros(remboursements)}</td></tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+const initialRapprochementState: RapprochementState = {};
+
+function PanelRapprochement() {
+  const [state, formAction, pending] = useActionState(rapprocherReleve, initialRapprochementState);
+
+  return (
+    <div>
+      <div className="card">
+        <h2>Rapprochement bancaire</h2>
+        <div className="card-sub">
+          Dépose le relevé bancaire réel de la SCI (CSV ou PDF, comme pour l&apos;import de Mon budget) — on le
+          compare aux écritures &quot;Banque SCI&quot; déjà saisies pour repérer ce qui a été oublié ou mal noté.
+          Rien n&apos;est enregistré : c&apos;est juste une vérification, à refaire à chaque nouveau relevé.
+        </div>
+        <form action={formAction} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+          <input type="file" name="file" accept=".csv,.pdf" required />
+          <button
+            type="submit"
+            disabled={pending}
+            style={{ background: "var(--sage)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            {pending ? "Analyse en cours..." : "Lancer le rapprochement"}
+          </button>
+        </form>
+        {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 6 }}>{state.error}</div>}
+      </div>
+
+      {state.resultat && (
+        <>
+          <div className="kpis" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+            <div className="kpi"><div className="label">Lignes rapprochées</div><div className="value">{state.resultat.matches}</div></div>
+            <div className="kpi"><div className="label">Lignes du relevé sans écriture</div><div className="value">{state.resultat.lignesBancairesSansEcriture.length}</div></div>
+            <div className="kpi"><div className="label">Écritures sans ligne bancaire</div><div className="value">{state.resultat.ecrituresSansLigneBancaire.length}</div></div>
+          </div>
+
+          {state.resultat.lignesBancairesSansEcriture.length === 0 && state.resultat.ecrituresSansLigneBancaire.length === 0 ? (
+            <div className="card">
+              <div className="empty"><div className="big">Tout concorde</div>Chaque ligne du relevé a une écriture correspondante, et inversement.</div>
+            </div>
+          ) : (
+            <div className="grid2">
+              <div className="card">
+                <h2>Sur le relevé, absentes du journal</h2>
+                <div className="card-sub">Probablement oubliées — pense à les ajouter dans &quot;Détail mensuel&quot;</div>
+                <table>
+                  <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th></tr></thead>
+                  <tbody>
+                    {state.resultat.lignesBancairesSansEcriture.length === 0 && (
+                      <tr><td colSpan={3} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune</td></tr>
+                    )}
+                    {state.resultat.lignesBancairesSansEcriture.map((l, i) => (
+                      <tr key={i}>
+                        <td>{formatDateShort(l.date)}</td>
+                        <td>{l.libelle}</td>
+                        <td className="num">{formatEuros(l.montantCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="card">
+                <h2>Dans le journal, absentes du relevé</h2>
+                <div className="card-sub">Montant, date ou financement (&quot;Banque SCI&quot;) probablement à corriger</div>
+                <table>
+                  <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th></tr></thead>
+                  <tbody>
+                    {state.resultat.ecrituresSansLigneBancaire.length === 0 && (
+                      <tr><td colSpan={3} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune</td></tr>
+                    )}
+                    {state.resultat.ecrituresSansLigneBancaire.map((e) => (
+                      <tr key={e.id}>
+                        <td>{formatDateShort(e.date)}</td>
+                        <td>{e.libelle}</td>
+                        <td className="num">{e.type === "encaissement" ? formatEuros(e.montantCents) : `− ${formatEuros(e.montantCents)}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
