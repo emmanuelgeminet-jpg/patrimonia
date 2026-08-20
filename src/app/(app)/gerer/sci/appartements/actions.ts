@@ -70,7 +70,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
   const { data: bien } = await supabase.from("biens").select("adresse, sci_id").eq("id", lot.bien_id).single();
   if (!bien || !bien.sci_id) return { error: "Bien introuvable." };
 
-  const { data: sci } = await supabase.from("sci").select("name").eq("id", bien.sci_id).single();
+  const { data: sci } = await supabase.from("sci").select("name, siren").eq("id", bien.sci_id).single();
   if (!sci) return { error: "SCI introuvable." };
 
   const { data: locataire } = await supabase
@@ -83,6 +83,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
 
   const pdfBytes = await genererQuittancePdf({
     sciNom: sci.name as string,
+    siren: sci.siren as string | null,
     bienAdresse: bien.adresse as string,
     lotNom: lot.nom as string,
     locataireNom: locataire.nom as string,

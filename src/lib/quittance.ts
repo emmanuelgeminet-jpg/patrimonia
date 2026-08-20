@@ -3,6 +3,8 @@ import { formatEuros, formatMonthLabel } from "@/lib/budget";
 
 export type QuittanceInfo = {
   sciNom: string;
+  /** SIREN de la SCI, si connu — absent pour un bien détenu en nom propre. */
+  siren?: string | null;
   bienAdresse: string;
   lotNom: string;
   locataireNom: string;
@@ -11,7 +13,7 @@ export type QuittanceInfo = {
   chargesCents: number;
 };
 
-/** Génère un PDF de quittance de loyer simple et le renvoie en octets. */
+/** Génère un PDF de quittance de loyer et le renvoie en octets. */
 export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([595.28, 841.89]); // A4
@@ -30,15 +32,18 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
     y -= opts?.gap ?? 20;
   };
 
-  drawLine("QUITTANCE DE LOYER", { size: 18, useFont: bold, gap: 36 });
-  drawLine(info.sciNom, { useFont: bold, gap: 24 });
-  drawLine(`Concernant la location de : ${info.bienAdresse} — ${info.lotNom}`, { gap: 30 });
+  drawLine("QUITTANCE DE LOYER", { size: 18, useFont: bold, gap: 34 });
+
+  drawLine(`Bailleur : ${info.sciNom}${info.siren ? ` — SIREN ${info.siren}` : ""}`, { gap: 18 });
+  drawLine(`Locataire : ${info.locataireNom}`, { gap: 18 });
+  drawLine(`Logement loué : ${info.bienAdresse} — ${info.lotNom}`, { gap: 18 });
+  drawLine(`Période concernée : ${moisLabel}`, { gap: 32 });
 
   drawLine(
-    `Je soussigné(e), ${info.sciNom}, déclare avoir reçu de ${info.locataireNom} la somme de`,
+    `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom} la somme de`,
     { gap: 18 }
   );
-  drawLine(`${formatEuros(totalCents)} au titre du loyer et des charges pour la période de ${moisLabel},`, { gap: 18 });
+  drawLine(`${formatEuros(totalCents)} au titre du loyer et des charges de la période ci-dessus,`, { gap: 18 });
   drawLine("se décomposant comme suit :", { gap: 30 });
 
   drawLine(`Loyer hors charges .......................... ${formatEuros(info.loyerHcCents)}`, { gap: 18 });
@@ -46,12 +51,16 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
   drawLine(`Total .......................................... ${formatEuros(totalCents)}`, { useFont: bold, gap: 40 });
 
   drawLine(
-    "La présente quittance annule tous les reçus qui auraient pu être établis précédemment",
+    "La présente quittance annule tous les reçus qui auraient pu être établis précédemment en cas de",
     { size: 9.5, gap: 14 }
   );
-  drawLine("en cas de paiement partiel du montant ci-dessus.", { size: 9.5, gap: 40 });
+  drawLine(
+    "paiement partiel du montant ci-dessus. À conserver par le locataire pendant toute la durée de la location.",
+    { size: 9.5, gap: 36 }
+  );
 
-  drawLine(`Fait le ${dateEmission}`, { gap: 20 });
+  drawLine(`Fait le ${dateEmission}`, { gap: 40 });
+  drawLine("Signature du bailleur :", {});
 
   return doc.save();
 }
