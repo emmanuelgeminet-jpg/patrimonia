@@ -12,11 +12,17 @@ export type Analyse = {
   prixAnnonceCents: number | null;
   prixOffreCents: number | null;
   fraisNotaireCents: number | null;
+  fraisAgenceCents: number | null;
+  fraisDossierGarantieCents: number | null;
   travauxEstimesCents: number | null;
   apportCents: number | null;
   montantEmprunteCents: number | null;
   tauxPct: number | null;
   dureeAnnees: number | null;
+  assuranceEmprunteurCents: number | null;
+  taxeFonciereCents: number | null;
+  chargesCoproCents: number | null;
+  assurancePnoCents: number | null;
   chargesAnnuellesCents: number | null;
   surfaceM2: number | null;
   vacanceLocativePct: number | null;
@@ -49,29 +55,59 @@ export default function AnalyseDetail({
     <>
       <div className="kpis">
         <div className="kpi"><div className="label">Coût total de l&apos;opération</div><div className="value">{formatEuros(kpis.coutTotalCents)}</div></div>
-        <div className="kpi"><div className="label">Mensualité de crédit</div><div className="value">{formatEuros(kpis.mensualiteCents)}</div></div>
+        <div className="kpi"><div className="label">Négociation</div><div className="value">{kpis.pourcentageNegociation !== null ? `${kpis.pourcentageNegociation.toFixed(1)} %` : "—"}</div><div className="sub">vs prix affiché</div></div>
         <div className="kpi"><div className="label">Rentabilité brute</div><div className="value">{kpis.rentabiliteBrute !== null ? `${kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</div></div>
         <div className="kpi"><div className="label">Rentabilité nette</div><div className="value">{kpis.rentabiliteNette !== null ? `${kpis.rentabiliteNette.toFixed(1)} %` : "—"}</div></div>
       </div>
       <div className="kpis">
         <div className="kpi"><div className="label">Rentabilité net-net</div><div className="value">{kpis.rentabiliteNetNette !== null ? `${kpis.rentabiliteNetNette.toFixed(1)} %` : "—"}</div><div className="sub">après IS estimé à 15 %, simplifié</div></div>
-        <div className="kpi"><div className="label">Cashflow annuel avant impôt</div><div className="value">{formatEuros(kpis.cashflowAnnuelCents)}</div></div>
-        <div className="kpi"><div className="label">Cash-on-cash</div><div className="value">{kpis.cashOnCash !== null ? `${kpis.cashOnCash.toFixed(1)} %` : "—"}</div><div className="sub">cashflow ÷ apport — rendement sur ta mise de départ</div></div>
+        <div className="kpi"><div className="label">Mensualité totale</div><div className="value">{formatEuros(kpis.mensualiteTotaleCents)}</div><div className="sub">crédit {formatEuros(kpis.mensualiteCreditCents)} + assurance emprunteur</div></div>
+        <div className="kpi"><div className="label">Cash-on-cash</div><div className="value">{kpis.cashOnCash !== null ? `${kpis.cashOnCash.toFixed(1)} %` : "—"}</div><div className="sub">cash-flow net ÷ apport</div></div>
         <div className="kpi"><div className="label">Prix de revient au m²</div><div className="value">{kpis.prixM2Cents !== null ? formatEuros(kpis.prixM2Cents) : "—"}</div></div>
       </div>
       <div className="kpis">
         <div className="kpi"><div className="label">Loyers HC annuels (plein)</div><div className="value">{formatEuros(kpis.loyersHcAnnuelsCents)}</div></div>
         <div className="kpi"><div className="label">Loyers HC effectifs</div><div className="value">{formatEuros(kpis.loyersHcEffectifsCents)}</div><div className="sub">après vacance locative</div></div>
-        <div className="kpi"><div className="label">GLI + gestion locative</div><div className="value">{formatEuros(kpis.gliCents + kpis.fraisGestionCents)}</div><div className="sub">inclus dans les charges ci-dessus</div></div>
+        <div className="kpi"><div className="label">GLI + gestion locative</div><div className="value">{formatEuros(kpis.gliCents + kpis.fraisGestionCents)}</div><div className="sub">inclus dans les charges ci-dessous</div></div>
         <div className="kpi"><div className="label">Charges totales retenues</div><div className="value">{formatEuros(kpis.chargesTotalesCents)}</div></div>
       </div>
 
       <div className="placeholder-note">
         Brute = loyers HC ÷ coût total · Nette = (loyers HC effectifs − charges) ÷ coût total · Net-net = (... − IS
-        estimé) ÷ coût total. Loyers effectifs = loyers HC − vacance locative. Charges totales = charges saisies +
-        GLI + frais de gestion (tous deux en % des loyers HC, si renseignés). Les intérêts d&apos;emprunt ne sont pas
-        déduits des rentabilités (ça relève du financement, pas de la performance du bien) — ils se lisent dans le
-        cashflow et le cash-on-cash.
+        estimé) ÷ coût total. Loyers effectifs = loyers HC − vacance locative. Charges totales = taxe foncière +
+        copropriété + assurance PNO + autres charges + GLI + frais de gestion (ces deux derniers en % des loyers HC,
+        si renseignés). Les intérêts d&apos;emprunt ne sont pas déduits des rentabilités (ça relève du financement,
+        pas de la performance du bien) — ils se lisent dans le cash-flow ci-dessous.
+      </div>
+
+      <div className="grid2">
+        <div className="card">
+          <h2>Cash-flow <span className="tag">loyers réels à 100 %</span></h2>
+          <table>
+            <tbody>
+              <tr><td>Brut <span className="tag" style={{ color: "var(--ink-soft)" }}>loyers effectifs − mensualité</span></td><td className="num">{formatEuros(kpis.vue100.cashflowBrutCents)}</td></tr>
+              <tr><td>Net <span className="tag" style={{ color: "var(--ink-soft)" }}>− charges</span></td><td className="num">{formatEuros(kpis.vue100.cashflowNetCents)}</td></tr>
+              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Net-net <span className="tag" style={{ color: "var(--ink-soft)" }}>− IS estimé</span></b></td><td className="num"><b>{formatEuros(kpis.vue100.cashflowNetNetCents)}</b></td></tr>
+            </tbody>
+          </table>
+          <div className="card-sub" style={{ marginTop: 8 }}>Ce qui atterrit vraiment sur ton compte, année pleine — la performance réelle du bien.</div>
+        </div>
+        <div className="card">
+          <h2>Cash-flow <span className="tag">vue banque — loyers pondérés 70 %</span></h2>
+          <table>
+            <tbody>
+              <tr><td>Loyers retenus par la banque</td><td className="num">{formatEuros(kpis.vueBanque70.loyersPonderesCents)}</td></tr>
+              <tr><td>Brut</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowBrutCents)}</td></tr>
+              <tr><td>Net</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowNetCents)}</td></tr>
+              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Net-net</b></td><td className="num"><b>{formatEuros(kpis.vueBanque70.cashflowNetNetCents)}</b></td></tr>
+            </tbody>
+          </table>
+          <div className="card-sub" style={{ marginTop: 8 }}>
+            Le HCSF plafonne le taux d&apos;endettement à 35 % et les banques ne retiennent que 70 % des loyers dans
+            ce calcul (marge de prudence vacance/impayés) — c&apos;est cette vue, plus pessimiste, qui détermine ta
+            capacité à obtenir le prêt, pas ta rentabilité réelle ci-contre.
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -89,31 +125,38 @@ export default function AnalyseDetail({
 
           <div className="cat-block"><div className="cat-title">Prix et négociation</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input name="prix_annonce" defaultValue={euros(analyse.prixAnnonceCents)} placeholder="Prix de l'annonce €" style={{ maxWidth: 160 }} />
-              <input name="prix_offre" defaultValue={euros(analyse.prixOffreCents)} placeholder="Montant de l'offre €" style={{ maxWidth: 160 }} />
+              <input name="prix_annonce" defaultValue={euros(analyse.prixAnnonceCents)} placeholder="Prix de vente (annonce) €" style={{ maxWidth: 170 }} />
+              <input name="prix_offre" defaultValue={euros(analyse.prixOffreCents)} placeholder="Prix d'achat (après négo) €" style={{ maxWidth: 180 }} />
             </div>
+            <div className="card-sub" style={{ marginTop: 6 }}>Le % de négociation entre les deux se calcule tout seul, dans les chiffres ci-dessus.</div>
           </div>
 
           <div className="cat-block"><div className="cat-title">Coût de l&apos;opération</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input name="frais_notaire" defaultValue={euros(analyse.fraisNotaireCents)} placeholder="Frais de notaire €" style={{ maxWidth: 160 }} />
-              <input name="travaux_estimes" defaultValue={euros(analyse.travauxEstimesCents)} placeholder="Travaux estimés €" style={{ maxWidth: 160 }} />
+              <input name="frais_notaire" defaultValue={euros(analyse.fraisNotaireCents)} placeholder="Frais de notaire €" style={{ maxWidth: 150 }} />
+              <input name="frais_agence" defaultValue={euros(analyse.fraisAgenceCents)} placeholder="Frais d'agence / marchand de bien €" style={{ maxWidth: 210 }} />
+              <input name="frais_dossier_garantie" defaultValue={euros(analyse.fraisDossierGarantieCents)} placeholder="Frais de dossier + garantie bancaire €" style={{ maxWidth: 220 }} />
+              <input name="travaux_estimes" defaultValue={euros(analyse.travauxEstimesCents)} placeholder="Travaux estimés €" style={{ maxWidth: 150 }} />
               <input name="surface" defaultValue={analyse.surfaceM2 ?? ""} placeholder="Surface habitable m²" style={{ maxWidth: 160 }} />
             </div>
           </div>
 
           <div className="cat-block"><div className="cat-title">Financement</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input name="apport" defaultValue={euros(analyse.apportCents)} placeholder="Apport €" style={{ maxWidth: 140 }} />
+              <input name="apport" defaultValue={euros(analyse.apportCents)} placeholder="Apport €" style={{ maxWidth: 130 }} />
               <input name="montant_emprunte" defaultValue={euros(analyse.montantEmprunteCents)} placeholder="Montant emprunté €" style={{ maxWidth: 160 }} />
               <input name="taux" defaultValue={analyse.tauxPct ?? ""} placeholder="Taux %" style={{ maxWidth: 90 }} />
-              <input name="duree" defaultValue={analyse.dureeAnnees ?? ""} placeholder="Durée (années)" style={{ maxWidth: 120 }} />
+              <input name="duree" defaultValue={analyse.dureeAnnees ?? ""} placeholder="Durée (années)" style={{ maxWidth: 130 }} />
+              <input name="assurance_emprunteur" defaultValue={euros(analyse.assuranceEmprunteurCents)} placeholder="Assurance emprunteur €/mois" style={{ maxWidth: 190 }} />
             </div>
           </div>
 
           <div className="cat-block"><div className="cat-title">Charges annuelles à la charge du propriétaire</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input name="charges_annuelles" defaultValue={euros(analyse.chargesAnnuellesCents)} placeholder="Autres charges €/an (taxe foncière, assurance, comptable, provision travaux...)" style={{ minWidth: 320 }} />
+              <input name="taxe_fonciere" defaultValue={euros(analyse.taxeFonciereCents)} placeholder="Taxe foncière €/an" style={{ maxWidth: 160 }} />
+              <input name="charges_copro" defaultValue={euros(analyse.chargesCoproCents)} placeholder="Charges copropriété €/an (si copro)" style={{ maxWidth: 220 }} />
+              <input name="assurance_pno" defaultValue={euros(analyse.assurancePnoCents)} placeholder="Assurance PNO €/an" style={{ maxWidth: 170 }} />
+              <input name="charges_annuelles" defaultValue={euros(analyse.chargesAnnuellesCents)} placeholder="Autres charges €/an (comptable, entretien, provisions...)" style={{ minWidth: 300 }} />
             </div>
           </div>
 

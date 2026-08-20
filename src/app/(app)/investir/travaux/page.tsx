@@ -52,6 +52,8 @@ export default async function EstimatifTravauxPage({
       const kpis = computeAnalyseBienKpis({
         prixOffreCents: selected.prix_offre_cents as number | null,
         fraisNotaireCents: selected.frais_notaire_cents as number | null,
+        fraisAgenceCents: selected.frais_agence_cents as number | null,
+        fraisDossierGarantieCents: selected.frais_dossier_garantie_cents as number | null,
         travauxEstimesCents: totalTravaux || (selected.travaux_estimes_cents as number | null),
         montantEmprunteCents: selected.montant_emprunte_cents as number | null,
         tauxPct: selected.taux_pct as number | null,

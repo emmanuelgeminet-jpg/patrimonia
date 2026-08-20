@@ -34,14 +34,24 @@ export default async function ComparerAnalysesPage({
       .filter((l) => l.analyse_id === a.id)
       .map((l) => ({ loyerHcCents: l.loyer_hc_cents, chargesCents: l.charges_cents }));
     const kpis = computeAnalyseBienKpis({
+      prixAnnonceCents: a.prix_annonce_cents as number | null,
       prixOffreCents: a.prix_offre_cents as number | null,
       fraisNotaireCents: a.frais_notaire_cents as number | null,
+      fraisAgenceCents: a.frais_agence_cents as number | null,
+      fraisDossierGarantieCents: a.frais_dossier_garantie_cents as number | null,
       travauxEstimesCents: a.travaux_estimes_cents as number | null,
       montantEmprunteCents: a.montant_emprunte_cents as number | null,
       tauxPct: a.taux_pct as number | null,
       dureeAnnees: a.duree_annees as number | null,
+      assuranceEmprunteurCents: a.assurance_emprunteur_cents as number | null,
+      taxeFonciereCents: a.taxe_fonciere_cents as number | null,
+      chargesCoproCents: a.charges_copro_cents as number | null,
+      assurancePnoCents: a.assurance_pno_cents as number | null,
       chargesAnnuellesCents: a.charges_annuelles_cents as number | null,
       surfaceM2: a.surface_m2 as number | null,
+      vacanceLocativePct: a.vacance_locative_pct as number | null,
+      gliPct: a.gli_pct as number | null,
+      fraisGestionPct: a.frais_gestion_pct as number | null,
       lots,
     });
     return { id: a.id as string, adresse: a.adresse as string, kpis };
@@ -51,13 +61,15 @@ export default async function ComparerAnalysesPage({
 
   const lignes: { label: string; get: (k: (typeof colonnes)[number]["kpis"]) => string; meilleur?: "max" | "min" }[] = [
     { label: "Coût total", get: (k) => formatEuros(k.coutTotalCents) },
+    { label: "Négociation", get: (k) => (k.pourcentageNegociation !== null ? pct(k.pourcentageNegociation) : "—") },
     { label: "Loyers HC annuels", get: (k) => formatEuros(k.loyersHcAnnuelsCents) },
     { label: "Charges annuelles", get: (k) => formatEuros(k.chargesTotalesCents) },
-    { label: "Mensualité crédit", get: (k) => formatEuros(k.mensualiteCents) },
+    { label: "Mensualité totale (crédit + assurance)", get: (k) => formatEuros(k.mensualiteTotaleCents) },
     { label: "Rentabilité brute", get: (k) => pct(k.rentabiliteBrute) },
     { label: "Rentabilité nette", get: (k) => pct(k.rentabiliteNette) },
     { label: "Rentabilité net-net", get: (k) => pct(k.rentabiliteNetNette) },
-    { label: "Cashflow annuel", get: (k) => formatEuros(k.cashflowAnnuelCents) },
+    { label: "Cash-flow net (loyers 100 %)", get: (k) => formatEuros(k.vue100.cashflowNetCents) },
+    { label: "Cash-flow net (vue banque, loyers 70 %)", get: (k) => formatEuros(k.vueBanque70.cashflowNetCents) },
     { label: "Cash-on-cash", get: (k) => (k.cashOnCash !== null ? pct(k.cashOnCash) : "—") },
     { label: "Prix au m²", get: (k) => (k.prixM2Cents !== null ? formatEuros(Math.round(k.prixM2Cents)) : "—") },
   ];

@@ -32,14 +32,24 @@ export default async function AnalyserListPage() {
       .filter((l) => l.analyse_id === a.id)
       .map((l) => ({ loyerHcCents: l.loyer_hc_cents, chargesCents: l.charges_cents }));
     const kpis = computeAnalyseBienKpis({
+      prixAnnonceCents: a.prix_annonce_cents as number | null,
       prixOffreCents: a.prix_offre_cents as number | null,
       fraisNotaireCents: a.frais_notaire_cents as number | null,
+      fraisAgenceCents: a.frais_agence_cents as number | null,
+      fraisDossierGarantieCents: a.frais_dossier_garantie_cents as number | null,
       travauxEstimesCents: a.travaux_estimes_cents as number | null,
       montantEmprunteCents: a.montant_emprunte_cents as number | null,
       tauxPct: a.taux_pct as number | null,
       dureeAnnees: a.duree_annees as number | null,
+      assuranceEmprunteurCents: a.assurance_emprunteur_cents as number | null,
+      taxeFonciereCents: a.taxe_fonciere_cents as number | null,
+      chargesCoproCents: a.charges_copro_cents as number | null,
+      assurancePnoCents: a.assurance_pno_cents as number | null,
       chargesAnnuellesCents: a.charges_annuelles_cents as number | null,
       surfaceM2: a.surface_m2 as number | null,
+      vacanceLocativePct: a.vacance_locative_pct as number | null,
+      gliPct: a.gli_pct as number | null,
+      fraisGestionPct: a.frais_gestion_pct as number | null,
       lots,
     });
     return { id: a.id as string, adresse: a.adresse as string, statut: a.statut as string, kpis };
@@ -67,7 +77,17 @@ export default async function AnalyserListPage() {
               {cards.map((c) => (
                 <tr key={c.id}>
                   <td><input type="checkbox" name="ids" value={c.id} /></td>
-                  <td><Link href={`/investir/analyser/${c.id}`} style={{ color: "var(--sage)" }}>{c.adresse}</Link></td>
+                  <td>
+                    <Link href={`/investir/analyser/${c.id}`} style={{ color: "var(--sage)" }}>{c.adresse}</Link>{" "}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.adresse)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 10.5, color: "var(--ink-soft)" }}
+                    >
+                      (carte)
+                    </a>
+                  </td>
                   <td>{STATUT_LABELS[c.statut] ?? c.statut}</td>
                   <td className="num">{formatEuros(c.kpis.coutTotalCents)}</td>
                   <td className="num">{c.kpis.rentabiliteBrute !== null ? `${c.kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</td>

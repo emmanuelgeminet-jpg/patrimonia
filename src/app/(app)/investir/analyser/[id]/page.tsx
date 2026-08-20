@@ -24,11 +24,17 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     prixAnnonceCents: analyseRow.prix_annonce_cents as number | null,
     prixOffreCents: analyseRow.prix_offre_cents as number | null,
     fraisNotaireCents: analyseRow.frais_notaire_cents as number | null,
+    fraisAgenceCents: analyseRow.frais_agence_cents as number | null,
+    fraisDossierGarantieCents: analyseRow.frais_dossier_garantie_cents as number | null,
     travauxEstimesCents: analyseRow.travaux_estimes_cents as number | null,
     apportCents: analyseRow.apport_cents as number | null,
     montantEmprunteCents: analyseRow.montant_emprunte_cents as number | null,
     tauxPct: analyseRow.taux_pct as number | null,
     dureeAnnees: analyseRow.duree_annees as number | null,
+    assuranceEmprunteurCents: analyseRow.assurance_emprunteur_cents as number | null,
+    taxeFonciereCents: analyseRow.taxe_fonciere_cents as number | null,
+    chargesCoproCents: analyseRow.charges_copro_cents as number | null,
+    assurancePnoCents: analyseRow.assurance_pno_cents as number | null,
     chargesAnnuellesCents: analyseRow.charges_annuelles_cents as number | null,
     surfaceM2: analyseRow.surface_m2 as number | null,
     vacanceLocativePct: analyseRow.vacance_locative_pct as number | null,
@@ -45,13 +51,20 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
   }));
 
   const kpis = computeAnalyseBienKpis({
+    prixAnnonceCents: analyse.prixAnnonceCents,
     prixOffreCents: analyse.prixOffreCents,
     fraisNotaireCents: analyse.fraisNotaireCents,
+    fraisAgenceCents: analyse.fraisAgenceCents,
+    fraisDossierGarantieCents: analyse.fraisDossierGarantieCents,
     travauxEstimesCents: analyse.travauxEstimesCents,
     apportCents: analyse.apportCents,
     montantEmprunteCents: analyse.montantEmprunteCents,
     tauxPct: analyse.tauxPct,
     dureeAnnees: analyse.dureeAnnees,
+    assuranceEmprunteurCents: analyse.assuranceEmprunteurCents,
+    taxeFonciereCents: analyse.taxeFonciereCents,
+    chargesCoproCents: analyse.chargesCoproCents,
+    assurancePnoCents: analyse.assurancePnoCents,
     chargesAnnuellesCents: analyse.chargesAnnuellesCents,
     surfaceM2: analyse.surfaceM2,
     vacanceLocativePct: analyse.vacanceLocativePct,
@@ -66,7 +79,17 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
         <Link href="/investir/analyser">Analyser un bien</Link> <b>› {analyse.adresse}</b>
       </div>
       <h1>{analyse.adresse}</h1>
-      <div className="pagesub">Avant achat — coût total, financement, rentabilité</div>
+      <div className="pagesub">
+        Avant achat — coût total, financement, rentabilité{" "}
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(analyse.adresse)}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: "var(--sage)" }}
+        >
+          · Voir sur la carte
+        </a>
+      </div>
 
       <AnalyseDetail analyse={analyse} lignes={lignes} kpis={kpis} />
     </section>
