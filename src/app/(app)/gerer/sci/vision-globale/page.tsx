@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
 import { statutLoyerDuMois, STATUT_LOYER_LABELS } from "@/lib/loyers";
+import { soldesMensuels } from "@/lib/tresorerie";
+import TresorerieChart from "./TresorerieChart";
 
 type Ecriture = {
   date: string;
@@ -106,6 +108,12 @@ export default async function VisionGlobalePage() {
   const moisEnCours = new Date().toISOString().slice(0, 7);
   const ecrituresDuMois = ecritures.filter((e) => e.date.slice(0, 7) === moisEnCours);
 
+  const pointsTresorerie = soldesMensuels(
+    ecritures.filter((e) => e.financement === "banque_sci").map((e) => ({ date: e.date, type: e.type, montantCents: e.montant_cents })),
+    soldeOuvertureCents,
+    soldeOuvertureDate
+  );
+
   const appartements = (lotsRows ?? []).map((l) => {
     const actif = (locatairesRows ?? []).find((loc) => loc.lot_id === l.id && !loc.date_sortie);
     const { statut } = statutLoyerDuMois(
@@ -129,9 +137,14 @@ export default async function VisionGlobalePage() {
         <div className="kpi"><div className="label">Dette SCI → associés</div><div className="value">{formatEuros(detteTotal)}</div><div className="sub">{associes.map((a) => `${a.nom} ${formatEuros(a.solde)}`).join(" + ")}</div></div>
       </div>
 
+      <div className="card">
+        <h2>Trésorerie <span className="tag">solde en fin de mois — 12 derniers mois</span></h2>
+        <TresorerieChart points={pointsTresorerie} />
+      </div>
+
       <div className="placeholder-note">
-        Squelette — graphique de trésorerie mensuelle et rentabilité par appartement pas encore branchés (il manque
-        la valeur vénale de chaque lot pour la rentabilité ; la trésorerie mensuelle est calculable, juste pas encore mise en graphique).
+        Squelette — rentabilité par appartement pas encore en graphique : il manque la valeur vénale de chaque lot,
+        qui n&apos;existe pas encore dans la fiche du bien.
       </div>
 
       <div className="grid2">
