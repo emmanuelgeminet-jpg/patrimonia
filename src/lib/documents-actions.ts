@@ -35,17 +35,25 @@ export async function uploadDocument(_prev: SaveState, formData: FormData): Prom
   if (!profile) return { error: "Profil introuvable." };
 
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-  const storagePath = `hh/${profile.household_id}/${entityType}/${entityId}/${Date.now()}_${safeName}`;
+  // Les documents liés à une SCI doivent être rangés sous le préfixe "sci/" pour rester
+  // visibles par tous les foyers associés (pas seulement celui qui les a envoyés) —
+  // voir la policy Storage "documents bucket - acces".
+  const storagePath =
+    entityType === "sci"
+      ? `sci/${entityId}/${Date.now()}_${safeName}`
+      : `hh/${profile.household_id}/${entityType}/${entityId}/${Date.now()}_${safeName}`;
 
   const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
     contentType: file.type || undefined,
   });
   if (uploadError) return { error: "Erreur lors de l'envoi du fichier." };
 
+  const dossier = String(formData.get("dossier") ?? "") || entityType;
+
   const { error: dbError } = await supabase.from("documents").insert({
     entity_type: entityType,
     entity_id: entityId,
-    dossier: entityType,
+    dossier,
     nom_fichier: file.name,
     storage_path: storagePath,
     taille_octets: file.size,
