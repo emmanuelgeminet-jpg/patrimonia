@@ -74,9 +74,13 @@ export type AnalyseBienKpis = {
   prixM2Cents: number | null;
   /** Cash-flow calculé sur les loyers réels à 100 %. */
   vue100: CashflowKpis;
-  /** Cash-flow recalculé sur les loyers pondérés à 70 % — la façon dont une banque française
-   *  évalue ta capacité d'emprunt (HCSF), pas la performance réelle du bien. */
-  vueBanque70: CashflowKpis & { loyersPonderesCents: number };
+  /** Rentabilité et cash-flow recalculés sur les loyers pondérés à 70 % — la façon dont une
+   *  banque française évalue ta capacité d'emprunt (HCSF), pas la performance réelle du bien. */
+  vueBanque70: CashflowKpis & {
+    loyersPonderesCents: number;
+    rentabiliteBrute: number | null;
+    rentabiliteNette: number | null;
+  };
 };
 
 /**
@@ -153,6 +157,9 @@ export function computeAnalyseBienKpis(input: AnalyseBienInput): AnalyseBienKpis
   // Le fisc taxe le revenu réel, pas la vue prudente de la banque — l'IS estimé reste celui du
   // scénario à 100 %.
   const cashflowNetNet70 = cashflowNet70 - isEstimeCents;
+  const rentabiliteBrute70 = coutTotalCents > 0 ? (loyersPonderesCents / coutTotalCents) * 100 : null;
+  const rentabiliteNette70 =
+    coutTotalCents > 0 ? ((loyersPonderesCents - chargesTotalesCents) / coutTotalCents) * 100 : null;
 
   return {
     coutTotalCents,
@@ -180,6 +187,8 @@ export function computeAnalyseBienKpis(input: AnalyseBienInput): AnalyseBienKpis
     },
     vueBanque70: {
       loyersPonderesCents,
+      rentabiliteBrute: rentabiliteBrute70,
+      rentabiliteNette: rentabiliteNette70,
       cashflowBrutCents: cashflowBrut70,
       cashflowNetCents: cashflowNet70,
       cashflowNetNetCents: cashflowNetNet70,

@@ -56,13 +56,7 @@ export default function AnalyseDetail({
       <div className="kpis">
         <div className="kpi"><div className="label">Coût total de l&apos;opération</div><div className="value">{formatEuros(kpis.coutTotalCents)}</div></div>
         <div className="kpi"><div className="label">Négociation</div><div className="value">{kpis.pourcentageNegociation !== null ? `${kpis.pourcentageNegociation.toFixed(1)} %` : "—"}</div><div className="sub">vs prix affiché</div></div>
-        <div className="kpi"><div className="label">Rentabilité brute</div><div className="value">{kpis.rentabiliteBrute !== null ? `${kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</div></div>
-        <div className="kpi"><div className="label">Rentabilité nette</div><div className="value">{kpis.rentabiliteNette !== null ? `${kpis.rentabiliteNette.toFixed(1)} %` : "—"}</div></div>
-      </div>
-      <div className="kpis">
-        <div className="kpi"><div className="label">Rentabilité net-net</div><div className="value">{kpis.rentabiliteNetNette !== null ? `${kpis.rentabiliteNetNette.toFixed(1)} %` : "—"}</div><div className="sub">après IS estimé à 15 %, simplifié</div></div>
         <div className="kpi"><div className="label">Mensualité totale</div><div className="value">{formatEuros(kpis.mensualiteTotaleCents)}</div><div className="sub">crédit {formatEuros(kpis.mensualiteCreditCents)} + assurance emprunteur</div></div>
-        <div className="kpi"><div className="label">Cash-on-cash</div><div className="value">{kpis.cashOnCash !== null ? `${kpis.cashOnCash.toFixed(1)} %` : "—"}</div><div className="sub">cash-flow net ÷ apport</div></div>
         <div className="kpi"><div className="label">Prix de revient au m²</div><div className="value">{kpis.prixM2Cents !== null ? formatEuros(kpis.prixM2Cents) : "—"}</div></div>
       </div>
       <div className="kpis">
@@ -82,24 +76,30 @@ export default function AnalyseDetail({
 
       <div className="grid2">
         <div className="card">
-          <h2>Cash-flow <span className="tag">loyers réels à 100 %</span></h2>
+          <h2>Vue réelle <span className="tag">loyers à 100 %</span></h2>
           <table>
             <tbody>
-              <tr><td>Brut <span className="tag" style={{ color: "var(--ink-soft)" }}>loyers effectifs − mensualité</span></td><td className="num">{formatEuros(kpis.vue100.cashflowBrutCents)}</td></tr>
-              <tr><td>Net <span className="tag" style={{ color: "var(--ink-soft)" }}>− charges</span></td><td className="num">{formatEuros(kpis.vue100.cashflowNetCents)}</td></tr>
-              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Net-net <span className="tag" style={{ color: "var(--ink-soft)" }}>− IS estimé</span></b></td><td className="num"><b>{formatEuros(kpis.vue100.cashflowNetNetCents)}</b></td></tr>
+              <tr><td>Rentabilité brute</td><td className="num">{kpis.rentabiliteBrute !== null ? `${kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</td></tr>
+              <tr><td>Rentabilité nette</td><td className="num">{kpis.rentabiliteNette !== null ? `${kpis.rentabiliteNette.toFixed(1)} %` : "—"}</td></tr>
+              <tr style={{ borderBottom: "1px solid var(--ink)" }}><td>Rentabilité net-net</td><td className="num">{kpis.rentabiliteNetNette !== null ? `${kpis.rentabiliteNetNette.toFixed(1)} %` : "—"}</td></tr>
+              <tr><td>Cash-flow brut <span className="tag" style={{ color: "var(--ink-soft)" }}>loyers effectifs − mensualité</span></td><td className="num">{formatEuros(kpis.vue100.cashflowBrutCents)}</td></tr>
+              <tr><td>Cash-flow net <span className="tag" style={{ color: "var(--ink-soft)" }}>− charges</span></td><td className="num">{formatEuros(kpis.vue100.cashflowNetCents)}</td></tr>
+              <tr><td>Cash-flow net-net <span className="tag" style={{ color: "var(--ink-soft)" }}>− IS estimé</span></td><td className="num">{formatEuros(kpis.vue100.cashflowNetNetCents)}</td></tr>
+              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Cash-on-cash</b> <span className="tag" style={{ color: "var(--ink-soft)" }}>cash-flow net ÷ apport</span></td><td className="num"><b>{kpis.cashOnCash !== null ? `${kpis.cashOnCash.toFixed(1)} %` : "—"}</b></td></tr>
             </tbody>
           </table>
-          <div className="card-sub" style={{ marginTop: 8 }}>Ce qui atterrit vraiment sur ton compte, année pleine — la performance réelle du bien.</div>
+          <div className="card-sub" style={{ marginTop: 8 }}>Rentabilité = performance du bien seul. Cash-flow = ce qui atterrit vraiment sur ton compte, crédit compris — les deux comptent, pour des questions différentes.</div>
         </div>
         <div className="card">
-          <h2>Cash-flow <span className="tag">vue banque — loyers pondérés 70 %</span></h2>
+          <h2>Vue banque <span className="tag">loyers pondérés 70 %</span></h2>
           <table>
             <tbody>
               <tr><td>Loyers retenus par la banque</td><td className="num">{formatEuros(kpis.vueBanque70.loyersPonderesCents)}</td></tr>
-              <tr><td>Brut</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowBrutCents)}</td></tr>
-              <tr><td>Net</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowNetCents)}</td></tr>
-              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Net-net</b></td><td className="num"><b>{formatEuros(kpis.vueBanque70.cashflowNetNetCents)}</b></td></tr>
+              <tr><td>Rentabilité brute</td><td className="num">{kpis.vueBanque70.rentabiliteBrute !== null ? `${kpis.vueBanque70.rentabiliteBrute.toFixed(1)} %` : "—"}</td></tr>
+              <tr style={{ borderBottom: "1px solid var(--ink)" }}><td>Rentabilité nette</td><td className="num">{kpis.vueBanque70.rentabiliteNette !== null ? `${kpis.vueBanque70.rentabiliteNette.toFixed(1)} %` : "—"}</td></tr>
+              <tr><td>Cash-flow brut</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowBrutCents)}</td></tr>
+              <tr><td>Cash-flow net</td><td className="num">{formatEuros(kpis.vueBanque70.cashflowNetCents)}</td></tr>
+              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Cash-flow net-net</b></td><td className="num"><b>{formatEuros(kpis.vueBanque70.cashflowNetNetCents)}</b></td></tr>
             </tbody>
           </table>
           <div className="card-sub" style={{ marginTop: 8 }}>
