@@ -1,4 +1,74 @@
-export default function EstimatifTravauxPage() {
+import { createClient } from "@/lib/supabase/server";
+import { computeAnalyseBienKpis, totalInteretsEmprunt } from "@/lib/analyse-bien";
+import TravauxCalculator, { type Analyse, type LigneTravaux } from "./TravauxCalculator";
+
+export default async function EstimatifTravauxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ analyse?: string }>;
+}) {
+  const { analyse: analyseParam } = await searchParams;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user!.id).single();
+  const householdId = profile?.household_id as string;
+
+  const { data: analysesRows } = await supabase
+    .from("analyses_biens")
+    .select("*")
+    .eq("household_id", householdId)
+    .order("created_at", { ascending: false });
+  const analyses: Analyse[] = (analysesRows ?? []).map((a) => ({ id: a.id as string, adresse: a.adresse as string }));
+
+  const selected = analyseParam
+    ? (analysesRows ?? []).find((a) => a.id === analyseParam)
+    : (analysesRows ?? [])[0];
+  const selectedId = selected ? (selected.id as string) : null;
+
+  const { data: lignesRows } = selectedId
+    ? await supabase.from("devis_travaux").select("*").eq("analyse_id", selectedId).order("created_at")
+    : { data: [] as { id: string; piece: string; type_travaux: string; surface_m2: number | null; prix_m2_cents: number | null; sous_total_cents: number }[] };
+
+  const lignes: LigneTravaux[] = (lignesRows ?? []).map((l) => ({
+    id: l.id as string,
+    piece: l.piece as string,
+    typeTravaux: l.type_travaux as string,
+    surfaceM2: l.surface_m2 as number | null,
+    prixM2Cents: l.prix_m2_cents as number | null,
+    sousTotalCents: l.sous_total_cents as number,
+  }));
+
+  const totalTravaux = lignes.reduce((s, l) => s + l.sousTotalCents, 0);
+  const surfaceRenovee = lignes.reduce((s, l) => s + (l.surfaceM2 ?? 0), 0);
+  const prixM2Renovation = surfaceRenovee > 0 ? totalTravaux / surfaceRenovee : null;
+
+  let prixM2GlobalInteretsCompris: number | null = null;
+  if (selected) {
+    const surfaceHabitable = selected.surface_m2 as number | null;
+    if (surfaceHabitable && surfaceHabitable > 0) {
+      const kpis = computeAnalyseBienKpis({
+        prixOffreCents: selected.prix_offre_cents as number | null,
+        fraisNotaireCents: selected.frais_notaire_cents as number | null,
+        travauxEstimesCents: totalTravaux || (selected.travaux_estimes_cents as number | null),
+        montantEmprunteCents: selected.montant_emprunte_cents as number | null,
+        tauxPct: selected.taux_pct as number | null,
+        dureeAnnees: selected.duree_annees as number | null,
+        chargesAnnuellesCents: selected.charges_annuelles_cents as number | null,
+        surfaceM2: surfaceHabitable,
+        lots: [],
+      });
+      const interets = totalInteretsEmprunt(
+        (selected.montant_emprunte_cents as number | null) ?? 0,
+        (selected.taux_pct as number | null) ?? 0,
+        (selected.duree_annees as number | null) ?? 0
+      );
+      prixM2GlobalInteretsCompris = (kpis.coutTotalCents + interets) / surfaceHabitable;
+    }
+  }
+
   return (
     <section className="section">
       <div className="crumb">Analyser un bien <b>› Investir › Estimatif des travaux</b></div>
@@ -6,8 +76,8 @@ export default function EstimatifTravauxPage() {
       <div className="pagesub">Objectif : ne jamais sous-évaluer une rénovation — ça plombe la rentabilité du projet</div>
 
       <div className="card">
-        <h2>Estimatif des travaux <span className="tag">calculateur détaillé</span></h2>
-        <div className="card-sub">Grille de prix 2026 construite à partir des données FFB, retours d&apos;artisans et plateformes spécialisées — calcul par pièce × type de travaux, à ajuster selon les devis réels</div>
+        <h2>Grille de prix de référence <span className="tag">repères marché 2026</span></h2>
+        <div className="card-sub">Grille de prix 2026 construite à partir des données FFB, retours d&apos;artisans et plateformes spécialisées — à ajuster selon les devis réels</div>
 
         <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-soft)", fontWeight: 600, margin: "16px 0 8px" }}>Repère global — prix moyen au m² selon le niveau de rénovation</div>
         <table>
@@ -90,51 +160,15 @@ export default function EstimatifTravauxPage() {
         <div className="placeholder-note" style={{ background: "var(--sage-soft)", color: "var(--sage)", marginTop: 6 }}>
           <b>Fonctionnalité prévue :</b> l&apos;appli pourra interroger le web périodiquement pour rafraîchir automatiquement cette grille de référence (prix matériaux, taux horaires artisans par région) plutôt que de rester figée sur les chiffres du jour de sa création — pour que tes estimations restent fiables dans la durée.
         </div>
-
-        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-soft)", fontWeight: 600, margin: "22px 0 8px" }}>Calculateur — exemple pour un T3 à rénover entièrement</div>
-        <table>
-          <thead><tr><th>Pièce</th><th>Type de travaux</th><th className="num">Surface</th><th className="num">Prix/m² retenu</th><th className="num">Sous-total</th></tr></thead>
-          <tbody>
-            <tr><td>Séjour (22 m²)</td><td>Peinture</td><td className="num">22 m²</td><td className="num">50 €</td><td className="num">1 100 €</td></tr>
-            <tr><td>Séjour (22 m²)</td><td>Parquet flottant</td><td className="num">22 m²</td><td className="num">65 €</td><td className="num">1 430 €</td></tr>
-            <tr><td>Chambre 1 (12 m²)</td><td>Peinture + sol stratifié</td><td className="num">12 m²</td><td className="num">110 €</td><td className="num">1 320 €</td></tr>
-            <tr><td>Chambre 2 (10 m²)</td><td>Peinture + sol stratifié</td><td className="num">10 m²</td><td className="num">110 €</td><td className="num">1 100 €</td></tr>
-            <tr><td>Salle de bain (5 m²)</td><td>Rénovation complète</td><td className="num">5 m²</td><td className="num">1 400 €</td><td className="num">7 000 €</td></tr>
-            <tr><td>Cuisine (9 m²)</td><td>Rénovation complète (forfait)</td><td className="num">—</td><td className="num">—</td><td className="num">12 000 €</td></tr>
-            <tr><td>Ensemble du logement (58 m²)</td><td>Électricité — réfection complète</td><td className="num">58 m²</td><td className="num">115 €</td><td className="num">6 670 €</td></tr>
-            <tr><td>Grenier (30 m²)</td><td>Isolation combles perdus</td><td className="num">30 m²</td><td className="num">45 €</td><td className="num">1 350 €</td></tr>
-          </tbody>
-          <tfoot>
-            <tr style={{ background: "var(--paper)" }}><td colSpan={5} style={{ padding: "10px 6px" }}><span className="addline">+ Ajouter une ligne (pièce → type de travaux → m²)</span></td></tr>
-          </tfoot>
-        </table>
-
-        <div className="grid2" style={{ marginTop: 16 }}>
-          <div className="card">
-            <h2>Répartition par thématique</h2>
-            <svg viewBox="0 0 280 175" width="100%" height="170">
-              <g fontFamily="IBM Plex Mono" fontSize="10" fill="#22261F">
-                <rect x="10" y="15" width="230" height="16" fill="#A8523A" /><text x="245" y="27">Cuisine — 12 000 €</text>
-                <rect x="10" y="39" width="134" height="16" fill="#B98A2E" /><text x="149" y="51">SDB — 7 000 €</text>
-                <rect x="10" y="63" width="128" height="16" fill="#5C7A5B" /><text x="143" y="75">Électricité — 6 670 €</text>
-                <rect x="10" y="87" width="63" height="16" fill="#8B876F" /><text x="78" y="99">Sols — 3 300 €</text>
-                <rect x="10" y="111" width="42" height="16" fill="#C7A98A" /><text x="57" y="123">Peinture — 2 200 €</text>
-                <rect x="10" y="135" width="26" height="16" fill="#DEDACE" /><text x="41" y="147">Isolation — 1 350 €</text>
-              </g>
-            </svg>
-            <div className="chart-caption">Barres proportionnelles au montant de chaque poste</div>
-          </div>
-          <div className="card">
-            <h2>Synthèse</h2>
-            <table><tbody>
-              <tr><td>Surface totale rénovée</td><td className="num">58 m²</td></tr>
-              <tr><td>Montant total travaux</td><td className="num"><b>32 570 €</b></td></tr>
-              <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>Prix moyen de rénovation au m²</b></td><td className="num"><b>561 €/m²</b></td></tr>
-            </tbody></table>
-            <div className="placeholder-note">Ce niveau (561 €/m²) correspond à une rénovation &quot;standard&quot; selon la grille ci-dessus — cohérent pour un logement sans reprise de structure ni changement de menuiseries. Ajoute une ligne &quot;menuiseries&quot; ou &quot;isolation des murs&quot; si le DPE du bien l&apos;exige.</div>
-          </div>
-        </div>
       </div>
+
+      <TravauxCalculator
+        analyses={analyses}
+        selectedId={selectedId}
+        lignes={lignes}
+        prixM2Renovation={prixM2Renovation}
+        prixM2GlobalInteretsCompris={prixM2GlobalInteretsCompris}
+      />
     </section>
   );
 }

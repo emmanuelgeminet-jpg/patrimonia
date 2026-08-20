@@ -64,6 +64,8 @@ export async function saveObjectifs(_prev: SaveState, formData: FormData): Promi
         appetence_risque: formData.get("appetence_risque"),
         capacite_apport: formData.get("capacite_apport"),
         epargne_precaution_cents: toCentsOrNull(formData.get("epargne_precaution")),
+        objectif_libelle: formData.get("objectif_libelle") || null,
+        objectif_montant_cents: toCentsOrNull(formData.get("objectif_montant")),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "household_id" }

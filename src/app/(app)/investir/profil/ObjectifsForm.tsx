@@ -12,6 +12,8 @@ export type Objectifs = {
   appetence_risque: string | null;
   capacite_apport: string | null;
   epargne_precaution_cents: number | null;
+  objectif_libelle: string | null;
+  objectif_montant_cents: number | null;
 };
 
 export default function ObjectifsForm({ initial }: { initial: Objectifs | null }) {
@@ -67,6 +69,18 @@ export default function ObjectifsForm({ initial }: { initial: Objectifs | null }
         {initial?.epargne_precaution_cents ? (
           <div className="chart-caption">Actuellement : {formatEuros(initial.epargne_precaution_cents)}</div>
         ) : null}
+        <div className="form-row">
+          <label>Rêve à atteindre <span className="tag">optionnel</span></label>
+          <input name="objectif_libelle" defaultValue={initial?.objectif_libelle ?? ""} placeholder="Ex : Maison secondaire" />
+        </div>
+        <div className="form-row">
+          <label>Montant du rêve</label>
+          <input
+            name="objectif_montant"
+            defaultValue={initial?.objectif_montant_cents ? (initial.objectif_montant_cents / 100).toString() : ""}
+            placeholder="500000"
+          />
+        </div>
         <div style={{ marginTop: 12 }}>
           <button
             type="submit"

@@ -32,6 +32,33 @@ function EndettementGauge({ pct }: { pct: number }) {
   );
 }
 
+function ObjectifGauge({ pct }: { pct: number }) {
+  const clamped = Math.max(0, Math.min(1, pct));
+  const angle = Math.PI * (1 - clamped);
+  const x = 70 + 55 * Math.cos(angle);
+  const y = 70 - 55 * Math.sin(angle);
+  const largeArc = clamped > 0.999 ? 1 : 0;
+  const color = clamped >= 1 ? "#5C7A5B" : clamped >= 0.5 ? "#8FB88D" : "#B98A2E";
+
+  return (
+    <svg className="gauge-svg" viewBox="0 0 140 72">
+      <path d="M 15,70 A 55,55 0 0,1 125,70" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="14" strokeLinecap="round" />
+      {clamped > 0 && (
+        <path
+          d={`M 15,70 A 55,55 0 ${largeArc},1 ${x.toFixed(1)},${y.toFixed(1)}`}
+          fill="none"
+          stroke={color}
+          strokeWidth="14"
+          strokeLinecap="round"
+        />
+      )}
+      <text x="70" y="66" textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="20" fontWeight="600" fill={color}>
+        {Math.round(clamped * 100)}%
+      </text>
+    </svg>
+  );
+}
+
 export default function IndicateursHero({
   tauxEndettement,
   capaciteEpargne,
@@ -39,6 +66,8 @@ export default function IndicateursHero({
   patrimoineNet,
   capaciteEmprunt,
   apportMobilisable,
+  objectifLibelle,
+  objectifMontantCents,
 }: {
   tauxEndettement: number;
   capaciteEpargne: number;
@@ -46,11 +75,39 @@ export default function IndicateursHero({
   patrimoineNet: number;
   capaciteEmprunt: number;
   apportMobilisable: number;
+  objectifLibelle: string | null;
+  objectifMontantCents: number | null;
 }) {
+  const objectifPct = objectifMontantCents && objectifMontantCents > 0 ? patrimoineNet / objectifMontantCents : null;
+  const montantRestant = objectifMontantCents ? Math.max(0, objectifMontantCents - patrimoineNet) : 0;
+  const ansEstimes = objectifMontantCents && capaciteEpargne > 0 ? montantRestant / (capaciteEpargne * 12) : null;
+
   return (
     <div className="indic-block">
       <div className="indic-title">Indicateurs calculés</div>
       <div className="indic-note">Recalculés automatiquement à partir de tes vraies données (Mon budget, patrimoine, emprunts)</div>
+
+      {objectifMontantCents && objectifPct !== null && (
+        <div className="stat-row">
+          <div className="gauge-card">
+            <ObjectifGauge pct={objectifPct} />
+            <div className="gauge-text">
+              <div className="hs-label">Objectif — {objectifLibelle || "ton rêve"} ({formatEuros(objectifMontantCents)})</div>
+              <div className="gauge-foot">
+                {objectifPct >= 1
+                  ? "Objectif atteint 🎉"
+                  : `Encore ${formatEuros(montantRestant)} à constituer${ansEstimes !== null ? ` — environ ${ansEstimes.toFixed(1)} an${ansEstimes >= 2 ? "s" : ""} au rythme d'épargne actuel` : " (renseigne ta capacité d'épargne pour estimer le délai)"}`}
+              </div>
+            </div>
+          </div>
+          <div className="hero-stat">
+            <div className="hs-icon">📊</div>
+            <div className="hs-label">Patrimoine net</div>
+            <div className="hs-value" style={{ fontSize: 26 }}>{formatEuros(patrimoineNet)}</div>
+            <div className="hs-foot">Actif − passif, détail plus bas</div>
+          </div>
+        </div>
+      )}
 
       <div className="stat-row">
         <div className="gauge-card">
@@ -79,12 +136,14 @@ export default function IndicateursHero({
           <div className={`hs-value ${resteAVivre >= 0 ? "good" : "warn"}`}>{formatEuros(resteAVivre)}</div>
           <div className="hs-foot">Après charges essentielles</div>
         </div>
-        <div className="hero-stat">
-          <div className="hs-icon">📊</div>
-          <div className="hs-label">Patrimoine net</div>
-          <div className="hs-value">{formatEuros(patrimoineNet)}</div>
-          <div className="hs-foot">Actif − passif, détail plus bas</div>
-        </div>
+        {!objectifMontantCents && (
+          <div className="hero-stat">
+            <div className="hs-icon">📊</div>
+            <div className="hs-label">Patrimoine net</div>
+            <div className="hs-value" style={{ fontSize: 26 }}>{formatEuros(patrimoineNet)}</div>
+            <div className="hs-foot">Actif − passif, détail plus bas</div>
+          </div>
+        )}
         <div className={`hero-stat${tauxEndettement > 0.3 ? " warn-border" : ""}`}>
           <div className="hs-icon">🏦</div>
           <div className="hs-label">Capacité d&apos;emprunt résiduelle</div>

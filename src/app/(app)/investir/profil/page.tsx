@@ -134,6 +134,8 @@ export default async function ProfilInvestisseurPage() {
         patrimoineNet={patrimoineNet}
         capaciteEmprunt={capaciteEmprunt}
         apportMobilisable={apportMobilisable}
+        objectifLibelle={(profil?.objectif_libelle as string | null) ?? null}
+        objectifMontantCents={(profil?.objectif_montant_cents as number | null) ?? null}
       />
 
       <SituationForm initial={profil} />

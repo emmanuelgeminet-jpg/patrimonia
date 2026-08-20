@@ -7,6 +7,12 @@ export function mensualiteEmprunt(capitalCents: number, tauxPct: number, dureeAn
   return (capitalCents * r) / (1 - Math.pow(1 + r, -n));
 }
 
+/** Total des intérêts payés sur toute la durée du prêt (mensualités cumulées − capital emprunté). */
+export function totalInteretsEmprunt(capitalCents: number, tauxPct: number, dureeAnnees: number): number {
+  const mensualite = mensualiteEmprunt(capitalCents, tauxPct, dureeAnnees);
+  return Math.max(0, mensualite * dureeAnnees * 12 - capitalCents);
+}
+
 export type AnalyseBienInput = {
   prixOffreCents: number | null;
   fraisNotaireCents: number | null;

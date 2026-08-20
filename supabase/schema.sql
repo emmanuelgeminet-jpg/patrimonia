@@ -214,6 +214,8 @@ create table if not exists feedback_messages (
 
 create table if not exists profil_investisseur (
   household_id uuid primary key references households(id) on delete cascade,
+  objectif_libelle text,
+  objectif_montant_cents bigint,
   composition_foyer text,
   regime_matrimonial text,
   donation_entre_epoux boolean,
