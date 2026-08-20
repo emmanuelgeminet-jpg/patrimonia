@@ -27,6 +27,7 @@ export type Ecriture = {
   libelle: string;
   modePaiement: string | null;
   bienId: string | null;
+  lotId: string | null;
   commentaire: string | null;
   justificatifPath: string | null;
   justificatifUrl: string | null;
@@ -44,6 +45,7 @@ export type Mouvement = {
   montantCents: number;
 };
 export type Bien = { id: string; label: string };
+export type Lot = { id: string; nom: string; bienId: string };
 export type SciInfo = { id: string; soldeOuvertureCents: number; soldeOuvertureDate: string | null };
 
 const initialState: SaveState = {};
@@ -60,12 +62,14 @@ function formatDateShort(dateStr: string): string {
 export default function JournalTabs({
   sci,
   biens,
+  lots,
   ecritures,
   associes,
   mouvements,
 }: {
   sci: SciInfo;
   biens: Bien[];
+  lots: Lot[];
   ecritures: Ecriture[];
   associes: Associe[];
   mouvements: Mouvement[];
@@ -102,6 +106,7 @@ export default function JournalTabs({
         <PanelMensuel
           sci={sci}
           biens={biens}
+          lots={lots}
           ecritures={ecritures}
           associes={associes}
           mouvements={mouvements}
@@ -119,6 +124,7 @@ export default function JournalTabs({
 function PanelMensuel({
   sci,
   biens,
+  lots,
   ecritures,
   associes,
   mouvements,
@@ -128,6 +134,7 @@ function PanelMensuel({
 }: {
   sci: SciInfo;
   biens: Bien[];
+  lots: Lot[];
   ecritures: Ecriture[];
   associes: Associe[];
   mouvements: Mouvement[];
@@ -168,8 +175,18 @@ function PanelMensuel({
     .reduce((s, e) => s + e.montantCents, 0);
 
   const bienById = new Map(biens.map((b) => [b.id, b.label]));
+  const lotById = new Map(lots.map((l) => [l.id, l]));
   const associeById = new Map(associes.map((a) => [a.householdId, a.nom]));
   const dateDefault = /^\d{4}-\d{2}$/.test(selectedMonth) ? `${selectedMonth}-01` : selectedMonth;
+
+  function concerneLabel(e: Ecriture): string {
+    if (e.lotId) {
+      const lot = lotById.get(e.lotId);
+      if (lot) return `${bienById.get(lot.bienId) ?? "Bien"} — ${lot.nom}`;
+    }
+    if (e.bienId) return bienById.get(e.bienId) ?? "—";
+    return "—";
+  }
 
   return (
     <div>
@@ -215,7 +232,7 @@ function PanelMensuel({
           <thead>
             <tr>
               <th>Date</th><th>Encaissement</th><th className="num">Montant E</th><th>Décaissement</th>
-              <th className="num">Montant D</th><th>Mode</th><th>Financement</th><th>Bien concerné</th><th>Commentaire</th><th>Justif.</th><th></th>
+              <th className="num">Montant D</th><th>Mode</th><th>Financement</th><th>Concerne</th><th>Commentaire</th><th>Justif.</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -226,7 +243,7 @@ function PanelMensuel({
               <EcritureRow
                 key={e.id}
                 ecriture={e}
-                bienLabel={e.bienId ? bienById.get(e.bienId) ?? "—" : "—"}
+                concerne={concerneLabel(e)}
                 associeNom={e.associeHouseholdId ? associeById.get(e.associeHouseholdId) ?? null : null}
               />
             ))}
@@ -234,7 +251,7 @@ function PanelMensuel({
         </table>
       </div>
 
-      <AjouterEcritureForm biens={biens} associes={associes} defaultDate={dateDefault} />
+      <AjouterEcritureForm biens={biens} lots={lots} associes={associes} defaultDate={dateDefault} />
 
       <div className="grid2" style={{ marginTop: 14 }}>
         {associes.map((a) => (
@@ -252,11 +269,11 @@ function PanelMensuel({
 
 function EcritureRow({
   ecriture,
-  bienLabel,
+  concerne,
   associeNom,
 }: {
   ecriture: Ecriture;
-  bienLabel: string;
+  concerne: string;
   associeNom: string | null;
 }) {
   const [, startTransition] = useTransition();
@@ -279,7 +296,7 @@ function EcritureRow({
           <span className="tag">Banque SCI</span>
         )}
       </td>
-      <td>{bienLabel}</td>
+      <td>{concerne}</td>
       <td>{ecriture.commentaire ?? "—"}</td>
       <td><JustificatifCell ecriture={ecriture} /></td>
       <td>
@@ -325,7 +342,17 @@ function JustificatifCell({ ecriture }: { ecriture: Ecriture }) {
   );
 }
 
-function AjouterEcritureForm({ biens, associes, defaultDate }: { biens: Bien[]; associes: Associe[]; defaultDate: string }) {
+function AjouterEcritureForm({
+  biens,
+  lots,
+  associes,
+  defaultDate,
+}: {
+  biens: Bien[];
+  lots: Lot[];
+  associes: Associe[];
+  defaultDate: string;
+}) {
   const [state, formAction, pending] = useActionState(addEcriture, initialState);
   const [financement, setFinancement] = useState<"banque_sci" | "avance_associe">("banque_sci");
   const [lienCompteCourant, setLienCompteCourant] = useState<"aucun" | "apport" | "remboursement">("aucun");
@@ -349,10 +376,15 @@ function AjouterEcritureForm({ biens, associes, defaultDate }: { biens: Bien[]; 
           <option value="Espèces">Espèces</option>
           <option value="Autre">Autre</option>
         </select>
-        <select name="bien_id" style={{ maxWidth: 170 }} defaultValue="">
-          <option value="">Bien concerné (optionnel)</option>
+        <select name="concerne" style={{ maxWidth: 190 }} defaultValue="">
+          <option value="">Concerne (optionnel)</option>
           {biens.map((b) => (
-            <option key={b.id} value={b.id}>{b.label}</option>
+            <optgroup key={b.id} label={b.label}>
+              <option value={`bien:${b.id}`}>{b.label} (immeuble entier)</option>
+              {lots.filter((l) => l.bienId === b.id).map((l) => (
+                <option key={l.id} value={`lot:${l.id}|${b.id}`}>{b.label} — {l.nom}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
         <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 150 }} />

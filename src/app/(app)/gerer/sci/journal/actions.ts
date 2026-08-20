@@ -51,7 +51,16 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
   const montant = toCentsOrNull(formData.get("montant"));
   if (!montant || montant <= 0) return { error: "Montant invalide." };
 
-  const bienId = formData.get("bien_id");
+  const concerne = String(formData.get("concerne") ?? "");
+  let bienId: string | null = null;
+  let lotId: string | null = null;
+  if (concerne.startsWith("bien:")) {
+    bienId = concerne.slice(5) || null;
+  } else if (concerne.startsWith("lot:")) {
+    const [lot, bien] = concerne.slice(4).split("|");
+    lotId = lot || null;
+    bienId = bien || null;
+  }
 
   const financement = String(formData.get("financement") ?? "banque_sci");
   if (financement !== "banque_sci" && financement !== "avance_associe") return { error: "Financement invalide." };
@@ -81,7 +90,8 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
       montant_cents: montant,
       libelle,
       mode_paiement: formData.get("mode_paiement") || null,
-      bien_id: bienId ? String(bienId) : null,
+      bien_id: bienId,
+      lot_id: lotId,
       commentaire: formData.get("commentaire") || null,
       financement,
       associe_household_id: associeHouseholdId,

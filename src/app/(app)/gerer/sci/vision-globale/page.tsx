@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
+import { statutLoyerDuMois, STATUT_LOYER_LABELS } from "@/lib/loyers";
 
 type Ecriture = {
   date: string;
@@ -7,6 +8,7 @@ type Ecriture = {
   montant_cents: number;
   financement: "banque_sci" | "avance_associe";
   bien_id: string | null;
+  lot_id: string | null;
   associe_mouvement_type: "apport" | "avance" | "remboursement" | null;
 };
 
@@ -54,7 +56,7 @@ export default async function VisionGlobalePage() {
     supabase.from("sci_associes").select("household_id, solde_ouverture_cents, households(name)").eq("sci_id", sciId),
     supabase
       .from("journal_ecritures")
-      .select("date, type, montant_cents, financement, bien_id, associe_mouvement_type")
+      .select("date, type, montant_cents, financement, bien_id, lot_id, associe_mouvement_type")
       .eq("sci_id", sciId),
     supabase.from("comptes_courants_mouvements").select("household_id, type, montant_cents").eq("sci_id", sciId),
     supabase.from("biens").select("id").eq("sci_id", sciId).eq("owner_type", "sci"),
@@ -95,12 +97,23 @@ export default async function VisionGlobalePage() {
     : { data: [] as { id: string; nom: string }[] };
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
   const { data: locatairesRows } = lotIds.length
-    ? await supabase.from("locataires").select("lot_id, nom, loyer_hc_cents, date_sortie").in("lot_id", lotIds)
-    : { data: [] as { lot_id: string; nom: string; loyer_hc_cents: number; date_sortie: string | null }[] };
+    ? await supabase
+        .from("locataires")
+        .select("lot_id, nom, loyer_hc_cents, charges_cents, date_sortie")
+        .in("lot_id", lotIds)
+    : { data: [] as { lot_id: string; nom: string; loyer_hc_cents: number; charges_cents: number; date_sortie: string | null }[] };
+
+  const moisEnCours = new Date().toISOString().slice(0, 7);
+  const ecrituresDuMois = ecritures.filter((e) => e.date.slice(0, 7) === moisEnCours);
 
   const appartements = (lotsRows ?? []).map((l) => {
     const actif = (locatairesRows ?? []).find((loc) => loc.lot_id === l.id && !loc.date_sortie);
-    return { lot: l.nom, locataire: actif?.nom ?? "—", occupe: !!actif, loyerHc: actif?.loyer_hc_cents ?? 0 };
+    const { statut } = statutLoyerDuMois(
+      l.id as string,
+      actif ? { loyerHcCents: actif.loyer_hc_cents, chargesCents: actif.charges_cents } : undefined,
+      ecrituresDuMois.map((e) => ({ lotId: e.lot_id, type: e.type, montantCents: e.montant_cents, financement: e.financement }))
+    );
+    return { lot: l.nom, locataire: actif?.nom ?? "—", statut, loyerHc: actif?.loyer_hc_cents ?? 0 };
   });
 
   return (
@@ -117,8 +130,8 @@ export default async function VisionGlobalePage() {
       </div>
 
       <div className="placeholder-note">
-        Squelette — graphique de trésorerie mensuelle et rentabilité par appartement pas encore branchés (il manque la
-        valeur vénale de chaque lot pour la rentabilité, et le rapprochement des loyers par lot pour la trésorerie détaillée).
+        Squelette — graphique de trésorerie mensuelle et rentabilité par appartement pas encore branchés (il manque
+        la valeur vénale de chaque lot pour la rentabilité ; la trésorerie mensuelle est calculable, juste pas encore mise en graphique).
       </div>
 
       <div className="grid2">
@@ -134,7 +147,11 @@ export default async function VisionGlobalePage() {
                 <tr key={a.lot}>
                   <td>{a.lot}</td>
                   <td>{a.locataire}</td>
-                  <td>{a.occupe ? <span className="pill ok">Occupé</span> : <span className="pill vac">Vacant</span>}</td>
+                  <td>
+                    <span className={`pill ${{ paye: "ok", partiel: "warn", en_attente: "due", vacant: "vac" }[a.statut]}`}>
+                      {STATUT_LOYER_LABELS[a.statut]}
+                    </span>
+                  </td>
                   <td className="num">{a.loyerHc ? formatEuros(a.loyerHc) : "—"}</td>
                 </tr>
               ))}

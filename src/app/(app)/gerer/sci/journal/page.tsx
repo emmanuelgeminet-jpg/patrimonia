@@ -42,6 +42,11 @@ export default async function JournalPage() {
     supabase.from("comptes_courants_mouvements").select("*").eq("sci_id", sciId).order("date", { ascending: false }),
   ]);
 
+  const bienIds = (biensRows ?? []).map((b) => b.id as string);
+  const { data: lotsRows } = bienIds.length
+    ? await supabase.from("lots").select("id, nom, bien_id").in("bien_id", bienIds).order("nom")
+    : { data: [] as { id: string; nom: string; bien_id: string }[] };
+
   const ecritures = ecrituresRows ?? [];
   const paths = ecritures.map((e) => e.justificatif_path as string | null).filter((p): p is string => !!p);
   const { data: signedUrls } = paths.length
@@ -67,6 +72,7 @@ export default async function JournalPage() {
           soldeOuvertureDate: sci!.solde_ouverture_date as string | null,
         }}
         biens={(biensRows ?? []).map((b) => ({ id: b.id as string, label: b.adresse as string }))}
+        lots={(lotsRows ?? []).map((l) => ({ id: l.id as string, nom: l.nom as string, bienId: l.bien_id as string }))}
         ecritures={ecritures.map((e) => ({
           id: e.id as string,
           date: e.date as string,
@@ -75,6 +81,7 @@ export default async function JournalPage() {
           libelle: e.libelle as string,
           modePaiement: e.mode_paiement as string | null,
           bienId: e.bien_id as string | null,
+          lotId: e.lot_id as string | null,
           commentaire: e.commentaire as string | null,
           justificatifPath: e.justificatif_path as string | null,
           justificatifUrl: e.justificatif_path ? urlByPath.get(e.justificatif_path as string) ?? null : null,

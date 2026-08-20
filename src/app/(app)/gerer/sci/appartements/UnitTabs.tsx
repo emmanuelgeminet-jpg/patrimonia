@@ -3,6 +3,7 @@
 import { useState, useActionState, useTransition } from "react";
 import { addLocataire, markLocataireSorti, deleteLocataire, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
+import { STATUT_LOYER_LABELS, type StatutLoyer } from "@/lib/loyers";
 
 export type Locataire = {
   id: string;
@@ -16,7 +17,9 @@ export type Locataire = {
   depotGarantieMode: string | null;
 };
 
-export type Lot = { id: string; nom: string; locataires: Locataire[] };
+export type Lot = { id: string; nom: string; locataires: Locataire[]; statut: StatutLoyer };
+
+const STATUT_PILL_CLASS: Record<StatutLoyer, string> = { paye: "ok", partiel: "warn", en_attente: "due", vacant: "vac" };
 
 const initialState: SaveState = {};
 
@@ -51,7 +54,7 @@ export default function UnitTabs({ lots }: { lots: Lot[] }) {
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActive(l.id); }}
           >
-            {l.nom}
+            {l.nom} <span className={`pill ${STATUT_PILL_CLASS[l.statut]}`} style={{ marginLeft: 4 }}>{STATUT_LOYER_LABELS[l.statut]}</span>
           </div>
         ))}
       </div>
@@ -67,7 +70,10 @@ function LotContent({ lot }: { lot: Lot }) {
 
   return (
     <div className="card">
-      <h2>{lot.nom}{actif ? ` — ${actif.nom}` : ""}</h2>
+      <h2>
+        {lot.nom}{actif ? ` — ${actif.nom}` : ""}{" "}
+        <span className={`pill ${STATUT_PILL_CLASS[lot.statut]}`}>{STATUT_LOYER_LABELS[lot.statut]} ce mois-ci</span>
+      </h2>
 
       {actif ? (
         <>
@@ -94,6 +100,10 @@ function LotContent({ lot }: { lot: Lot }) {
             >
               Marquer sorti
             </span>
+          </div>
+          <div className="placeholder-note" style={{ marginTop: 10 }}>
+            Le statut du mois se calcule depuis le Journal comptable — pense à choisir ce logement dans le champ
+            &quot;Concerne&quot; quand tu saisis l&apos;encaissement du loyer, sinon il restera marqué &quot;En attente&quot;.
           </div>
         </>
       ) : (

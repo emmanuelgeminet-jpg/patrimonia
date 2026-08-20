@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import UnitTabs from "./UnitTabs";
+import { statutLoyerDuMois } from "@/lib/loyers";
 
 export default async function AppartementsPage() {
   const supabase = await createClient();
@@ -41,10 +42,20 @@ export default async function AppartementsPage() {
     ? await supabase.from("locataires").select("*").in("lot_id", lotIds).order("date_entree", { ascending: false })
     : { data: [] as Record<string, unknown>[] };
 
-  const lots = (lotsRows ?? []).map((l) => ({
-    id: l.id as string,
-    nom: l.nom as string,
-    locataires: (locatairesRows ?? [])
+  const moisEnCours = new Date().toISOString().slice(0, 7);
+  const [anneeNum, moisNum] = moisEnCours.split("-").map(Number);
+  const moisSuivant = moisNum === 12 ? `${anneeNum + 1}-01` : `${anneeNum}-${String(moisNum + 1).padStart(2, "0")}`;
+  const { data: ecrituresRows } = lotIds.length
+    ? await supabase
+        .from("journal_ecritures")
+        .select("lot_id, type, montant_cents, financement, date")
+        .in("lot_id", lotIds)
+        .gte("date", `${moisEnCours}-01`)
+        .lt("date", `${moisSuivant}-01`)
+    : { data: [] as { lot_id: string; type: "encaissement" | "decaissement"; montant_cents: number; financement: "banque_sci" | "avance_associe"; date: string }[] };
+
+  const lots = (lotsRows ?? []).map((l) => {
+    const locataires = (locatairesRows ?? [])
       .filter((loc) => loc.lot_id === l.id)
       .map((loc) => ({
         id: loc.id as string,
@@ -56,8 +67,15 @@ export default async function AppartementsPage() {
         depotGarantieCents: loc.depot_garantie_cents as number | null,
         depotGarantieDate: loc.depot_garantie_date as string | null,
         depotGarantieMode: loc.depot_garantie_mode as string | null,
-      })),
-  }));
+      }));
+    const actif = locataires.find((loc) => !loc.dateSortie);
+    const { statut } = statutLoyerDuMois(
+      l.id as string,
+      actif ? { loyerHcCents: actif.loyerHcCents, chargesCents: actif.chargesCents } : undefined,
+      (ecrituresRows ?? []).map((e) => ({ lotId: e.lot_id, type: e.type, montantCents: e.montant_cents, financement: e.financement }))
+    );
+    return { id: l.id as string, nom: l.nom as string, locataires, statut };
+  });
 
   return (
     <section className="section">
