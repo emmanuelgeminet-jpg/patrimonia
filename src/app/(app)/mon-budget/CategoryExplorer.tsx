@@ -23,7 +23,9 @@ export default function CategoryExplorer({ transactions, categories }: { transac
 
   const expenseCategories = categories.filter((c) => c.groupe !== null);
   const [categorieId, setCategorieId] = useState<string>(expenseCategories[0]?.id ?? "");
+  const [tagFilter, setTagFilter] = useState<string>("");
   const [granularite, setGranularite] = useState<Granularite>("mois");
+  const allTags = [...new Set(transactions.flatMap((t) => t.tags ?? []))].sort();
   const [fromDate, setFromDate] = useState(() => {
     const twelveMonthsBack = addMonths(maxDate, -12);
     return twelveMonthsBack > minDate ? twelveMonthsBack : minDate;
@@ -32,9 +34,13 @@ export default function CategoryExplorer({ transactions, categories }: { transac
 
   const filtered = useMemo(() => {
     return transactions.filter(
-      (t) => t.categorie_id === categorieId && t.date >= fromDate && t.date <= toDate
+      (t) =>
+        t.categorie_id === categorieId &&
+        t.date >= fromDate &&
+        t.date <= toDate &&
+        (!tagFilter || (t.tags ?? []).includes(tagFilter))
     );
-  }, [transactions, categorieId, fromDate, toDate]);
+  }, [transactions, categorieId, tagFilter, fromDate, toDate]);
 
   const buckets = useMemo(() => {
     const map = new Map<string, number>();
@@ -64,6 +70,18 @@ export default function CategoryExplorer({ transactions, categories }: { transac
           ))}
         </select>
       </div>
+
+      {allTags.length > 0 && (
+        <div className="form-row" style={{ border: "none" }}>
+          <label>Tag</label>
+          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <option value="">Tous</option>
+            {allTags.map((tag) => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="form-row" style={{ border: "none" }}>
         <label>Regrouper par</label>

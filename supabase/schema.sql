@@ -235,6 +235,9 @@ create table if not exists budget_transactions (
   categorie_id uuid references budget_categories(id) on delete set null,
   mois_import text,
   source_fichier text,
+  -- Étiquettes libres, en plus des catégories — pour re-regrouper des transactions selon
+  -- ses propres critères (ex. "voyage été 2026", "à rembourser").
+  tags text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 

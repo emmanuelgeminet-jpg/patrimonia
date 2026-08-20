@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateTransactionCategory, flipTransactionSign } from "./actions";
-import { formatEuros, formatMonthLabel } from "@/lib/budget";
+import { updateTransactionCategory, flipTransactionSign, updateTransactionTags } from "./actions";
+import { formatEuros, formatMonthLabel, parseTagsInput } from "@/lib/budget";
 import DashboardHero from "./DashboardHero";
 import type { Transaction, Category } from "./page";
 
@@ -51,7 +51,9 @@ export default function BudgetTabs({ transactions, categories }: { transactions:
         ))}
       </div>
 
-      {active === "1m" && <PanelUnMois transactions={transactions} categories={categories} period={periods[0]} />}
+      {active === "1m" && (
+        <PanelUnMois transactions={transactions} categories={categories} period={periods[0]} periods={periods} />
+      )}
       {active === "6m" && <PanelTendance transactions={transactions} periods={periods} minPeriods={2} titre="6 mois" />}
       {active === "1a" && <PanelTendance transactions={transactions} periods={periods} minPeriods={6} titre="1 an" />}
       {active === "5a" && <PanelTendance transactions={transactions} periods={periods} minPeriods={24} titre="5 ans" />}
@@ -63,12 +65,22 @@ function PanelUnMois({
   transactions,
   categories,
   period,
+  periods,
 }: {
   transactions: Transaction[];
   categories: Category[];
   period: string;
+  periods: string[];
 }) {
   const monthTx = transactions.filter((t) => (t.mois_import ?? "Sans période") === period);
+
+  const dernieresPeriodes = periods.slice(0, 12).slice().reverse();
+  const netRows = dernieresPeriodes.map((p) => {
+    const tx = transactions.filter((t) => (t.mois_import ?? "Sans période") === p);
+    const revenus = tx.filter((t) => t.montant_cents > 0).reduce((s, t) => s + t.montant_cents, 0);
+    const depenses = Math.abs(tx.filter((t) => t.montant_cents < 0).reduce((s, t) => s + t.montant_cents, 0));
+    return { period: p, net: revenus - depenses };
+  });
 
   const revenus = monthTx.filter((t) => t.montant_cents > 0).reduce((s, t) => s + t.montant_cents, 0);
   const depensesTotal = monthTx.filter((t) => t.montant_cents < 0).reduce((s, t) => s + t.montant_cents, 0);
@@ -117,6 +129,13 @@ function PanelUnMois({
   return (
     <div>
       <div className="pagesub" style={{ marginBottom: 14 }}>{formatMonthLabel(period)}</div>
+
+      {netRows.length > 1 && (
+        <div className="card">
+          <h2>Évolution récente <span className="tag">solde net, {netRows.length} derniers mois</span></h2>
+          <MiniTrendChart rows={netRows} />
+        </div>
+      )}
 
       <DashboardHero revenus={revenus} depenses={depenses} epargne={groupeSums.epargne} solde={revenus - depenses} />
 
@@ -197,7 +216,7 @@ function PanelUnMois({
       <div className="card">
         <h2>Transactions — {formatMonthLabel(period)} <span className="tag">clique une catégorie pour la modifier</span></h2>
         <table>
-          <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th></th><th>Catégorie</th></tr></thead>
+          <thead><tr><th>Date</th><th>Libellé</th><th className="num">Montant</th><th></th><th>Catégorie</th><th>Tags</th></tr></thead>
           <tbody>
             {monthTx.map((t) => (
               <TransactionRow key={t.id} transaction={t} categories={categories} />
@@ -212,7 +231,22 @@ function PanelUnMois({
 function TransactionRow({ transaction, categories }: { transaction: Transaction; categories: Category[] }) {
   const [categorieId, setCategorieId] = useState(transaction.categorie_id ?? "");
   const [montantCents, setMontantCents] = useState(transaction.montant_cents);
+  const [tags, setTags] = useState(transaction.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const saveTags = (next: string[]) => {
+    setTags(next);
+    startTransition(() => {
+      updateTransactionTags(transaction.id, next);
+    });
+  };
+  const addTagsFromInput = () => {
+    if (!tagInput.trim()) return;
+    const next = [...new Set([...tags, ...parseTagsInput(tagInput)])];
+    saveTags(next);
+    setTagInput("");
+  };
 
   return (
     <tr>
@@ -251,6 +285,29 @@ function TransactionRow({ transaction, categories }: { transaction: Transaction;
             <option key={c.id} value={c.id}>{c.nom}</option>
           ))}
         </select>
+      </td>
+      <td>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center", minWidth: 140 }}>
+          {tags.map((tag) => (
+            <span key={tag} className="pill" style={{ background: "var(--paper)", color: "var(--ink-soft)", fontSize: 10.5 }}>
+              {tag}{" "}
+              <span
+                style={{ cursor: "pointer", color: "var(--brick)" }}
+                onClick={() => saveTags(tags.filter((t) => t !== tag))}
+              >
+                ×
+              </span>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTagsFromInput(); } }}
+            onBlur={addTagsFromInput}
+            placeholder="+ tag"
+            style={{ maxWidth: 70, fontSize: 10.5, padding: "2px 6px" }}
+          />
+        </div>
       </td>
     </tr>
   );
@@ -372,6 +429,43 @@ function TrendChart({ rows }: { rows: { period: string; revenus: number; depense
       })}
       <text x={padLeft} y={10} fontFamily="IBM Plex Mono" fontSize="10" fill="#5C7A5B">● Revenus</text>
       <text x={padLeft + 90} y={10} fontFamily="IBM Plex Mono" fontSize="10" fill="#A8523A">● Dépenses</text>
+    </svg>
+  );
+}
+
+/** Solde net (revenus − dépenses) par mois, une seule barre verte/rouge — vue contextuelle
+ *  compacte au-dessus du détail du mois sélectionné. */
+function MiniTrendChart({ rows }: { rows: { period: string; net: number }[] }) {
+  const width = 620;
+  const height = 90;
+  const padLeft = 15;
+  const padRight = 15;
+  const baseline = 55;
+  const maxAbs = Math.max(1, ...rows.map((r) => Math.abs(r.net)));
+  const usableWidth = width - padLeft - padRight;
+  const groupWidth = usableWidth / rows.length;
+  const barWidth = Math.min(24, groupWidth * 0.6);
+  const labelEvery = Math.max(1, Math.ceil(rows.length / 12));
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
+      <line x1={padLeft} y1={baseline} x2={width - padRight} y2={baseline} stroke="#DEDACE" strokeWidth="1" />
+      {rows.map((r, i) => {
+        const groupX = padLeft + i * groupWidth;
+        const x = groupX + (groupWidth - barWidth) / 2;
+        const barHeight = (Math.abs(r.net) / maxAbs) * 30;
+        const y = r.net >= 0 ? baseline - barHeight : baseline;
+        return (
+          <g key={r.period}>
+            <rect x={x} y={y} width={barWidth} height={Math.max(1, barHeight)} fill={r.net >= 0 ? "#5C7A5B" : "#A8523A"} />
+            {i % labelEvery === 0 && (
+              <text x={groupX + groupWidth / 2} y={72} textAnchor="middle" fontFamily="IBM Plex Mono" fontSize="9" fill="#5B5F53">
+                {formatMonthLabel(r.period).slice(0, 3)}
+              </text>
+            )}
+          </g>
+        );
+      })}
     </svg>
   );
 }

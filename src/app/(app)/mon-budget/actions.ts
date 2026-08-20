@@ -144,6 +144,12 @@ export async function flipTransactionSign(transactionId: string, currentMontantC
   revalidatePath("/mon-budget");
 }
 
+export async function updateTransactionTags(transactionId: string, tags: string[]) {
+  const { supabase } = await getHouseholdId();
+  await supabase.from("budget_transactions").update({ tags }).eq("id", transactionId);
+  revalidatePath("/mon-budget");
+}
+
 export type CreateCategoryState = {
   error?: string;
 };

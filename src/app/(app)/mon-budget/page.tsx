@@ -12,6 +12,7 @@ export type Transaction = {
   montant_cents: number;
   categorie_id: string | null;
   mois_import: string | null;
+  tags: string[];
 };
 
 export type Category = {
@@ -38,7 +39,7 @@ export default async function MonBudgetPage() {
   const [{ data: transactions }, { data: categories }] = await Promise.all([
     supabase
       .from("budget_transactions")
-      .select("id, date, libelle, montant_cents, categorie_id, mois_import")
+      .select("id, date, libelle, montant_cents, categorie_id, mois_import, tags")
       .eq("household_id", householdId)
       .order("date", { ascending: false }),
     supabase.from("budget_categories").select("id, nom, groupe").eq("household_id", householdId),

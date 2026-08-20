@@ -309,3 +309,18 @@ export function formatBucketLabel(key: string, granularite: Granularite): string
   if (granularite === "annee") return key;
   return formatMonthLabel(key);
 }
+
+/** Découpe une saisie libre ("voyage, remboursable") en tags normalisés, sans doublons. */
+export function parseTagsInput(raw: string): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const part of raw.split(/[,;]/)) {
+    const tag = part.trim();
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+  }
+  return tags;
+}
