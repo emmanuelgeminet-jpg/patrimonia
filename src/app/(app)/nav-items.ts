@@ -30,26 +30,15 @@ export const navGroups: NavGroup[] = [
     groupLabel: "Gestion immobilière",
     items: [{ href: "/gerer/nouveau-bien", label: "Rentrer un nouveau bien", icon: "nouveau" }],
   },
-  {
-    subgroupLabel: "Biens propres",
-    items: [
-      {
-        href: "/gerer/biens-propres/ormes",
-        label: "14 rue des Ormes St Victor, Orléans",
-        icon: "bien",
-        variant: "sub",
-      },
-    ],
-  },
-  {
-    subgroupLabel: "SCI",
-    items: [
-      { href: "/gerer/sci/vision-globale", label: "Les Bons Gascons", icon: "sci", variant: "sub" },
-      { href: "/gerer/sci/journal", label: "Journal comptable", icon: "journal", variant: "sub2" },
-      { href: "/gerer/sci/comptes-courants", label: "Comptes courants", icon: "comptes", variant: "sub2" },
-      { href: "/gerer/sci/documents", label: "Documents", icon: "documents", variant: "sub2" },
-      { href: "/gerer/sci/immeuble", label: "Immeuble", icon: "immeuble", variant: "sub2" },
-      { href: "/gerer/sci/appartements", label: "Logements", icon: "appartement", variant: "sub2" },
-    ],
-  },
+];
+
+// Le sous-groupe "Biens propres" (un lien par bien détenu en nom propre) et le nom affiché
+// pour la SCI sont propres à chaque foyer — construits dynamiquement dans Sidebar.tsx à
+// partir de vraies données, pas listés ici en dur.
+export const sciNavItems: NavItem[] = [
+  { href: "/gerer/sci/journal", label: "Journal comptable", icon: "journal", variant: "sub2" },
+  { href: "/gerer/sci/comptes-courants", label: "Comptes courants", icon: "comptes", variant: "sub2" },
+  { href: "/gerer/sci/documents", label: "Documents", icon: "documents", variant: "sub2" },
+  { href: "/gerer/sci/immeuble", label: "Immeuble", icon: "immeuble", variant: "sub2" },
+  { href: "/gerer/sci/appartements", label: "Logements", icon: "appartement", variant: "sub2" },
 ];

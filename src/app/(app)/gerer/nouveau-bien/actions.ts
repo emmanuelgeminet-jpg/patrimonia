@@ -78,15 +78,19 @@ export async function creerBien(_prev: SaveState, formData: FormData): Promise<S
 
   if (error || !bien) return { error: "Erreur lors de l'enregistrement." };
 
-  // Pour un immeuble à plusieurs lots, on crée tout de suite des lots "Lot 1", "Lot 2"...
-  // à renommer ensuite depuis "Par appartement".
-  if (type === "immeuble" && nombreLots && nombreLots > 0) {
-    const lots = Array.from({ length: nombreLots }, (_, i) => ({ bien_id: bien.id, nom: `Lot ${i + 1}` }));
-    await supabase.from("lots").insert(lots);
-  }
+  // On crée tout de suite au moins un lot pour pouvoir y rattacher un locataire — plusieurs
+  // "Lot 1", "Lot 2"... pour un immeuble à plusieurs unités, un seul "Logement" sinon.
+  // Renommables ensuite depuis "Par appartement" (SCI) ou la fiche du bien propre.
+  const nbLotsACreer = type === "immeuble" ? Math.max(1, nombreLots ?? 1) : 1;
+  const lots =
+    nbLotsACreer > 1
+      ? Array.from({ length: nbLotsACreer }, (_, i) => ({ bien_id: bien.id, nom: `Lot ${i + 1}` }))
+      : [{ bien_id: bien.id, nom: "Logement" }];
+  await supabase.from("lots").insert(lots);
 
   revalidatePath("/gerer/sci/immeuble");
   revalidatePath("/gerer/sci/vision-globale");
   revalidatePath("/gerer/nouveau-bien");
+  revalidatePath("/gerer/biens-propres");
   return { success: true };
 }

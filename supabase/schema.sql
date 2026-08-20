@@ -82,6 +82,11 @@ create table if not exists biens (
   numero_immatriculation_copropriete text,
   assurance_pno_compagnie text,
   assurance_pno_police text,
+  -- Financement et charges d'un bien propre (hors SCI, qui a son propre journal comptable) :
+  -- suivi simple, saisi à la main.
+  credit_mensualite_cents bigint,
+  assurance_mensuelle_cents bigint,
+  charges_copro_annuelles_cents bigint,
   notes text,
   created_at timestamptz not null default now(),
   constraint bien_owner_coherent check (

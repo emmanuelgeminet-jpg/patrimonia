@@ -2,12 +2,44 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navGroups } from "./nav-items";
+import { navGroups, sciNavItems, type NavGroup } from "./nav-items";
 import { navIcons } from "./nav-icons";
 import { signOut } from "./actions";
 
-export default function Sidebar({ displayName }: { displayName: string }) {
+export type BienPropreNavItem = { id: string; label: string };
+
+export default function Sidebar({
+  displayName,
+  biensPropresItems,
+  sciNom,
+}: {
+  displayName: string;
+  biensPropresItems: BienPropreNavItem[];
+  sciNom: string | null;
+}) {
   const pathname = usePathname();
+
+  const dynamicGroups: NavGroup[] = [...navGroups];
+  if (biensPropresItems.length > 0) {
+    dynamicGroups.push({
+      subgroupLabel: "Biens propres",
+      items: biensPropresItems.map((b) => ({
+        href: `/gerer/biens-propres/${b.id}`,
+        label: b.label,
+        icon: "bien",
+        variant: "sub",
+      })),
+    });
+  }
+  if (sciNom) {
+    dynamicGroups.push({
+      subgroupLabel: "SCI",
+      items: [
+        { href: "/gerer/sci/vision-globale", label: sciNom, icon: "sci", variant: "sub" },
+        ...sciNavItems,
+      ],
+    });
+  }
 
   return (
     <aside className="sidebar">
@@ -16,7 +48,7 @@ export default function Sidebar({ displayName }: { displayName: string }) {
         <small>Phase 1</small>
       </div>
 
-      {navGroups.map((group) => (
+      {dynamicGroups.map((group) => (
         <div key={group.groupLabel ?? group.subgroupLabel}>
           {group.groupLabel && <div className="nav-group-label">{group.groupLabel}</div>}
           {group.subgroupLabel && <div className="nav-subgroup-label">{group.subgroupLabel}</div>}
