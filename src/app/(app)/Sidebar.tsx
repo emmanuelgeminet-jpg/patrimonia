@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navGroups, sciNavItems, type NavGroup } from "./nav-items";
@@ -18,6 +19,23 @@ export default function Sidebar({
   sciNom: string | null;
 }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // Referme le tiroir mobile à chaque changement de page (ajustement d'état pendant
+  // le rendu, pas dans un effet — cf. https://react.dev/learn/you-might-not-need-an-effect).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    setOpen(false);
+  }
+
+  // Bloque le défilement de l'arrière-plan pendant que le tiroir mobile est ouvert.
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   const dynamicGroups: NavGroup[] = [...navGroups];
   if (biensPropresItems.length > 0) {
@@ -42,7 +60,17 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="sidebar">
+    <>
+      <div className="mobile-topbar">
+        <button type="button" className="menu-btn" aria-label="Ouvrir le menu" onClick={() => setOpen(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18">
+            <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
+          </svg>
+        </button>
+        <div className="brand">PATRIMONIA</div>
+      </div>
+      <div className={`sidebar-backdrop${open ? " open" : ""}`} onClick={() => setOpen(false)} />
+      <aside className={`sidebar${open ? " open" : ""}`}>
       <div className="brand">
         PATRIMONIA
         <small>Phase 1</small>
@@ -118,6 +146,7 @@ export default function Sidebar({
           </button>
         </form>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

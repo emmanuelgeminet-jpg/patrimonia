@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -23,6 +23,16 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Patrimonia",
   description: "Gestion patrimoniale et immobilière — GEMINET",
+  appleWebApp: {
+    title: "Patrimonia",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#22261F",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
