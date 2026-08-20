@@ -103,6 +103,7 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
       bien_id: bienId,
       lot_id: lotId,
       commentaire: formData.get("commentaire") || null,
+      categorie_charge: type === "decaissement" ? formData.get("categorie_charge") || null : null,
       financement,
       associe_household_id: associeHouseholdId,
       associe_mouvement_type: associeMouvementType,

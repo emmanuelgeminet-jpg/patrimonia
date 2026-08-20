@@ -57,7 +57,7 @@ export default async function ImmeublePage() {
 
   const { data: ecrituresRows } = await supabase
     .from("journal_ecritures")
-    .select("type, montant_cents, financement, associe_mouvement_type, bien_id, lot_id, date")
+    .select("type, montant_cents, financement, associe_mouvement_type, bien_id, lot_id, date, categorie_charge")
     .eq("sci_id", sciId);
 
   const locatairesActifs = (locatairesRows ?? []).filter((l) => !l.date_sortie);
@@ -73,9 +73,15 @@ export default async function ImmeublePage() {
       e.financement === "banque_sci" &&
       (e.bien_id === bien.id || (e.lot_id && lotIds.includes(e.lot_id)))
   );
-  const chargesAnnuelles = ecrituresImmeubleAnnee
-    .filter((e) => e.type === "decaissement" && !e.associe_mouvement_type)
-    .reduce((s, e) => s + e.montant_cents, 0);
+  const decaissementsImmeuble = ecrituresImmeubleAnnee.filter((e) => e.type === "decaissement" && !e.associe_mouvement_type);
+  const chargesAnnuelles = decaissementsImmeuble.reduce((s, e) => s + e.montant_cents, 0);
+
+  const chargesParCategorie = new Map<string, number>();
+  for (const e of decaissementsImmeuble) {
+    const cat = (e.categorie_charge as string | null) ?? "Non catégorisé";
+    chargesParCategorie.set(cat, (chargesParCategorie.get(cat) ?? 0) + e.montant_cents);
+  }
+  const chargesParCategorieRows = [...chargesParCategorie.entries()].sort((a, b) => b[1] - a[1]);
 
   const prixAcquisitionCents = bien.prix_acquisition_cents as number | null;
   const rentabiliteBrute = prixAcquisitionCents ? (loyersHcAnnuels / prixAcquisitionCents) * 100 : null;
@@ -131,13 +137,29 @@ export default async function ImmeublePage() {
 
       <div className="card">
         <h2>Charges décaissées {anneeEnCours} <span className="tag">total</span></h2>
-        <div className="kpi" style={{ maxWidth: 260 }}>
+        <div className="kpi" style={{ maxWidth: 260, marginBottom: 12 }}>
           <div className="label">Total</div>
           <div className="value">{formatEuros(chargesAnnuelles)}</div>
         </div>
-        <div className="placeholder-note">
-          Squelette — répartition par catégorie (prêt, taxe foncière, entretien, eau/élec, assurance) pas encore
-          disponible : le journal ne classe pas encore les écritures par catégorie de charge.
+        {chargesParCategorieRows.length > 0 ? (
+          <table>
+            <thead><tr><th>Catégorie</th><th className="num">Montant</th><th className="num">%</th></tr></thead>
+            <tbody>
+              {chargesParCategorieRows.map(([cat, cents]) => (
+                <tr key={cat}>
+                  <td>{cat}</td>
+                  <td className="num">{formatEuros(cents)}</td>
+                  <td className="num">{((100 * cents) / (chargesAnnuelles || 1)).toFixed(0)} %</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="empty" style={{ padding: "16px 4px" }}>Aucune charge décaissée sur l&apos;exercice {anneeEnCours}</div>
+        )}
+        <div className="placeholder-note" style={{ marginTop: 8 }}>
+          &quot;Non catégorisé&quot; regroupe les écritures saisies avant l&apos;ajout de ce champ, ou sans catégorie
+          choisie — la catégorie se choisit dans le formulaire du Journal comptable au moment de la saisie.
         </div>
       </div>
 

@@ -173,6 +173,10 @@ create table if not exists journal_ecritures (
   lot_id uuid references lots(id) on delete set null,
   commentaire text,
   justificatif_path text,
+  -- Catégorie de charge (prêt, taxe foncière, entretien...), pour la répartition par
+  -- catégorie sur la fiche immeuble — optionnel, non contraint en base (liste proposée
+  -- côté formulaire pour rester cohérente, mais on ne bloque pas une saisie différente).
+  categorie_charge text,
   -- 'banque_sci' : mouvement réel sur le compte bancaire de la SCI (compte dans le solde
   -- bancaire). 'avance_associe' : payé personnellement par un associé (ex. CB perso) —
   -- n'apparaît pas sur le relevé de la SCI, donc exclu du solde bancaire, mais reste une

@@ -444,6 +444,20 @@ function AjouterEcritureForm({
             </optgroup>
           ))}
         </select>
+        {type === "decaissement" && (
+          <select name="categorie_charge" style={{ maxWidth: 180 }} defaultValue="">
+            <option value="">Catégorie (optionnel)</option>
+            <option value="Prêt">Prêt</option>
+            <option value="Taxe foncière">Taxe foncière</option>
+            <option value="Charges copropriété">Charges copropriété</option>
+            <option value="Assurance">Assurance</option>
+            <option value="Entretien & réparations">Entretien &amp; réparations</option>
+            <option value="Eau / Électricité / Gaz">Eau / Électricité / Gaz</option>
+            <option value="Honoraires comptables">Honoraires comptables</option>
+            <option value="Travaux">Travaux</option>
+            <option value="Autre">Autre</option>
+          </select>
+        )}
         <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 150 }} />
 
         <select
