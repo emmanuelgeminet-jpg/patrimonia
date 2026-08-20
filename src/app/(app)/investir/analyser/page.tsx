@@ -55,30 +55,40 @@ export default async function AnalyserListPage() {
 
       <div className="card">
         <h2>Tes analyses</h2>
-        <table>
-          <thead>
-            <tr><th>Adresse</th><th>Statut</th><th className="num">Coût total</th><th className="num">Rentabilité brute</th><th className="num">Rentabilité nette</th><th></th></tr>
-          </thead>
-          <tbody>
-            {cards.length === 0 && (
-              <tr><td colSpan={6} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune analyse pour l&apos;instant</td></tr>
-            )}
-            {cards.map((c) => (
-              <tr key={c.id}>
-                <td><Link href={`/investir/analyser/${c.id}`} style={{ color: "var(--sage)" }}>{c.adresse}</Link></td>
-                <td>{STATUT_LABELS[c.statut] ?? c.statut}</td>
-                <td className="num">{formatEuros(c.kpis.coutTotalCents)}</td>
-                <td className="num">{c.kpis.rentabiliteBrute !== null ? `${c.kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</td>
-                <td className="num">{c.kpis.rentabiliteNette !== null ? `${c.kpis.rentabiliteNette.toFixed(1)} %` : "—"}</td>
-                <td><Link href={`/investir/analyser/${c.id}`} className="tag" style={{ color: "var(--brick)" }}>Ouvrir</Link></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="placeholder-note">
-          Squelette — comparaison côte à côte de plusieurs analyses pas encore construite ; pour l&apos;instant, ouvre
-          chaque analyse séparément pour comparer les chiffres.
-        </div>
+        <form action="/investir/analyser/comparer">
+          <table>
+            <thead>
+              <tr><th></th><th>Adresse</th><th>Statut</th><th className="num">Coût total</th><th className="num">Rentabilité brute</th><th className="num">Rentabilité nette</th><th></th></tr>
+            </thead>
+            <tbody>
+              {cards.length === 0 && (
+                <tr><td colSpan={7} style={{ color: "var(--ink-soft)", fontStyle: "italic" }}>Aucune analyse pour l&apos;instant</td></tr>
+              )}
+              {cards.map((c) => (
+                <tr key={c.id}>
+                  <td><input type="checkbox" name="ids" value={c.id} /></td>
+                  <td><Link href={`/investir/analyser/${c.id}`} style={{ color: "var(--sage)" }}>{c.adresse}</Link></td>
+                  <td>{STATUT_LABELS[c.statut] ?? c.statut}</td>
+                  <td className="num">{formatEuros(c.kpis.coutTotalCents)}</td>
+                  <td className="num">{c.kpis.rentabiliteBrute !== null ? `${c.kpis.rentabiliteBrute.toFixed(1)} %` : "—"}</td>
+                  <td className="num">{c.kpis.rentabiliteNette !== null ? `${c.kpis.rentabiliteNette.toFixed(1)} %` : "—"}</td>
+                  <td><Link href={`/investir/analyser/${c.id}`} className="tag" style={{ color: "var(--brick)" }}>Ouvrir</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {cards.length >= 2 && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="submit"
+                style={{ background: "var(--sage)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Comparer la sélection
+              </button>
+              <span style={{ marginLeft: 10, fontSize: 11, color: "var(--ink-soft)" }}>Coche au moins deux biens ci-dessus</span>
+            </div>
+          )}
+        </form>
       </div>
     </section>
   );
