@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 export type AuthState = {
@@ -32,11 +33,15 @@ export async function signUp(_prevState: AuthState, formData: FormData): Promise
     return { error: "Le mot de passe doit contenir au moins 8 caractères." };
   }
 
+  const host = (await headers()).get("host") ?? "";
+  const origin = `${host.startsWith("localhost") ? "http" : "https"}://${host}`;
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo: `${origin}/auth/confirm`,
       data: {
         display_name: displayName,
         ...(inviteCode ? { invite_household_id: inviteCode } : {}),
