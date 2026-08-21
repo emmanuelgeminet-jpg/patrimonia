@@ -8,6 +8,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-21",
+    title: "Trésorerie prévisionnelle",
+    description: "Projection du solde bancaire SCI sur les 12 prochains mois (loyers, mensualités de prêt, charges estimées) sur Vision globale.",
+  },
+  {
+    date: "2026-08-21",
     title: "Écran Alertes",
     description: "Un seul endroit pour voir les loyers en attente, les DPE bientôt expirés et les fins de bail approchantes, sur tout le parc.",
   },

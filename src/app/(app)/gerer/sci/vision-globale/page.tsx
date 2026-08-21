@@ -2,8 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
 import { statutLoyerDuMois, STATUT_LOYER_LABELS } from "@/lib/loyers";
 import { soldesMensuels } from "@/lib/tresorerie";
+import { projeterTresorerie } from "@/lib/tresorerie-previsionnelle";
 import TresorerieChart from "./TresorerieChart";
 import RentabiliteChart from "./RentabiliteChart";
+import TresoreriePrevisionnelleChart from "./TresoreriePrevisionnelleChart";
 
 type Ecriture = {
   date: string;
@@ -13,6 +15,7 @@ type Ecriture = {
   bien_id: string | null;
   lot_id: string | null;
   associe_mouvement_type: "apport" | "avance" | "remboursement" | null;
+  emprunt_id: string | null;
 };
 
 type Mouvement = {
@@ -54,15 +57,17 @@ export default async function VisionGlobalePage() {
     { data: ecrituresRows },
     { data: mouvementsRows },
     { data: biensRows },
+    { data: empruntsRows },
   ] = await Promise.all([
     supabase.from("sci").select("solde_ouverture_cents, solde_ouverture_date").eq("id", sciId).single(),
     supabase.from("sci_associes").select("household_id, solde_ouverture_cents, households(name)").eq("sci_id", sciId),
     supabase
       .from("journal_ecritures")
-      .select("date, type, montant_cents, financement, bien_id, lot_id, associe_mouvement_type")
+      .select("date, type, montant_cents, financement, bien_id, lot_id, associe_mouvement_type, emprunt_id")
       .eq("sci_id", sciId),
     supabase.from("comptes_courants_mouvements").select("household_id, type, montant_cents").eq("sci_id", sciId),
     supabase.from("biens").select("id").eq("sci_id", sciId).eq("owner_type", "sci"),
+    supabase.from("sci_emprunts").select("capital_emprunte_cents, taux_pct, duree_mois, date_debut").eq("sci_id", sciId),
   ]);
 
   const ecritures = (ecrituresRows ?? []) as Ecriture[];
@@ -109,6 +114,37 @@ export default async function VisionGlobalePage() {
   const moisEnCours = new Date().toISOString().slice(0, 7);
   const ecrituresDuMois = ecritures.filter((e) => e.date.slice(0, 7) === moisEnCours);
 
+  // ----- Trésorerie prévisionnelle : loyers actuels supposés inchangés, mensualités de prêt
+  // calculées depuis les conditions d'origine (s'arrêtent à l'échéance), charges diverses hors
+  // prêt estimées depuis la moyenne réelle des 12 derniers mois (pas ignorées, pas devinées). -----
+  const loyersMensuelsCents = (locatairesRows ?? [])
+    .filter((loc) => !loc.date_sortie)
+    .reduce((s, loc) => s + loc.loyer_hc_cents + loc.charges_cents, 0);
+
+  const douzeMoisAvant = new Date();
+  douzeMoisAvant.setMonth(douzeMoisAvant.getMonth() - 12);
+  const dateDouzeMoisAvant = douzeMoisAvant.toISOString().slice(0, 10);
+  const chargesHorsPretDouzeMois = ecritures
+    .filter(
+      (e) =>
+        e.type === "decaissement" &&
+        e.financement === "banque_sci" &&
+        !e.emprunt_id &&
+        !e.associe_mouvement_type &&
+        e.date >= dateDouzeMoisAvant
+    )
+    .reduce((s, e) => s + e.montant_cents, 0);
+  const chargesMensuellesEstimeesCents = Math.round(chargesHorsPretDouzeMois / 12);
+
+  const emprunts = (empruntsRows ?? []).map((e) => ({
+    capitalEmprunteCents: e.capital_emprunte_cents as number,
+    tauxPct: e.taux_pct as number,
+    dureeMois: e.duree_mois as number,
+    dateDebut: e.date_debut as string,
+  }));
+
+  const pointsPrevisionnels = projeterTresorerie(soldeBancaire, loyersMensuelsCents, emprunts, chargesMensuellesEstimeesCents, 12);
+
   const pointsTresorerie = soldesMensuels(
     ecritures.filter((e) => e.financement === "banque_sci").map((e) => ({ date: e.date, type: e.type, montantCents: e.montant_cents })),
     soldeOuvertureCents,
@@ -148,6 +184,17 @@ export default async function VisionGlobalePage() {
       <div className="card">
         <h2>Trésorerie <span className="tag">solde en fin de mois — 12 derniers mois</span></h2>
         <TresorerieChart points={pointsTresorerie} />
+      </div>
+
+      <div className="card">
+        <h2>Trésorerie prévisionnelle <span className="tag">projection — 12 prochains mois</span></h2>
+        <TresoreriePrevisionnelleChart points={pointsPrevisionnels} />
+        <div className="placeholder-note">
+          Hypothèses : loyers actuels supposés inchangés (pas de départ/arrivée anticipé), mensualités de prêt calculées
+          depuis les conditions d&apos;origine de chaque emprunt (s&apos;arrêtent à l&apos;échéance), charges diverses hors
+          prêt estimées à {formatEuros(chargesMensuellesEstimeesCents)}/mois (moyenne réelle des 12 derniers mois — assurance,
+          taxe foncière, entretien...). Une vraie dépense imprévue changera ce chiffre.
+        </div>
       </div>
 
       {rentabilites.length > 0 ? (
