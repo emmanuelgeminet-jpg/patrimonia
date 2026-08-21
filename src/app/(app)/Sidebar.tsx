@@ -74,7 +74,7 @@ export default function Sidebar({
         </button>
         <div className="brand">PATRIMONIUM</div>
       </div>
-      <div className={`sidebar-backdrop${open ? " open" : ""}`} onClick={() => setOpen(false)} />
+      {open && <div className="sidebar-backdrop open" onClick={() => setOpen(false)} />}
       <aside className={`sidebar${open ? " open" : ""}`}>
       <div className="brand">
         PATRIMONIUM
