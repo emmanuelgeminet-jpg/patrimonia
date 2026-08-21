@@ -297,6 +297,9 @@ create table if not exists quittances (
   mois text not null,
   loyer_hc_cents bigint not null,
   charges_cents bigint not null,
+  -- Date réelle d'encaissement du loyer, retrouvée dans le Journal comptable (SCI
+  -- uniquement — pas d'équivalent pour un bien en nom propre, donc nullable).
+  date_paiement date,
   storage_path text not null,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now(),

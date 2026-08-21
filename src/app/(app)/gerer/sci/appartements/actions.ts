@@ -97,6 +97,42 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     .maybeSingle();
   if (!locataire) return { error: "Aucun locataire actif sur ce logement." };
 
+  // Le jour du "réglé le" vient du Journal comptable, pas d'une saisie manuelle — une
+  // quittance ne devrait attester que d'un paiement réellement encaissé et enregistré.
+  const [anneeStr, moisStr] = mois.split("-");
+  const moisDebut = `${anneeStr}-${moisStr}-01`;
+  const anneeNum = parseInt(anneeStr, 10);
+  const moisNum = parseInt(moisStr, 10);
+  const moisSuivantDebut =
+    moisNum === 12 ? `${anneeNum + 1}-01-01` : `${anneeNum}-${String(moisNum + 1).padStart(2, "0")}-01`;
+
+  const { data: encaissementsRows } = await supabase
+    .from("journal_ecritures")
+    .select("date, montant_cents")
+    .eq("lot_id", lotId)
+    .eq("type", "encaissement")
+    .eq("financement", "banque_sci")
+    .gte("date", moisDebut)
+    .lt("date", moisSuivantDebut)
+    .order("date", { ascending: true });
+
+  const encaissements = encaissementsRows ?? [];
+  const attenduCents = (locataire.loyer_hc_cents as number) + (locataire.charges_cents as number);
+  const encaisseCents = encaissements.reduce((s, e) => s + (e.montant_cents as number), 0);
+
+  if (encaissements.length === 0) {
+    return {
+      error:
+        "Aucun encaissement de loyer trouvé dans le Journal comptable pour ce logement sur cette période. Enregistre d'abord le paiement (Concerne : ce logement, Financement : Banque SCI) avant de générer la quittance.",
+    };
+  }
+  if (encaisseCents < attenduCents) {
+    return {
+      error: `Le loyer de cette période n'est encaissé que partiellement dans le Journal comptable (${(encaisseCents / 100).toFixed(2)} € sur ${(attenduCents / 100).toFixed(2)} € attendus) — complète l'enregistrement avant de générer la quittance.`,
+    };
+  }
+  const datePaiement = encaissements[encaissements.length - 1].date as string;
+
   const pdfBytes = await genererQuittancePdf({
     sciNom: sci.name as string,
     siren: sci.siren as string | null,
@@ -109,6 +145,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     mois,
     loyerHcCents: locataire.loyer_hc_cents as number,
     chargesCents: locataire.charges_cents as number,
+    datePaiement,
   });
 
   const fileName = `Quittance_${(lot.nom as string).replace(/[^a-zA-Z0-9]/g, "_")}_${mois}.pdf`;
@@ -143,6 +180,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     mois,
     loyer_hc_cents: locataire.loyer_hc_cents as number,
     charges_cents: locataire.charges_cents as number,
+    date_paiement: datePaiement,
     storage_path: storagePath,
     created_by: user.id,
   });

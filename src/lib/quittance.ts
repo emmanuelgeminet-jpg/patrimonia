@@ -23,6 +23,10 @@ export type QuittanceInfo = {
   mois: string; // "YYYY-MM"
   loyerHcCents: number;
   chargesCents: number;
+  /** Date réelle d'encaissement du loyer ("YYYY-MM-DD"), retrouvée dans le Journal comptable —
+   *  distincte de la date d'émission de la quittance (aujourd'hui). Optionnelle uniquement pour
+   *  un bien en nom propre, qui n'a pas de journal comptable équivalent à celui de la SCI. */
+  datePaiement?: string | null;
 };
 
 const INK = rgb(0.13, 0.15, 0.12);
@@ -31,6 +35,11 @@ const LINE = rgb(0.871, 0.855, 0.808);
 const GASCON_RED = rgb(0.651, 0.098, 0.18);
 const GOLD = rgb(0.788, 0.635, 0.294);
 const WHITE = rgb(1, 1, 1);
+
+function formatDateFr(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+}
 
 /** Écusson générique (monogramme) — le style par défaut pour n'importe quelle SCI ou foyer. */
 function drawMonogrammeBadge(page: PDFPage, cx: number, cy: number, r: number, initiale: string, font: PDFFont) {
@@ -112,10 +121,16 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
   champ("LOCATAIRE", info.locataireNom);
   champ("LOGEMENT LOUÉ", `${info.bienAdresse} — ${info.lotNom}`);
   champ("PÉRIODE CONCERNÉE", moisLabel);
+  const datePaiementLabel = info.datePaiement ? formatDateFr(info.datePaiement) : null;
+  if (datePaiementLabel) {
+    champ("RÉGLÉ LE", datePaiementLabel);
+  }
 
   y -= 6;
   page.drawText(
-    `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom} la somme de ${formatEuros(totalCents)}`,
+    datePaiementLabel
+      ? `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom}, le ${datePaiementLabel}, la somme de ${formatEuros(totalCents)}`
+      : `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom} la somme de ${formatEuros(totalCents)}`,
     { x: left, y, size: 10.5, font, color: INK }
   );
   y -= 15;

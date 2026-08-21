@@ -9,6 +9,8 @@ export type QuittanceArchiveItem = {
   loyerHcCents: number;
   chargesCents: number;
   dateGeneration: string;
+  /** Date réelle d'encaissement (Journal comptable) — absente pour un bien en nom propre. */
+  datePaiement: string | null;
   url: string | null;
 };
 
@@ -43,6 +45,7 @@ export default function QuittancesArchive({ items }: { items: QuittanceArchiveIt
               <th>Logement</th>
               <th>Locataire</th>
               <th className="num">Montant</th>
+              <th>Réglé le</th>
               <th>Émise le</th>
               <th></th>
             </tr>
@@ -54,6 +57,7 @@ export default function QuittancesArchive({ items }: { items: QuittanceArchiveIt
                 <td>{q.bienAdresse} — {q.lotNom}</td>
                 <td>{q.locataireNom}</td>
                 <td className="num">{formatEuros(q.loyerHcCents + q.chargesCents)}</td>
+                <td>{q.datePaiement ? formatDateFr(q.datePaiement) : "—"}</td>
                 <td>{formatDateFr(q.dateGeneration)}</td>
                 <td>
                   {q.url ? (

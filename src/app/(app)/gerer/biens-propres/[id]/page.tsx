@@ -71,7 +71,7 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
 
   const { data: quittancesRows } = await supabase
     .from("quittances")
-    .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, storage_path, created_at")
+    .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, date_paiement, storage_path, created_at")
     .eq("bien_id", bien.id);
   const quittances = quittancesRows ?? [];
   const quittancesPaths = quittances.map((q) => q.storage_path as string);
@@ -88,6 +88,7 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     loyerHcCents: q.loyer_hc_cents as number,
     chargesCents: q.charges_cents as number,
     dateGeneration: q.created_at as string,
+    datePaiement: q.date_paiement as string | null,
     url: quittancesUrlByPath.get(q.storage_path as string) ?? null,
   }));
 
