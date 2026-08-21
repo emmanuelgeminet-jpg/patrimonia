@@ -80,7 +80,7 @@ export default async function DocumentsPage() {
       <h1>Documents</h1>
       <div className="pagesub">Un seul espace pour tous les justificatifs et documents de la SCI</div>
 
-      <DocumentsFolders sciId={sciId} dossiers={DOSSIERS} documents={documents} />
+      <DocumentsFolders entityType="sci" entityId={sciId} redirectPath="/gerer/sci/documents" dossiers={DOSSIERS} documents={documents} />
 
       <div className="placeholder-note" style={{ marginTop: 12, marginBottom: 20 }}>
         Le dossier &quot;Quittances&quot; se remplit automatiquement quand tu génères une quittance depuis la fiche

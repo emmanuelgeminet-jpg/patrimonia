@@ -8,24 +8,47 @@ export type DocItem = { id: string; nomFichier: string; url: string | null; doss
 const initialState: SaveState = {};
 
 export default function DocumentsFolders({
-  sciId,
+  entityType,
+  entityId,
+  redirectPath,
   dossiers,
   documents,
 }: {
-  sciId: string;
+  entityType: "sci" | "bien";
+  entityId: string;
+  redirectPath: string;
   dossiers: string[];
   documents: DocItem[];
 }) {
   return (
     <div className="grid2">
       {dossiers.map((d) => (
-        <FolderCard key={d} sciId={sciId} dossier={d} documents={documents.filter((doc) => doc.dossier === d)} />
+        <FolderCard
+          key={d}
+          entityType={entityType}
+          entityId={entityId}
+          redirectPath={redirectPath}
+          dossier={d}
+          documents={documents.filter((doc) => doc.dossier === d)}
+        />
       ))}
     </div>
   );
 }
 
-function FolderCard({ sciId, dossier, documents }: { sciId: string; dossier: string; documents: DocItem[] }) {
+function FolderCard({
+  entityType,
+  entityId,
+  redirectPath,
+  dossier,
+  documents,
+}: {
+  entityType: "sci" | "bien";
+  entityId: string;
+  redirectPath: string;
+  dossier: string;
+  documents: DocItem[];
+}) {
   const [state, formAction, pending] = useActionState(uploadDocument, initialState);
   const [, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -49,7 +72,7 @@ function FolderCard({ sciId, dossier, documents }: { sciId: string; dossier: str
                 style={{ color: "var(--brick)", cursor: "pointer" }}
                 onClick={() => {
                   if (!window.confirm(`Supprimer "${d.nomFichier}" ? Cette action est irréversible.`)) return;
-                  startTransition(() => { deleteDocument(d.id, "/gerer/sci/documents"); });
+                  startTransition(() => { deleteDocument(d.id, redirectPath); });
                 }}
               >
                 ×
@@ -60,10 +83,10 @@ function FolderCard({ sciId, dossier, documents }: { sciId: string; dossier: str
       )}
 
       <form ref={formRef} action={formAction} style={{ marginTop: 10 }}>
-        <input type="hidden" name="entity_type" value="sci" />
-        <input type="hidden" name="entity_id" value={sciId} />
+        <input type="hidden" name="entity_type" value={entityType} />
+        <input type="hidden" name="entity_id" value={entityId} />
         <input type="hidden" name="dossier" value={dossier} />
-        <input type="hidden" name="redirect_path" value="/gerer/sci/documents" />
+        <input type="hidden" name="redirect_path" value={redirectPath} />
         <label style={{ fontSize: 11.5, color: "var(--brick)", cursor: "pointer", textDecoration: "underline" }}>
           {pending ? "Envoi..." : "+ ajouter un fichier"}
           <input type="file" name="file" style={{ display: "none" }} onChange={() => formRef.current?.requestSubmit()} />

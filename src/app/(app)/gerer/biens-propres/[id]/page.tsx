@@ -5,6 +5,9 @@ import FinancementForm from "./FinancementForm";
 import FicheForm from "./FicheForm";
 import LotsSection, { type Lot } from "./LotsSection";
 import QuittancesArchive, { type QuittanceArchiveItem } from "@/components/QuittancesArchive";
+import DocumentsFolders, { type DocItem } from "../../sci/documents/DocumentsFolders";
+
+const DOSSIERS_BIEN = ["Baux", "États des lieux", "Diagnostics & DPE", "Assurance", "Factures & justificatifs", "Quittances"];
 
 export default async function BienPropreDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -68,6 +71,24 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
 
   const chargesProvisionneesAnnuellesCents = locatairesActifs.reduce((s, l) => s + (l.charges_cents as number) * 12, 0);
   const soldeChargesCents = chargesCoproAnnuellesCents !== null ? chargesProvisionneesAnnuellesCents - chargesCoproAnnuellesCents : null;
+
+  const { data: docsRows } = await supabase
+    .from("documents")
+    .select("id, dossier, nom_fichier, storage_path")
+    .eq("entity_type", "bien")
+    .eq("entity_id", bien.id);
+  const docs = docsRows ?? [];
+  const docsPaths = docs.map((d) => d.storage_path as string);
+  const { data: docsSignedUrls } = docsPaths.length
+    ? await supabase.storage.from("documents").createSignedUrls(docsPaths, 3600)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const docsUrlByPath = new Map((docsSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+  const documents: DocItem[] = docs.map((d) => ({
+    id: d.id as string,
+    nomFichier: d.nom_fichier as string,
+    dossier: DOSSIERS_BIEN.includes(d.dossier as string) ? (d.dossier as string) : DOSSIERS_BIEN[DOSSIERS_BIEN.length - 1],
+    url: docsUrlByPath.get(d.storage_path as string) ?? null,
+  }));
 
   const { data: quittancesRows } = await supabase
     .from("quittances")
@@ -160,6 +181,16 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
       </div>
 
       <LotsSection bienId={bien.id as string} lots={lots} />
+
+      <h2 style={{ marginTop: 22 }}>Documents</h2>
+      <div className="pagesub">Baux, états des lieux, diagnostics, assurance, factures — tout ce qui concerne ce logement</div>
+      <DocumentsFolders
+        entityType="bien"
+        entityId={bien.id as string}
+        redirectPath={`/gerer/biens-propres/${bien.id}`}
+        dossiers={DOSSIERS_BIEN}
+        documents={documents}
+      />
 
       <QuittancesArchive items={quittancesItems} />
 
