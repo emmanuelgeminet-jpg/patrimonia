@@ -39,7 +39,10 @@ export default function DocumentsCell({
           )}
           <span
             style={{ color: "var(--brick)", cursor: "pointer", flexShrink: 0 }}
-            onClick={() => startTransition(() => { deleteDocument(d.id); })}
+            onClick={() => {
+              if (!window.confirm(`Supprimer "${d.nom_fichier}" ? Cette action est irréversible.`)) return;
+              startTransition(() => { deleteDocument(d.id); });
+            }}
           >
             ×
           </span>

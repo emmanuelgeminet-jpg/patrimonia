@@ -47,7 +47,10 @@ function FolderCard({ sciId, dossier, documents }: { sciId: string; dossier: str
               )}
               <span
                 style={{ color: "var(--brick)", cursor: "pointer" }}
-                onClick={() => startTransition(() => { deleteDocument(d.id, "/gerer/sci/documents"); })}
+                onClick={() => {
+                  if (!window.confirm(`Supprimer "${d.nomFichier}" ? Cette action est irréversible.`)) return;
+                  startTransition(() => { deleteDocument(d.id, "/gerer/sci/documents"); });
+                }}
               >
                 ×
               </span>

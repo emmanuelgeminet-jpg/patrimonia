@@ -376,7 +376,10 @@ function JustificatifCell({ ecriture }: { ecriture: Ecriture }) {
         <a href={ecriture.justificatifUrl} target="_blank" rel="noreferrer" style={{ color: "var(--sage)" }}>📎</a>
         <span
           style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11 }}
-          onClick={() => startTransition(() => { removeJustificatif(ecriture.id, ecriture.justificatifPath!); })}
+          onClick={() => {
+            if (!window.confirm("Supprimer ce justificatif ? Cette action est irréversible.")) return;
+            startTransition(() => { removeJustificatif(ecriture.id, ecriture.justificatifPath!); });
+          }}
         >
           ×
         </span>
