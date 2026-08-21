@@ -13,6 +13,9 @@ create extension if not exists pgcrypto;
 create table if not exists households (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  -- Adresse du foyer — sert d'adresse du bailleur sur un bail pour un bien en nom propre
+  -- (même rôle que sci.adresse pour un bien en SCI).
+  adresse text,
   created_at timestamptz not null default now()
 );
 
@@ -106,6 +109,26 @@ create table if not exists biens (
   assurance_mensuelle_cents bigint,
   charges_copro_annuelles_cents bigint,
   notes text,
+  -- Caractéristiques réutilisables d'un bail à l'autre pour ce bien (contrat-type décret
+  -- n°2015-587) — saisies une fois sur la fiche du bien, pas reposées à chaque bail généré.
+  periode_construction text check (periode_construction in ('avant_1949', '1949_1974', '1975_1989', '1990_2005', 'depuis_2005')),
+  chauffage_type text check (chauffage_type in ('individuel', 'collectif')),
+  chauffage_modalites_repartition text,
+  eau_chaude_type text check (eau_chaude_type in ('individuelle', 'collective')),
+  eau_chaude_modalites_repartition text,
+  -- Cases à cocher du contrat-type (grenier/terrasse/balcon/jardin..., cuisine équipée...,
+  -- ascenseur/local poubelles...) — un ensemble fixe mais qui ne sert qu'à l'affichage du bail,
+  -- jamais interrogé individuellement : jsonb plutôt que des colonnes booléennes séparées.
+  autres_parties_logement jsonb not null default '{}'::jsonb,
+  equipements_logement jsonb not null default '{}'::jsonb,
+  equipements_communs jsonb not null default '{}'::jsonb,
+  identifiant_fiscal_logement text,
+  -- Zone tendue : case à cocher manuelle, jamais déduite automatiquement d'une liste de
+  -- communes (la liste change chaque année par décret — une liste figée dans le code
+  -- deviendrait fausse).
+  zone_tendue boolean not null default false,
+  loyer_reference_m2_cents bigint,
+  loyer_reference_majore_m2_cents bigint,
   created_at timestamptz not null default now(),
   constraint bien_owner_coherent check (
     (owner_type = 'sci' and sci_id is not null and household_id is null) or
@@ -121,6 +144,12 @@ create table if not exists lots (
   -- Estimation manuelle de la valeur vénale du lot — sert uniquement à calculer une
   -- rentabilité par appartement (loyers / valeur), pas de source officielle branchée.
   valeur_venale_cents bigint,
+  -- Consistance du logement pour le bail (contrat-type) — équipements privatifs à usage
+  -- exclusif du lot, distincts des équipements communs de l'immeuble (voir biens).
+  nombre_pieces_principales integer,
+  cave_numero text,
+  parking_numero text,
+  garage_numero text,
   created_at timestamptz not null default now()
 );
 
@@ -136,6 +165,11 @@ create table if not exists locataires (
   depot_garantie_cents bigint,
   depot_garantie_date date,
   depot_garantie_mode text,
+  -- Un bail peut avoir plusieurs locataires (colocation) — le contrat-type prévoit déjà
+  -- 2 signataires. On garde un seul foyer de facturation (loyer/charges/dépôt restent sur
+  -- la ligne principale), le colocataire n'est qu'un second nom/email pour le bail.
+  colocataire_nom text,
+  colocataire_email text,
   created_at timestamptz not null default now()
 );
 
@@ -304,6 +338,64 @@ create table if not exists quittances (
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint quittance_owner_coherent check (
+    (sci_id is not null and household_id is null) or (sci_id is null and household_id is not null)
+  )
+);
+
+-- =====================================================================
+-- 6bis-3. BAUX ET ÉTATS DES LIEUX (même principe d'archive structurée que
+-- quittances — le PDF reste dans `documents`/Storage, ces tables servent à
+-- retrouver un bail/état des lieux précis et à en garder une trace figée.
+-- `donnees` porte l'intégralité des champs saisis pour ce document : un bail
+-- déjà généré ne doit pas changer silencieusement si la fiche du bien change
+-- ensuite (même logique que le PDF lui-même, qui est un instantané).
+-- =====================================================================
+
+create table if not exists baux (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid references sci(id) on delete cascade,
+  household_id uuid references households(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  lot_id uuid references lots(id) on delete set null,
+  locataire_id uuid references locataires(id) on delete set null,
+  bien_adresse text not null,
+  lot_nom text not null,
+  locataire_nom text not null,
+  type_bail text not null default 'non_meuble' check (type_bail in ('non_meuble', 'meuble')),
+  date_prise_effet date not null,
+  duree_mois integer not null,
+  loyer_hc_cents bigint not null,
+  charges_cents bigint not null,
+  depot_garantie_cents bigint,
+  donnees jsonb not null,
+  storage_path text not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint bail_owner_coherent check (
+    (sci_id is not null and household_id is null) or (sci_id is null and household_id is not null)
+  )
+);
+
+create table if not exists etats_des_lieux (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid references sci(id) on delete cascade,
+  household_id uuid references households(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  lot_id uuid references lots(id) on delete set null,
+  locataire_id uuid references locataires(id) on delete set null,
+  bien_adresse text not null,
+  lot_nom text not null,
+  locataire_nom text not null,
+  type text not null check (type in ('entree', 'sortie')),
+  date_etat_des_lieux date not null,
+  -- Référence l'état d'entrée correspondant pour une sortie (comparaison, art. 3-2 loi
+  -- 89-462) — nullable : l'entrée n'a pas forcément été faite depuis l'appli.
+  etat_entree_id uuid references etats_des_lieux(id) on delete set null,
+  donnees jsonb not null,
+  storage_path text not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint edl_owner_coherent check (
     (sci_id is not null and household_id is null) or (sci_id is null and household_id is not null)
   )
 );
@@ -478,6 +570,12 @@ create index if not exists idx_budget_household_date on budget_transactions(hous
 create index if not exists idx_documents_entity on documents(entity_type, entity_id);
 create index if not exists idx_quittances_sci on quittances(sci_id);
 create index if not exists idx_quittances_household on quittances(household_id);
+create index if not exists idx_baux_sci on baux(sci_id);
+create index if not exists idx_baux_household on baux(household_id);
+create index if not exists idx_baux_lot on baux(lot_id);
+create index if not exists idx_edl_sci on etats_des_lieux(sci_id);
+create index if not exists idx_edl_household on etats_des_lieux(household_id);
+create index if not exists idx_edl_lot on etats_des_lieux(lot_id);
 create index if not exists idx_analyses_household on analyses_biens(household_id);
 
 -- =====================================================================
@@ -721,6 +819,8 @@ alter table budget_categories enable row level security;
 alter table budget_transactions enable row level security;
 alter table documents enable row level security;
 alter table quittances enable row level security;
+alter table baux enable row level security;
+alter table etats_des_lieux enable row level security;
 alter table feedback_messages enable row level security;
 alter table profil_investisseur enable row level security;
 alter table profil_charges_lignes enable row level security;
@@ -846,6 +946,20 @@ create policy "documents accessibles" on documents for all using (
 
 drop policy if exists "quittances de ma sci ou mon foyer" on quittances;
 create policy "quittances de ma sci ou mon foyer" on quittances for all using (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+) with check (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+);
+
+drop policy if exists "baux de ma sci ou mon foyer" on baux;
+create policy "baux de ma sci ou mon foyer" on baux for all using (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+) with check (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+);
+
+drop policy if exists "etats des lieux de ma sci ou mon foyer" on etats_des_lieux;
+create policy "etats des lieux de ma sci ou mon foyer" on etats_des_lieux for all using (
   (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
 ) with check (
   (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))

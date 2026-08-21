@@ -20,6 +20,7 @@ export async function renameHousehold(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Le nom ne peut pas être vide." };
   if (name.length > 100) return { error: "Nom trop long." };
+  const adresse = String(formData.get("adresse") ?? "").trim();
 
   const supabase = await createClient();
   const {
@@ -30,7 +31,7 @@ export async function renameHousehold(
   const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
   if (!profile) return { error: "Profil introuvable." };
 
-  const { error } = await supabase.from("households").update({ name }).eq("id", profile.household_id);
+  const { error } = await supabase.from("households").update({ name, adresse: adresse || null }).eq("id", profile.household_id);
   if (error) return { error: "Erreur lors de l'enregistrement." };
 
   revalidatePath("/compte");

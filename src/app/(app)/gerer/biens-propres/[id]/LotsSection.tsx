@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useActionState, useTransition } from "react";
 import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
@@ -105,6 +106,9 @@ function LotContent({ bienId, lot }: { bienId: string; lot: Lot }) {
               Marquer sorti
             </span>
             <QuittanceButton lotId={lot.id} />
+            <Link href={`/gerer/bail/${lot.id}?locataireId=${actif.id}`} style={{ color: "var(--sage)", fontSize: 11 }}>
+              Générer un bail
+            </Link>
           </div>
         </>
       ) : (

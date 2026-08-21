@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useActionState, useTransition } from "react";
 import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, saveValeurVenale, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
@@ -103,6 +104,9 @@ function LotContent({ lot }: { lot: Lot }) {
               Marquer sorti
             </span>
             <QuittanceButton lotId={lot.id} />
+            <Link href={`/gerer/bail/${lot.id}?locataireId=${actif.id}`} style={{ color: "var(--sage)", fontSize: 11 }}>
+              Générer un bail
+            </Link>
           </div>
           <div className="placeholder-note" style={{ marginTop: 10 }}>
             Le statut du mois se calcule depuis le Journal comptable — pense à choisir ce logement dans le champ

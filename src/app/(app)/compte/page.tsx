@@ -14,12 +14,14 @@ export default async function ComptePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("household_id, households(name)")
+    .select("household_id, households(name, adresse)")
     .eq("id", user!.id)
     .single();
 
   const householdId = profile?.household_id as string | undefined;
-  const householdName = (profile?.households as unknown as { name: string } | null)?.name;
+  const household = profile?.households as unknown as { name: string; adresse: string | null } | null;
+  const householdName = household?.name;
+  const householdAdresse = household?.adresse;
 
   return (
     <section className="section">
@@ -34,7 +36,7 @@ export default async function ComptePage() {
           (budget, SCI, biens...). Ne partage ce lien qu&apos;avec une personne de confiance.
         </div>
         {householdId && <InviteLink link={`${origin}/login?invite=${householdId}`} />}
-        <HouseholdNameForm currentName={householdName ?? ""} />
+        <HouseholdNameForm currentName={householdName ?? ""} currentAdresse={householdAdresse} />
       </div>
 
       <PasswordForm />
