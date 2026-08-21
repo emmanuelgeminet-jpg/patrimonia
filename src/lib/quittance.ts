@@ -1,7 +1,6 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { formatEuros, formatMonthLabel } from "@/lib/budget";
+import { LOGO_GASCONS_RAPIERES_BASE64 } from "@/lib/logo-gascons-rapieres";
 
 export type QuittanceInfo = {
   sciNom: string;
@@ -42,13 +41,15 @@ function drawMonogrammeBadge(page: PDFPage, cx: number, cy: number, r: number, i
 }
 
 /**
- * Chemin d'un écusson personnalisé associé à un logoStyle donné — image fournie par Emmanuel
- * (rapières croisées générées avec Gemini pour "Les Bons Gascons"), stockée dans public/ comme
- * n'importe quel autre asset statique. Convention par style plutôt que codée en dur sur une SCI
- * précise : n'importe quel logoStyle futur n'a qu'à ajouter une entrée ici.
+ * Écussons personnalisés associés à un logoStyle donné — encodés en base64 directement dans le
+ * code (voir src/lib/logo-gascons-rapieres.ts) plutôt que lus depuis public/ à l'exécution : un
+ * fichier lu dynamiquement via fs à l'exécution n'est pas garanti d'être inclus dans le bundle
+ * de la fonction serverless une fois déployé sur Vercel (marche en local, 404 en production).
+ * Convention par style plutôt que codée en dur sur une SCI précise : un logoStyle futur n'a
+ * qu'à ajouter une entrée ici.
  */
-const LOGO_IMAGES: Record<string, string> = {
-  gascons_rapieres: "public/logos/sci-les-bons-gascons.jpg",
+const LOGO_IMAGES_BASE64: Record<string, string> = {
+  gascons_rapieres: LOGO_GASCONS_RAPIERES_BASE64,
 };
 
 /** Génère un PDF de quittance de loyer et le renvoie en octets. */
@@ -70,10 +71,10 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
   const badgeR = 34;
   const badgeCx = left + badgeR;
   const badgeCy = 760;
-  const logoPath = info.logoStyle ? LOGO_IMAGES[info.logoStyle] : undefined;
-  if (logoPath) {
-    const logoBytes = await readFile(path.join(/* turbopackIgnore: true */ process.cwd(), logoPath));
-    const logoImage = logoPath.endsWith(".png") ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes);
+  const logoBase64 = info.logoStyle ? LOGO_IMAGES_BASE64[info.logoStyle] : undefined;
+  if (logoBase64) {
+    const logoBytes = Buffer.from(logoBase64, "base64");
+    const logoImage = await doc.embedJpg(logoBytes);
     const logoDims = logoImage.scaleToFit(badgeR * 2, badgeR * 2);
     page.drawImage(logoImage, {
       x: badgeCx - logoDims.width / 2,
