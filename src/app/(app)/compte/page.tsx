@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import PasswordForm from "./PasswordForm";
@@ -40,6 +41,10 @@ export default async function ComptePage() {
       </div>
 
       <PasswordForm />
+
+      <div className="card">
+        <Link href="/quoi-de-neuf" style={{ color: "var(--sage)", fontSize: 13 }}>Quoi de neuf dans l&apos;appli →</Link>
+      </div>
     </section>
   );
 }
