@@ -593,6 +593,49 @@ begin
 end;
 $$;
 
+-- Associe un foyer QUI A DÉJÀ UN COMPTE (cas réel : l'associé s'est inscrit normalement
+-- avant que le foyer qui gère la SCI ne pense à générer un lien d'invitation) à une SCI
+-- existante, retrouvé par email — profiles.email n'est lisible par personne d'autre que
+-- son propriétaire ou un admin (RLS), donc le lookup doit se faire ici, en security
+-- definer, plutôt que côté client. Le foyer retrouvé garde son budget/biens propres privés
+-- — devenir associé d'une SCI ne fusionne rien, juste une ligne sci_associes de plus.
+create or replace function add_existing_household_to_sci(
+  p_sci_id uuid,
+  p_email text,
+  p_parts integer,
+  p_pourcentage numeric
+)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_household_id uuid;
+begin
+  if not is_sci_member(p_sci_id) then
+    raise exception 'Tu n''es pas associé de cette SCI.';
+  end if;
+
+  select household_id into v_household_id
+  from profiles
+  where lower(email) = lower(p_email)
+  limit 1;
+
+  if v_household_id is null then
+    raise exception 'Aucun compte trouvé avec cet email.';
+  end if;
+
+  if exists (select 1 from sci_associes where sci_id = p_sci_id and household_id = v_household_id) then
+    raise exception 'Ce foyer est déjà associé à cette SCI.';
+  end if;
+
+  insert into sci_associes (sci_id, household_id, parts, pourcentage)
+  values (p_sci_id, v_household_id, p_parts, p_pourcentage);
+
+  return v_household_id;
+end;
+$$;
+
 -- Ajoute un nouvel associé (nouveau foyer, pas encore de compte) à une SCI existante —
 -- même raison security definer que ci-dessus pour la création du foyer. Le nouveau
 -- foyer créé ici a 0 profil, donc can_invite_sci_associe le rend immédiatement invitable.
@@ -653,6 +696,9 @@ create policy "own profile" on profiles for select using (id = auth.uid());
 
 drop policy if exists "admin sees all profiles" on profiles;
 create policy "admin sees all profiles" on profiles for select using (is_admin());
+
+drop policy if exists "admin sees all households" on households;
+create policy "admin sees all households" on households for select using (is_admin());
 
 drop policy if exists "sci of my household" on sci;
 create policy "sci of my household" on sci for all using (is_sci_member(id)) with check (is_sci_member(id));

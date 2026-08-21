@@ -6,6 +6,7 @@ import {
   deleteMouvementCompteCourant,
   saveSoldeOuvertureAssocie,
   ajouterAssocie,
+  associerFoyerExistant,
   type SaveState,
 } from "../journal/actions";
 import { formatEuros } from "@/lib/budget";
@@ -80,6 +81,7 @@ export default function ComptesCourantsClient({
         </div>
       )}
 
+      <AssocierFoyerExistantForm />
       <AjouterAssocieForm />
 
       <div className="card">
@@ -191,6 +193,35 @@ function AjouterMouvementForm({ associes }: { associes: Associe[] }) {
         Si ce mouvement correspond aussi à une écriture bancaire de la SCI ou à une avance personnelle, ajoute-le
         plutôt depuis le Journal comptable — il alimentera automatiquement ce suivi.
       </div>
+    </div>
+  );
+}
+
+function AssocierFoyerExistantForm() {
+  const [state, formAction, pending] = useActionState(associerFoyerExistant, initialState);
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <h2>+ Associer un foyer déjà inscrit</h2>
+      <div className="card-sub">
+        Ton associé a déjà créé son propre compte (avant d&apos;avoir un lien d&apos;invitation) ? Retrouve son
+        email dans la liste des utilisateurs inscrits (page Suggestions, si tu es admin) et rattache directement
+        son foyer à la SCI — son budget personnel reste privé, seule la SCI devient partagée.
+      </div>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input name="email" type="email" required placeholder="Email de son compte" style={{ minWidth: 220 }} />
+        <input name="parts" placeholder="Parts" style={{ maxWidth: 100 }} />
+        <input name="pourcentage" placeholder="%" style={{ maxWidth: 90 }} />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--sage)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          + Associer
+        </button>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+      {state.success && <div style={{ color: "var(--sage)", fontSize: 11, marginTop: 4 }}>Foyer associé — il verra la SCI à sa prochaine connexion.</div>}
     </div>
   );
 }

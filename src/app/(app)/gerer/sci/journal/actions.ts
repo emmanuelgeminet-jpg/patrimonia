@@ -250,6 +250,24 @@ export async function ajouterAssocie(_prev: SaveState, formData: FormData): Prom
   return { success: true };
 }
 
+export async function associerFoyerExistant(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) return { error: "L'email est obligatoire." };
+
+  const { error } = await supabase.rpc("add_existing_household_to_sci", {
+    p_sci_id: sciId,
+    p_email: email,
+    p_parts: parseInt(String(formData.get("parts") ?? "0"), 10) || 0,
+    p_pourcentage: parseFloat(String(formData.get("pourcentage") ?? "0").replace(",", ".")) || 0,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(COMPTES_COURANTS_PATH);
+  return { success: true };
+}
+
 export async function saveSoldeOuvertureAssocie(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const { supabase, sciId } = await getSciContext();
   const householdId = String(formData.get("household_id") ?? "");
