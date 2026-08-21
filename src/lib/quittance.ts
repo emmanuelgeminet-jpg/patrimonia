@@ -1,10 +1,18 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, LineCapStyle, type PDFFont, type PDFPage } from "pdf-lib";
 import { formatEuros, formatMonthLabel } from "@/lib/budget";
 
 export type QuittanceInfo = {
   sciNom: string;
   /** SIREN de la SCI, si connu — absent pour un bien détenu en nom propre. */
   siren?: string | null;
+  /** Adresse du bailleur (siège social pour une SCI) — mention obligatoire de la quittance. */
+  bailleurAdresse?: string | null;
+  /** Style d'écusson à dessiner sur la quittance — laisse vide pour le monogramme générique
+   *  (toute SCI/tout foyer y a droit par défaut) ; "gascons_rapieres" est un habillage propre
+   *  à une SCI en particulier, choisi via sci.logo_style, pas déduit du nom (jamais de logique
+   *  câblée sur "Les Bons Gascons" — n'importe quel futur utilisateur pourrait avoir son propre
+   *  style un jour). */
+  logoStyle?: string | null;
   bienAdresse: string;
   lotNom: string;
   locataireNom: string;
@@ -13,54 +21,147 @@ export type QuittanceInfo = {
   chargesCents: number;
 };
 
+const INK = rgb(0.13, 0.15, 0.12);
+const INK_SOFT = rgb(0.357, 0.373, 0.325);
+const LINE = rgb(0.871, 0.855, 0.808);
+const GASCON_RED = rgb(0.651, 0.098, 0.18);
+const GOLD = rgb(0.788, 0.635, 0.294);
+const WHITE = rgb(1, 1, 1);
+
+/** Écusson générique (monogramme) — le style par défaut pour n'importe quelle SCI ou foyer. */
+function drawMonogrammeBadge(page: PDFPage, cx: number, cy: number, r: number, initiale: string, font: PDFFont) {
+  page.drawEllipse({ x: cx, y: cy, xScale: r, yScale: r, color: INK });
+  const size = r * 1.15;
+  const width = font.widthOfTextAtSize(initiale, size);
+  page.drawText(initiale, { x: cx - width / 2, y: cy - size * 0.36, size, font, color: WHITE });
+}
+
+/**
+ * Écusson "Les Bons Gascons" — deux rapières croisées en sautoir (clin d'œil aux mousquetaires
+ * gascons) sur fond rouge, gardes et pommeaux dorés — inspiré de la croix de Gascogne (sautoir
+ * blanc sur fond rouge) sans en être une reproduction littérale, choisi via sci.logo_style.
+ */
+function drawGasconBadge(page: PDFPage, cx: number, cy: number, r: number) {
+  page.drawEllipse({ x: cx, y: cy, xScale: r, yScale: r, color: GASCON_RED, borderColor: GOLD, borderWidth: r * 0.045 });
+
+  const bladeEnd = 0.55 * r;
+  const bladeThickness = r * 0.067;
+  page.drawLine({ start: { x: cx - bladeEnd, y: cy - bladeEnd }, end: { x: cx + bladeEnd, y: cy + bladeEnd }, thickness: bladeThickness, color: WHITE, lineCap: LineCapStyle.Round });
+  page.drawLine({ start: { x: cx + bladeEnd, y: cy - bladeEnd }, end: { x: cx - bladeEnd, y: cy + bladeEnd }, thickness: bladeThickness, color: WHITE, lineCap: LineCapStyle.Round });
+
+  const guardThickness = r * 0.04;
+  page.drawLine({ start: { x: cx - 0.148 * r, y: cy - 0.402 * r }, end: { x: cx - 0.402 * r, y: cy - 0.148 * r }, thickness: guardThickness, color: WHITE, lineCap: LineCapStyle.Round });
+  page.drawLine({ start: { x: cx + 0.402 * r, y: cy - 0.148 * r }, end: { x: cx + 0.148 * r, y: cy - 0.402 * r }, thickness: guardThickness, color: WHITE, lineCap: LineCapStyle.Round });
+
+  page.drawEllipse({ x: cx - bladeEnd, y: cy - bladeEnd, xScale: r * 0.09, yScale: r * 0.09, color: GOLD });
+  page.drawEllipse({ x: cx + bladeEnd, y: cy - bladeEnd, xScale: r * 0.09, yScale: r * 0.09, color: GOLD });
+  page.drawEllipse({ x: cx, y: cy, xScale: r * 0.045, yScale: r * 0.045, color: GOLD });
+}
+
 /** Génère un PDF de quittance de loyer et le renvoie en octets. */
 export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([595.28, 841.89]); // A4
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const ink = rgb(0.13, 0.15, 0.12);
+  const font = await doc.embedFont(StandardFonts.TimesRoman);
+  const bold = await doc.embedFont(StandardFonts.TimesRomanBold);
+  const italic = await doc.embedFont(StandardFonts.TimesRomanItalic);
 
-  let y = 780;
-  const left = 60;
+  const left = 55;
+  const right = 540.28;
+  const width = right - left;
   const totalCents = info.loyerHcCents + info.chargesCents;
   const moisLabel = formatMonthLabel(info.mois);
   const dateEmission = new Date().toLocaleDateString("fr-FR");
 
-  const drawLine = (text: string, opts?: { size?: number; useFont?: typeof font; gap?: number }) => {
-    page.drawText(text, { x: left, y, size: opts?.size ?? 11, font: opts?.useFont ?? font, color: ink });
-    y -= opts?.gap ?? 20;
+  // ----- En-tête : écusson + nom du bailleur -----
+  const badgeCx = left + 30;
+  const badgeCy = 760;
+  if (info.logoStyle === "gascons_rapieres") {
+    drawGasconBadge(page, badgeCx, badgeCy, 30);
+  } else {
+    drawMonogrammeBadge(page, badgeCx, badgeCy, 30, info.sciNom.trim().charAt(0).toUpperCase() || "?", bold);
+  }
+  page.drawText(info.sciNom.toUpperCase(), { x: left + 68, y: badgeCy + 8, size: 15, font: bold, color: INK });
+  page.drawText("S C I", { x: left + 68, y: badgeCy - 8, size: 8, font, color: INK_SOFT });
+
+  page.drawLine({ start: { x: left, y: 715 }, end: { x: right, y: 715 }, thickness: 1, color: GOLD });
+
+  page.drawText("QUITTANCE DE LOYER", { x: left, y: 692, size: 19, font: bold, color: INK });
+  const dateLabel = `Émise le ${dateEmission}`;
+  page.drawText(dateLabel, { x: right - font.widthOfTextAtSize(dateLabel, 9), y: 696, size: 9, font, color: INK_SOFT });
+
+  // ----- Identité -----
+  let y = 660;
+  const champ = (label: string, valeur: string, opts?: { petit?: boolean }) => {
+    page.drawText(label, { x: left, y, size: 8.5, font: bold, color: INK_SOFT });
+    y -= 13;
+    page.drawText(valeur, { x: left, y, size: opts?.petit ? 9.5 : 11, font, color: INK });
+    y -= opts?.petit ? 16 : 19;
   };
 
-  drawLine("QUITTANCE DE LOYER", { size: 18, useFont: bold, gap: 34 });
+  champ("BAILLEUR", info.sciNom + (info.siren ? ` — SIREN ${info.siren}` : ""));
+  if (info.bailleurAdresse) {
+    page.drawText(info.bailleurAdresse, { x: left, y: y + 5, size: 9.5, font: italic, color: INK_SOFT });
+    y -= 16;
+  }
+  champ("LOCATAIRE", info.locataireNom);
+  champ("LOGEMENT LOUÉ", `${info.bienAdresse} — ${info.lotNom}`);
+  champ("PÉRIODE CONCERNÉE", moisLabel);
 
-  drawLine(`Bailleur : ${info.sciNom}${info.siren ? ` — SIREN ${info.siren}` : ""}`, { gap: 18 });
-  drawLine(`Locataire : ${info.locataireNom}`, { gap: 18 });
-  drawLine(`Logement loué : ${info.bienAdresse} — ${info.lotNom}`, { gap: 18 });
-  drawLine(`Période concernée : ${moisLabel}`, { gap: 32 });
-
-  drawLine(
-    `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom} la somme de`,
-    { gap: 18 }
+  y -= 6;
+  page.drawText(
+    `Le bailleur soussigné déclare avoir reçu de ${info.locataireNom} la somme de ${formatEuros(totalCents)}`,
+    { x: left, y, size: 10.5, font, color: INK }
   );
-  drawLine(`${formatEuros(totalCents)} au titre du loyer et des charges de la période ci-dessus,`, { gap: 18 });
-  drawLine("se décomposant comme suit :", { gap: 30 });
+  y -= 15;
+  page.drawText("au titre du loyer et des charges de la période ci-dessus, se décomposant comme suit :", {
+    x: left,
+    y,
+    size: 10.5,
+    font,
+    color: INK,
+  });
+  y -= 26;
 
-  drawLine(`Loyer hors charges .......................... ${formatEuros(info.loyerHcCents)}`, { gap: 18 });
-  drawLine(`Provisions pour charges ..................... ${formatEuros(info.chargesCents)}`, { gap: 18 });
-  drawLine(`Total .......................................... ${formatEuros(totalCents)}`, { useFont: bold, gap: 40 });
+  // ----- Tableau loyer / charges / total -----
+  const rowH = 26;
+  const tableTop = y;
+  const rows: [string, number, boolean][] = [
+    ["Loyer hors charges", info.loyerHcCents, false],
+    ["Provisions pour charges", info.chargesCents, false],
+    ["Total dû", totalCents, true],
+  ];
+  page.drawRectangle({ x: left, y: tableTop - rowH * rows.length, width, height: rowH * rows.length, borderColor: LINE, borderWidth: 1 });
+  rows.forEach(([label, cents, isTotal], i) => {
+    const rowY = tableTop - rowH * i;
+    if (i > 0) page.drawLine({ start: { x: left, y: rowY }, end: { x: right, y: rowY }, thickness: 1, color: LINE });
+    const f = isTotal ? bold : font;
+    const c = isTotal ? GASCON_RED : INK;
+    const label2 = isTotal ? label.toUpperCase() : label;
+    page.drawText(label2, { x: left + 14, y: rowY - rowH / 2 - 4, size: isTotal ? 11 : 10.5, font: f, color: c });
+    const amountStr = formatEuros(cents);
+    const amountW = f.widthOfTextAtSize(amountStr, isTotal ? 11 : 10.5);
+    page.drawText(amountStr, { x: right - 14 - amountW, y: rowY - rowH / 2 - 4, size: isTotal ? 11 : 10.5, font: f, color: c });
+  });
+  y = tableTop - rowH * rows.length - 34;
 
-  drawLine(
-    "La présente quittance annule tous les reçus qui auraient pu être établis précédemment en cas de",
-    { size: 9.5, gap: 14 }
-  );
-  drawLine(
-    "paiement partiel du montant ci-dessus. À conserver par le locataire pendant toute la durée de la location.",
-    { size: 9.5, gap: 36 }
-  );
+  // ----- Signature -----
+  page.drawText(`Fait le ${dateEmission}`, { x: left, y, size: 10, font, color: INK });
+  page.drawText("Signature du bailleur :", { x: right - 180, y, size: 10, font, color: INK });
+  page.drawRectangle({ x: right - 180, y: y - 66, width: 180, height: 56, borderColor: LINE, borderWidth: 1 });
+  y -= 90;
 
-  drawLine(`Fait le ${dateEmission}`, { gap: 40 });
-  drawLine("Signature du bailleur :", {});
+  // ----- Mentions légales -----
+  const mentions = [
+    "Cette quittance annule tout reçu établi antérieurement en cas de paiement partiel du montant ci-dessus.",
+    "Quittance délivrée gratuitement, conformément à l'article 21 de la loi n° 89-462 du 6 juillet 1989.",
+    "À conserver au moins 3 ans après la fin de la location (délai de prescription, article 7-1 de la même loi).",
+  ];
+  page.drawLine({ start: { x: left, y: y + 12 }, end: { x: right, y: y + 12 }, thickness: 0.5, color: LINE });
+  for (const m of mentions) {
+    page.drawText(m, { x: left, y, size: 8, font, color: INK_SOFT });
+    y -= 12;
+  }
 
   return doc.save();
 }

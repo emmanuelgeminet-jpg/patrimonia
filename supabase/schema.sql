@@ -37,6 +37,13 @@ create table if not exists sci (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   siren text,
+  -- Adresse du siège social — mention obligatoire du bailleur sur une quittance de loyer
+  -- (article 21 de la loi du 6 juillet 1989).
+  adresse text,
+  -- Habillage visuel de la quittance PDF, propre à cette SCI (voir src/lib/quittance.ts) —
+  -- vide/null = écusson générique (monogramme). Une donnée, pas du code câblé sur un nom de
+  -- SCI en particulier : n'importe quelle SCI pourrait un jour avoir son propre style ici.
+  logo_style text,
   capital_social_cents bigint,
   date_creation date,
   regime_fiscal text,
