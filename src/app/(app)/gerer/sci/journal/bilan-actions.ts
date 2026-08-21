@@ -120,6 +120,33 @@ export async function deleteImmobilisation(id: string) {
   revalidatePath(JOURNAL_PATH);
 }
 
+export async function saveInfosSci(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+
+  const nom = String(formData.get("nom") ?? "").trim();
+  if (!nom) return { error: "Le nom de la SCI est obligatoire." };
+
+  const { error } = await supabase
+    .from("sci")
+    .update({
+      name: nom,
+      siren: formData.get("siren") || null,
+      adresse: formData.get("adresse") || null,
+      gerant_nom: formData.get("gerant_nom") || null,
+      date_creation: formData.get("date_creation") || null,
+      regime_fiscal: formData.get("regime_fiscal") || null,
+      capital_social_cents: toCentsOrNull(formData.get("capital_social")),
+    })
+    .eq("id", sciId);
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(JOURNAL_PATH);
+  revalidatePath("/gerer/sci/appartements");
+  revalidatePath("/gerer/sci/documents");
+  revalidatePath("/gerer/sci/vision-globale");
+  return { success: true };
+}
+
 export async function saveResultatReporte(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const { supabase, sciId } = await getSciContext();
 

@@ -72,6 +72,12 @@ export default async function JournalPage() {
       <JournalTabs
         sci={{
           id: sci!.id as string,
+          nom: sci!.name as string,
+          siren: sci!.siren as string | null,
+          adresse: sci!.adresse as string | null,
+          gerantNom: sci!.gerant_nom as string | null,
+          dateCreation: sci!.date_creation as string | null,
+          regimeFiscal: sci!.regime_fiscal as string | null,
           soldeOuvertureCents: sci!.solde_ouverture_cents as number,
           soldeOuvertureDate: sci!.solde_ouverture_date as string | null,
           capitalSocialCents: (sci!.capital_social_cents as number | null) ?? 0,

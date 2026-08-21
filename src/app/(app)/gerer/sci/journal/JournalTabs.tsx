@@ -53,6 +53,12 @@ export type Bien = { id: string; label: string };
 export type Lot = { id: string; nom: string; bienId: string };
 export type SciInfo = {
   id: string;
+  nom: string;
+  siren: string | null;
+  adresse: string | null;
+  gerantNom: string | null;
+  dateCreation: string | null;
+  regimeFiscal: string | null;
   soldeOuvertureCents: number;
   soldeOuvertureDate: string | null;
   capitalSocialCents: number;

@@ -8,6 +8,7 @@ import {
   deleteEmprunt,
   addImmobilisation,
   deleteImmobilisation,
+  saveInfosSci,
   saveResultatReporte,
   type SaveState,
 } from "./bilan-actions";
@@ -209,9 +210,51 @@ export function BilanPanel({
         </div>
       </div>
 
+      <InfosSciForm sci={sci} />
       <ResultatReporteForm sci={sci} />
       <EmpruntsSection emprunts={emprunts} />
       <ImmobilisationsSection immobilisations={immobilisations} />
+    </div>
+  );
+}
+
+function InfosSciForm({ sci }: { sci: SciInfo }) {
+  const [state, formAction, pending] = useActionState(saveInfosSci, initialState);
+  return (
+    <div className="card">
+      <h2>Informations de la SCI</h2>
+      <div className="card-sub">
+        Modifiable par n&apos;importe quel associé — utilisé sur les quittances (bailleur, gérant qui signe) et
+        dans le bilan (capital social).
+      </div>
+      <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <input name="nom" defaultValue={sci.nom} required placeholder="Nom de la SCI" style={{ minWidth: 220 }} />
+          <input name="siren" defaultValue={sci.siren ?? ""} placeholder="SIREN" style={{ maxWidth: 160 }} />
+        </div>
+        <input name="adresse" defaultValue={sci.adresse ?? ""} placeholder="Adresse du siège social" style={{ width: "100%" }} />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <input name="gerant_nom" defaultValue={sci.gerantNom ?? ""} placeholder="Nom du gérant (celui qui signe les quittances)" style={{ minWidth: 260 }} />
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <input name="capital_social" defaultValue={sci.capitalSocialCents ? (sci.capitalSocialCents / 100).toString() : ""} placeholder="Capital social €" style={{ maxWidth: 160 }} />
+          <input type="date" name="date_creation" defaultValue={sci.dateCreation ?? ""} style={{ maxWidth: 170 }} />
+          <select name="regime_fiscal" defaultValue={sci.regimeFiscal ?? "IS"} style={{ maxWidth: 120 }}>
+            <option value="IS">IS</option>
+            <option value="IR">IR</option>
+          </select>
+        </div>
+        <div>
+          <button
+            type="submit"
+            disabled={pending}
+            style={{ background: "var(--ink)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            {pending ? "..." : "Enregistrer"}
+          </button>
+        </div>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
     </div>
   );
 }
