@@ -21,7 +21,7 @@ export default function LoginForm() {
     <div className="auth-shell">
       <div className="auth-card">
         <div className="brand">
-          PATRIMONIA
+          PATRIMONIUM
           <small>{mode === "signin" ? "Connexion" : "Créer un compte"}</small>
         </div>
 

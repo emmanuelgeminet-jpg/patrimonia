@@ -5,6 +5,7 @@ import {
   addMouvementCompteCourant,
   deleteMouvementCompteCourant,
   saveSoldeOuvertureAssocie,
+  ajouterAssocie,
   type SaveState,
 } from "../journal/actions";
 import { formatEuros } from "@/lib/budget";
@@ -65,7 +66,7 @@ export default function ComptesCourantsClient({
         <div className="card">
           <h2>Associés sans compte actif</h2>
           <div className="card-sub">
-            Ces foyers font partie de la SCI mais n&apos;ont pas encore de compte Patrimonia. Partage le lien
+            Ces foyers font partie de la SCI mais n&apos;ont pas encore de compte Patrimonium. Partage le lien
             correspondant avec eux : en créant leur compte, ils auront accès aux données de la SCI (journal,
             bilan, comptes courants, documents) — mais pas à ton budget personnel ni à tes biens propres, qui
             restent privés à ton foyer.
@@ -78,6 +79,8 @@ export default function ComptesCourantsClient({
           ))}
         </div>
       )}
+
+      <AjouterAssocieForm />
 
       <div className="card">
         <h2>Suivi détaillé — apports, avances et remboursements</h2>
@@ -188,6 +191,33 @@ function AjouterMouvementForm({ associes }: { associes: Associe[] }) {
         Si ce mouvement correspond aussi à une écriture bancaire de la SCI ou à une avance personnelle, ajoute-le
         plutôt depuis le Journal comptable — il alimentera automatiquement ce suivi.
       </div>
+    </div>
+  );
+}
+
+function AjouterAssocieForm() {
+  const [state, formAction, pending] = useActionState(ajouterAssocie, initialState);
+
+  return (
+    <div className="card" style={{ marginTop: 14 }}>
+      <h2>+ Ajouter un associé</h2>
+      <div className="card-sub">
+        Crée un nouveau foyer associé de la SCI, même s&apos;il n&apos;a pas encore de compte — il apparaîtra
+        ensuite ci-dessus dans &quot;Associés sans compte actif&quot; avec un lien d&apos;invitation à lui envoyer.
+      </div>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input name="nom" required placeholder="Nom du foyer (ex : Foyer MARTIN)" style={{ minWidth: 200 }} />
+        <input name="parts" placeholder="Parts" style={{ maxWidth: 100 }} />
+        <input name="pourcentage" placeholder="%" style={{ maxWidth: 90 }} />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--sage)", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 20, fontSize: 11.5, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          + Ajouter
+        </button>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
     </div>
   );
 }

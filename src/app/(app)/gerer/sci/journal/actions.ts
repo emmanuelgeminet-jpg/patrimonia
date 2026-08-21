@@ -232,6 +232,24 @@ export async function deleteMouvementCompteCourant(id: string) {
   revalidatePath(JOURNAL_PATH);
 }
 
+export async function ajouterAssocie(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const { supabase, sciId } = await getSciContext();
+
+  const nom = String(formData.get("nom") ?? "").trim();
+  if (!nom) return { error: "Le nom du foyer est obligatoire." };
+
+  const { error } = await supabase.rpc("add_sci_associe", {
+    p_sci_id: sciId,
+    p_nom_foyer: nom,
+    p_parts: parseInt(String(formData.get("parts") ?? "0"), 10) || 0,
+    p_pourcentage: parseFloat(String(formData.get("pourcentage") ?? "0").replace(",", ".")) || 0,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath(COMPTES_COURANTS_PATH);
+  return { success: true };
+}
+
 export async function saveSoldeOuvertureAssocie(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const { supabase, sciId } = await getSciContext();
   const householdId = String(formData.get("household_id") ?? "");

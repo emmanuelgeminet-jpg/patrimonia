@@ -21,6 +21,10 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   household_id uuid not null references households(id) on delete restrict,
   display_name text,
+  -- Copie de auth.users.email au moment de l'inscription (voir handle_new_user) — auth.users
+  -- n'est pas requêtable depuis le client, donc dupliquée ici pour que l'admin puisse voir qui
+  -- s'est inscrit sans accès à la base d'authentification elle-même.
+  email text,
   is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -468,8 +472,8 @@ begin
     insert into households (name) values (new_display_name || ' (foyer)') returning id into target_household_id;
   end if;
 
-  insert into profiles (id, household_id, display_name)
-  values (new.id, target_household_id, new_display_name);
+  insert into profiles (id, household_id, display_name, email)
+  values (new.id, target_household_id, new_display_name, new.email);
 
   return new;
 end;
@@ -548,6 +552,75 @@ as $$
     );
 $$;
 
+-- Crée une SCI et rattache le foyer appelant comme premier associé — nécessaire en
+-- security definer car la RLS de `sci`/`sci_associes` exige déjà d'être membre pour
+-- insérer (poule et œuf : impossible d'être membre d'une SCI qui n'existe pas encore).
+-- Un foyer déjà associé d'une SCI ne peut pas en créer une deuxième (l'appli suppose
+-- un foyer → au plus une SCI, cf. tous les .limit(1) côté lecture).
+create or replace function create_sci(
+  p_nom text,
+  p_siren text,
+  p_capital_social_cents bigint,
+  p_date_creation date,
+  p_regime_fiscal text,
+  p_mes_parts integer,
+  p_mon_pourcentage numeric
+)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_household_id uuid;
+  v_sci_id uuid;
+begin
+  select household_id into v_household_id from profiles where id = auth.uid();
+  if v_household_id is null then
+    raise exception 'Foyer introuvable.';
+  end if;
+  if exists (select 1 from sci_associes where household_id = v_household_id) then
+    raise exception 'Ton foyer est déjà associé à une SCI.';
+  end if;
+
+  insert into sci (name, siren, capital_social_cents, date_creation, regime_fiscal)
+  values (p_nom, p_siren, p_capital_social_cents, p_date_creation, p_regime_fiscal)
+  returning id into v_sci_id;
+
+  insert into sci_associes (sci_id, household_id, parts, pourcentage)
+  values (v_sci_id, v_household_id, p_mes_parts, p_mon_pourcentage);
+
+  return v_sci_id;
+end;
+$$;
+
+-- Ajoute un nouvel associé (nouveau foyer, pas encore de compte) à une SCI existante —
+-- même raison security definer que ci-dessus pour la création du foyer. Le nouveau
+-- foyer créé ici a 0 profil, donc can_invite_sci_associe le rend immédiatement invitable.
+create or replace function add_sci_associe(
+  p_sci_id uuid,
+  p_nom_foyer text,
+  p_parts integer,
+  p_pourcentage numeric
+)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_new_household_id uuid;
+begin
+  if not is_sci_member(p_sci_id) then
+    raise exception 'Tu n''es pas associé de cette SCI.';
+  end if;
+
+  insert into households (name) values (p_nom_foyer) returning id into v_new_household_id;
+  insert into sci_associes (sci_id, household_id, parts, pourcentage)
+  values (p_sci_id, v_new_household_id, p_parts, p_pourcentage);
+
+  return v_new_household_id;
+end;
+$$;
+
 alter table households enable row level security;
 alter table profiles enable row level security;
 alter table sci enable row level security;
@@ -577,6 +650,9 @@ create policy "own household" on households for all using (is_household_member(i
 
 drop policy if exists "own profile" on profiles;
 create policy "own profile" on profiles for select using (id = auth.uid());
+
+drop policy if exists "admin sees all profiles" on profiles;
+create policy "admin sees all profiles" on profiles for select using (is_admin());
 
 drop policy if exists "sci of my household" on sci;
 create policy "sci of my household" on sci for all using (is_sci_member(id)) with check (is_sci_member(id));

@@ -21,10 +21,10 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Patrimonia",
+  title: "Patrimonium",
   description: "Gestion patrimoniale et immobilière — GEMINET",
   appleWebApp: {
-    title: "Patrimonia",
+    title: "Patrimonium",
     statusBarStyle: "black-translucent",
   },
 };

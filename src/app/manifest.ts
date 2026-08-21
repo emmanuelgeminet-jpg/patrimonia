@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Patrimonia",
-    short_name: "Patrimonia",
+    name: "Patrimonium",
+    short_name: "Patrimonium",
     description: "Gestion patrimoniale et immobilière",
     start_url: "/",
     display: "standalone",

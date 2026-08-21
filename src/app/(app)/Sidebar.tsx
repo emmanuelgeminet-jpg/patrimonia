@@ -57,6 +57,11 @@ export default function Sidebar({
         ...sciNavItems,
       ],
     });
+  } else {
+    dynamicGroups.push({
+      subgroupLabel: "SCI",
+      items: [{ href: "/gerer/sci/creer", label: "Créer une SCI", icon: "sci", variant: "sub" }],
+    });
   }
 
   return (
@@ -67,12 +72,12 @@ export default function Sidebar({
             <path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" />
           </svg>
         </button>
-        <div className="brand">PATRIMONIA</div>
+        <div className="brand">PATRIMONIUM</div>
       </div>
       <div className={`sidebar-backdrop${open ? " open" : ""}`} onClick={() => setOpen(false)} />
       <aside className={`sidebar${open ? " open" : ""}`}>
       <div className="brand">
-        PATRIMONIA
+        PATRIMONIUM
         <small>Phase 1</small>
       </div>
 

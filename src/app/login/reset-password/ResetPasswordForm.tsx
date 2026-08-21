@@ -13,7 +13,7 @@ export default function ResetPasswordForm() {
     <div className="auth-shell">
       <div className="auth-card">
         <div className="brand">
-          PATRIMONIA
+          PATRIMONIUM
           <small>Mot de passe oublié</small>
         </div>
 
