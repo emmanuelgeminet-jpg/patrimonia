@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { signIn, signUp, type AuthState } from "./actions";
+import { signIn, signUp, resendConfirmation, type AuthState } from "./actions";
 
 const initialState: AuthState = {};
 
@@ -13,8 +13,9 @@ export default function LoginForm() {
   const [mode, setMode] = useState<"signin" | "signup">(inviteFromLink ? "signup" : "signin");
   const [signInState, signInAction, signInPending] = useActionState(signIn, initialState);
   const [signUpState, signUpAction, signUpPending] = useActionState(signUp, initialState);
+  const [resendState, resendAction, resendPending] = useActionState(resendConfirmation, initialState);
 
-  const state = mode === "signin" ? signInState : signUpState;
+  const state = mode === "signin" ? (resendState.unconfirmedEmail ? resendState : signInState) : signUpState;
   const pending = mode === "signin" ? signInPending : signUpPending;
 
   return (
@@ -27,6 +28,18 @@ export default function LoginForm() {
 
         {state.error && <div className="auth-error">{state.error}</div>}
         {state.info && <div className="placeholder-note">{state.info}</div>}
+        {state.unconfirmedEmail && (
+          <form action={resendAction} style={{ marginBottom: 14 }}>
+            <input type="hidden" name="email" value={state.unconfirmedEmail} />
+            <button
+              type="submit"
+              disabled={resendPending}
+              style={{ background: "none", border: "1px solid var(--line)", padding: "7px 14px", borderRadius: 20, fontSize: 12, cursor: "pointer", fontFamily: "inherit", color: "var(--ink)" }}
+            >
+              {resendPending ? "..." : "Renvoyer l'email de confirmation"}
+            </button>
+          </form>
+        )}
 
         <form action={mode === "signin" ? signInAction : signUpAction}>
           {mode === "signup" && (
