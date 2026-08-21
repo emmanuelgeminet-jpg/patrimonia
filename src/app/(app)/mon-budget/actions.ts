@@ -161,14 +161,17 @@ export async function createCategory(_prevState: CreateCategoryState, formData: 
   if (!nom) {
     return { error: "Donne un nom à la catégorie." };
   }
-  if (!["besoin", "envie", "epargne"].includes(groupe)) {
+  if (!["besoin", "envie", "epargne", "revenu"].includes(groupe)) {
     return { error: "Choisis un type de catégorie." };
   }
+  // "revenu" n'est pas une vraie valeur de groupe (le 50/30/20 ne porte que sur les
+  // dépenses) — c'est le null historique des 5 catégories de revenus par défaut.
+  const groupeDb = groupe === "revenu" ? null : groupe;
 
   const { supabase, householdId } = await getHouseholdId();
   const { error } = await supabase
     .from("budget_categories")
-    .insert({ household_id: householdId, nom, groupe });
+    .insert({ household_id: householdId, nom, groupe: groupeDb });
 
   if (error) {
     return { error: "Impossible de créer cette catégorie — réessaie." };

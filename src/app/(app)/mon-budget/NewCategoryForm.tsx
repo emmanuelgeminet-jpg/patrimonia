@@ -24,6 +24,7 @@ export default function NewCategoryForm() {
         <option value="besoin">Besoin</option>
         <option value="envie">Envie</option>
         <option value="epargne">Épargne</option>
+        <option value="revenu">Revenu</option>
       </select>
       <button
         type="submit"
