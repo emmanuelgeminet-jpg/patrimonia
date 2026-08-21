@@ -1,4 +1,6 @@
-import { PDFDocument, StandardFonts, rgb, degrees, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFile } from "fs/promises";
+import path from "path";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { formatEuros, formatMonthLabel } from "@/lib/budget";
 
 export type QuittanceInfo = {
@@ -29,8 +31,6 @@ const INK_SOFT = rgb(0.357, 0.373, 0.325);
 const LINE = rgb(0.871, 0.855, 0.808);
 const GASCON_RED = rgb(0.651, 0.098, 0.18);
 const GOLD = rgb(0.788, 0.635, 0.294);
-const SILVER = rgb(0.86, 0.87, 0.89);
-const SILVER_DARK = rgb(0.62, 0.64, 0.67);
 const WHITE = rgb(1, 1, 1);
 
 /** Écusson générique (monogramme) — le style par défaut pour n'importe quelle SCI ou foyer. */
@@ -42,50 +42,14 @@ function drawMonogrammeBadge(page: PDFPage, cx: number, cy: number, r: number, i
 }
 
 /**
- * Une rapière : lame effilée (fuselée, pas juste une ligne uniforme) en argent avec une fine
- * arête plus sombre, garde en coquille courbe (le "swept hilt" caractéristique d'une rapière,
- * pas une simple barre droite de garde d'épée générique), pommeau doré. Dessinée dans un repère
- * local (poignée à l'origine, pointe vers le haut) puis tournée/mise à l'échelle/positionnée.
+ * Chemin d'un écusson personnalisé associé à un logoStyle donné — image fournie par Emmanuel
+ * (rapières croisées générées avec Gemini pour "Les Bons Gascons"), stockée dans public/ comme
+ * n'importe quel autre asset statique. Convention par style plutôt que codée en dur sur une SCI
+ * précise : n'importe quel logoStyle futur n'a qu'à ajouter une entrée ici.
  */
-function drawRapiere(page: PDFPage, hiltX: number, hiltY: number, angleDeg: number, scale: number) {
-  const rotate = degrees(angleDeg);
-  const opts = (extra: Record<string, unknown>) => ({ x: hiltX, y: hiltY, scale, rotate, ...extra });
-
-  // Lame effilée, en argent.
-  page.drawSvgPath("M -6,0 L -1,-100 L 0,-106 L 1,-100 L 6,0 Z", opts({ color: SILVER, borderColor: SILVER_DARK, borderWidth: 0.6 / scale }));
-
-  // Coquille dorée au talon de la lame.
-  page.drawSvgPath("M 0,4 m -8,0 a 8,8 0 1,0 16,0 a 8,8 0 1,0 -16,0", opts({ color: GOLD, borderColor: SILVER_DARK, borderWidth: 0.4 / scale }));
-
-  // Pas d'âne (knucklebow) balayant du talon de lame au pommeau — la signature visuelle
-  // d'une rapière à garde ouvragée, pas juste une barre droite d'épée générique.
-  page.drawSvgPath("M 4,2 C 19,3 27,15 21,25 C 17,32 6,32 1,28", opts({ borderColor: SILVER, borderWidth: 3 / scale }));
-
-  // Quillons avec boules dorées aux extrémités.
-  page.drawSvgPath("M -17,7 L 17,7", opts({ borderColor: SILVER, borderWidth: 2.5 / scale }));
-  page.drawSvgPath("M -17,7 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0", opts({ color: GOLD }));
-  page.drawSvgPath("M 17,7 m -3.5,0 a 3.5,3.5 0 1,0 7,0 a 3.5,3.5 0 1,0 -7,0", opts({ color: GOLD }));
-
-  // Poignée sombre.
-  page.drawSvgPath("M -3,9 L 3,9 L 2,27 L -2,27 Z", opts({ color: INK }));
-
-  // Pommeau doré, rond.
-  page.drawSvgPath("M 0,31 m -5.5,0 a 5.5,5.5 0 1,0 11,0 a 5.5,5.5 0 1,0 -11,0", opts({ color: GOLD }));
-}
-
-/**
- * Écusson "Les Bons Gascons" — deux rapières croisées en sautoir (clin d'œil aux mousquetaires
- * gascons) sur fond rouge — inspiré de la croix de Gascogne (sautoir blanc sur fond rouge) sans
- * en être une reproduction littérale, choisi via sci.logo_style.
- */
-function drawGasconBadge(page: PDFPage, cx: number, cy: number, r: number) {
-  page.drawEllipse({ x: cx, y: cy, xScale: r, yScale: r, color: GASCON_RED, borderColor: GOLD, borderWidth: r * 0.045 });
-
-  const hiltDist = 0.42 * r;
-  const scale = r * 0.0067;
-  drawRapiere(page, cx - hiltDist, cy - hiltDist, -45, scale);
-  drawRapiere(page, cx + hiltDist, cy - hiltDist, 45, scale);
-}
+const LOGO_IMAGES: Record<string, string> = {
+  gascons_rapieres: "public/logos/sci-les-bons-gascons.jpg",
+};
 
 /** Génère un PDF de quittance de loyer et le renvoie en octets. */
 export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Array> {
@@ -106,8 +70,17 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
   const badgeR = 34;
   const badgeCx = left + badgeR;
   const badgeCy = 760;
-  if (info.logoStyle === "gascons_rapieres") {
-    drawGasconBadge(page, badgeCx, badgeCy, badgeR);
+  const logoPath = info.logoStyle ? LOGO_IMAGES[info.logoStyle] : undefined;
+  if (logoPath) {
+    const logoBytes = await readFile(path.join(/* turbopackIgnore: true */ process.cwd(), logoPath));
+    const logoImage = logoPath.endsWith(".png") ? await doc.embedPng(logoBytes) : await doc.embedJpg(logoBytes);
+    const logoDims = logoImage.scaleToFit(badgeR * 2, badgeR * 2);
+    page.drawImage(logoImage, {
+      x: badgeCx - logoDims.width / 2,
+      y: badgeCy - logoDims.height / 2,
+      width: logoDims.width,
+      height: logoDims.height,
+    });
   } else {
     drawMonogrammeBadge(page, badgeCx, badgeCy, badgeR, info.sciNom.trim().charAt(0).toUpperCase() || "?", bold);
   }
