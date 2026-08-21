@@ -401,6 +401,28 @@ create table if not exists etats_des_lieux (
 );
 
 -- =====================================================================
+-- 6bis-4. RÉVISIONS DE LOYER (historique) — formule IRL : nouveau loyer =
+-- ancien loyer × (IRL du trimestre de référence ÷ IRL du même trimestre l'an
+-- dernier). L'IRL se saisit à la main à chaque révision (aucune API INSEE
+-- gratuite et fiable trouvée — une valeur mal récupérée serait pire qu'une
+-- saisie manuelle).
+-- =====================================================================
+
+create table if not exists loyer_revisions (
+  id uuid primary key default gen_random_uuid(),
+  locataire_id uuid not null references locataires(id) on delete cascade,
+  date_revision date not null,
+  irl_reference numeric(6,2) not null,
+  irl_nouveau numeric(6,2) not null,
+  ancien_loyer_hc_cents bigint not null,
+  nouveau_loyer_hc_cents bigint not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_loyer_revisions_locataire on loyer_revisions(locataire_id);
+
+-- =====================================================================
 -- 6bis. SUGGESTIONS (boîte à idées — visible uniquement par les admins)
 -- =====================================================================
 
@@ -821,6 +843,7 @@ alter table documents enable row level security;
 alter table quittances enable row level security;
 alter table baux enable row level security;
 alter table etats_des_lieux enable row level security;
+alter table loyer_revisions enable row level security;
 alter table feedback_messages enable row level security;
 alter table profil_investisseur enable row level security;
 alter table profil_charges_lignes enable row level security;
@@ -963,6 +986,21 @@ create policy "etats des lieux de ma sci ou mon foyer" on etats_des_lieux for al
   (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
 ) with check (
   (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+);
+
+drop policy if exists "revisions de loyer de mon logement" on loyer_revisions;
+create policy "revisions de loyer de mon logement" on loyer_revisions for all using (
+  exists (
+    select 1 from locataires join lots on lots.id = locataires.lot_id join biens on biens.id = lots.bien_id
+    where locataires.id = loyer_revisions.locataire_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )
+) with check (
+  exists (
+    select 1 from locataires join lots on lots.id = locataires.lot_id join biens on biens.id = lots.bien_id
+    where locataires.id = loyer_revisions.locataire_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )
 );
 
 -- =====================================================================

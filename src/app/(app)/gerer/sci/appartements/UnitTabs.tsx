@@ -5,6 +5,7 @@ import { useState, useActionState, useTransition } from "react";
 import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, saveValeurVenale, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
 import { STATUT_LOYER_LABELS, type StatutLoyer } from "@/lib/loyers";
+import RevisionLoyerForm, { type LoyerRevision } from "@/components/RevisionLoyerForm";
 
 export type Locataire = {
   id: string;
@@ -17,6 +18,7 @@ export type Locataire = {
   depotGarantieCents: number | null;
   depotGarantieDate: string | null;
   depotGarantieMode: string | null;
+  loyerRevisions: LoyerRevision[];
 };
 
 export type Lot = { id: string; nom: string; locataires: Locataire[]; statut: StatutLoyer; valeurVenaleCents: number | null };
@@ -113,6 +115,7 @@ function LotContent({ lot }: { lot: Lot }) {
             <Link href={`/gerer/etat-des-lieux/${lot.id}?locataireId=${actif.id}&type=sortie`} style={{ color: "var(--sage)", fontSize: 11 }}>
               État des lieux de sortie
             </Link>
+            <RevisionLoyerForm locataireId={actif.id} loyerActuelCents={actif.loyerHcCents} historique={actif.loyerRevisions} />
           </div>
           <div className="placeholder-note" style={{ marginTop: 10 }}>
             Le statut du mois se calcule depuis le Journal comptable — pense à choisir ce logement dans le champ

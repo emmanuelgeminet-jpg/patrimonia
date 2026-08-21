@@ -44,6 +44,15 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     ? await supabase.from("locataires").select("*").in("lot_id", lotIds).order("date_entree", { ascending: false })
     : { data: [] as Record<string, unknown>[] };
 
+  const locataireIds = (locatairesRows ?? []).map((l) => l.id as string);
+  const { data: revisionsRows } = locataireIds.length
+    ? await supabase
+        .from("loyer_revisions")
+        .select("id, locataire_id, date_revision, irl_reference, irl_nouveau, ancien_loyer_hc_cents, nouveau_loyer_hc_cents")
+        .in("locataire_id", locataireIds)
+        .order("date_revision", { ascending: false })
+    : { data: [] as Record<string, unknown>[] };
+
   const lots: Lot[] = (lotsRows ?? []).map((l) => ({
     id: l.id as string,
     nom: l.nom as string,
@@ -60,6 +69,16 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
         depotGarantieCents: loc.depot_garantie_cents as number | null,
         depotGarantieDate: loc.depot_garantie_date as string | null,
         depotGarantieMode: loc.depot_garantie_mode as string | null,
+        loyerRevisions: (revisionsRows ?? [])
+          .filter((r) => r.locataire_id === loc.id)
+          .map((r) => ({
+            id: r.id as string,
+            dateRevision: r.date_revision as string,
+            irlReference: r.irl_reference as number,
+            irlNouveau: r.irl_nouveau as number,
+            ancienLoyerHcCents: r.ancien_loyer_hc_cents as number,
+            nouveauLoyerHcCents: r.nouveau_loyer_hc_cents as number,
+          })),
       })),
   }));
 

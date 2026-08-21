@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useActionState, useTransition } from "react";
 import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
+import RevisionLoyerForm, { type LoyerRevision } from "@/components/RevisionLoyerForm";
 
 export type Locataire = {
   id: string;
@@ -16,6 +17,7 @@ export type Locataire = {
   depotGarantieCents: number | null;
   depotGarantieDate: string | null;
   depotGarantieMode: string | null;
+  loyerRevisions: LoyerRevision[];
 };
 
 export type Lot = { id: string; nom: string; locataires: Locataire[] };
@@ -115,6 +117,7 @@ function LotContent({ bienId, lot }: { bienId: string; lot: Lot }) {
             <Link href={`/gerer/etat-des-lieux/${lot.id}?locataireId=${actif.id}&type=sortie`} style={{ color: "var(--sage)", fontSize: 11 }}>
               État des lieux de sortie
             </Link>
+            <RevisionLoyerForm locataireId={actif.id} loyerActuelCents={actif.loyerHcCents} historique={actif.loyerRevisions} />
           </div>
         </>
       ) : (
