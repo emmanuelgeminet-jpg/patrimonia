@@ -56,6 +56,8 @@ export default function DocumentsCell({
           <input
             type="file"
             name="file"
+            accept="image/*,.pdf,application/pdf"
+            capture="environment"
             style={{ display: "none" }}
             onChange={() => formRef.current?.requestSubmit()}
           />

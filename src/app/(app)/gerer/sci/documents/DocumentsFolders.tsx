@@ -89,7 +89,14 @@ function FolderCard({
         <input type="hidden" name="redirect_path" value={redirectPath} />
         <label style={{ fontSize: 11.5, color: "var(--brick)", cursor: "pointer", textDecoration: "underline" }}>
           {pending ? "Envoi..." : "+ ajouter un fichier"}
-          <input type="file" name="file" style={{ display: "none" }} onChange={() => formRef.current?.requestSubmit()} />
+          <input
+            type="file"
+            name="file"
+            accept="image/*,.pdf,application/pdf"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={() => formRef.current?.requestSubmit()}
+          />
         </label>
       </form>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}

@@ -398,7 +398,14 @@ function JustificatifCell({ ecriture }: { ecriture: Ecriture }) {
       <input type="hidden" name="ecriture_id" value={ecriture.id} />
       <label style={{ color: "var(--brick)", cursor: "pointer", fontSize: 12 }}>
         {pending ? "..." : "+"}
-        <input type="file" name="file" style={{ display: "none" }} onChange={() => formRef.current?.requestSubmit()} />
+        <input
+          type="file"
+          name="file"
+          accept="image/*,.pdf,application/pdf"
+          capture="environment"
+          style={{ display: "none" }}
+          onChange={() => formRef.current?.requestSubmit()}
+        />
       </label>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 10 }}>{state.error}</div>}
     </form>
