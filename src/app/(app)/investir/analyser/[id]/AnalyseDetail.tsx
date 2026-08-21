@@ -3,7 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { saveAnalyse, deleteAnalyse, addLigneLoyer, deleteLigneLoyer, type SaveState } from "../actions";
 import { formatEuros } from "@/lib/budget";
-import type { AnalyseBienKpis } from "@/lib/analyse-bien";
+import type { AnalyseBienKpis, TriResultat } from "@/lib/analyse-bien";
 
 export type Analyse = {
   id: string;
@@ -28,6 +28,8 @@ export type Analyse = {
   vacanceLocativePct: number | null;
   gliPct: number | null;
   fraisGestionPct: number | null;
+  dureeDetentionAnnees: number | null;
+  tauxValorisationPct: number | null;
   notes: string | null;
 };
 
@@ -43,10 +45,12 @@ export default function AnalyseDetail({
   analyse,
   lignes,
   kpis,
+  tri,
 }: {
   analyse: Analyse;
   lignes: LigneLoyer[];
   kpis: AnalyseBienKpis;
+  tri: TriResultat | null;
 }) {
   const [state, formAction, pending] = useActionState(saveAnalyse, initialState);
   const [, startTransition] = useTransition();
@@ -111,6 +115,35 @@ export default function AnalyseDetail({
       </div>
 
       <div className="card">
+        <h2>TRI <span className="tag">taux de rentabilité interne, avec revente</span></h2>
+        {tri && tri.triPct !== null ? (
+          <>
+            <table>
+              <tbody>
+                <tr><td>Durée de détention</td><td className="num">{tri.dureeDetentionAnnees} ans</td></tr>
+                <tr><td>Prix de revente projeté</td><td className="num">{formatEuros(tri.prixReventeCents)}</td></tr>
+                <tr><td>Capital restant dû à la revente</td><td className="num">{formatEuros(tri.crdReventeCents)}</td></tr>
+                <tr style={{ borderBottom: "1px solid var(--ink)" }}><td>Produit net de revente</td><td className="num">{formatEuros(tri.produitNetReventeCents)}</td></tr>
+                <tr style={{ borderTop: "1px solid var(--ink)" }}><td><b>TRI sur apport</b></td><td className="num"><b>{tri.triPct.toFixed(1)} %</b></td></tr>
+              </tbody>
+            </table>
+            <div className="card-sub" style={{ marginTop: 8 }}>
+              Flux : − apport en année 0, cash-flow net-net (vue réelle) chaque année de détention, plus le produit
+              net de revente la dernière année. Ne tient pas compte des frais de revente (agence, diagnostics) ni de
+              la fiscalité de la plus-value — trop variables selon ta structure de détention pour être estimés
+              fiablement ici. Prix de revente = (prix d&apos;achat + travaux) valorisé au taux annuel ci-dessous
+              — les frais de notaire/agence/dossier sont des coûts de transaction, pas de la valeur du bien.
+            </div>
+          </>
+        ) : (
+          <div className="placeholder-note">
+            Renseigne une durée de détention (et un apport &gt; 0) dans &quot;Hypothèses de revente&quot; ci-dessous
+            pour calculer le TRI.
+          </div>
+        )}
+      </div>
+
+      <div className="card">
         <h2>Caractéristiques</h2>
         <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <input type="hidden" name="id" value={analyse.id} />
@@ -169,6 +202,17 @@ export default function AnalyseDetail({
             <div className="card-sub" style={{ marginTop: 6 }}>
               Laisse vide si tu gères toi-même sans intermédiaire et sans hypothèse de vacance — ces trois champs sont
               à 0 par défaut, donc sans effet tant que tu ne les remplis pas.
+            </div>
+          </div>
+
+          <div className="cat-block"><div className="cat-title">Hypothèses de revente <span className="tag">pour le TRI</span></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <input name="duree_detention" defaultValue={analyse.dureeDetentionAnnees ?? ""} placeholder="Durée de détention (années)" style={{ maxWidth: 210 }} />
+              <input name="taux_valorisation" defaultValue={analyse.tauxValorisationPct ?? ""} placeholder="Valorisation du bien %/an" style={{ maxWidth: 200 }} />
+            </div>
+            <div className="card-sub" style={{ marginTop: 6 }}>
+              Laisse vide pour ne pas calculer de TRI. À titre indicatif, la hausse des prix de l&apos;ancien en
+              France tourne autour de 1 à 2 %/an sur longue période — à ajuster selon ta zone et ton scénario.
             </div>
           </div>
 

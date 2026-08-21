@@ -13,6 +13,94 @@ export function totalInteretsEmprunt(capitalCents: number, tauxPct: number, dure
   return Math.max(0, mensualite * dureeAnnees * 12 - capitalCents);
 }
 
+/** Capital restant dû après un nombre entier d'années de remboursement (formule fermée
+ *  d'annuité) — capé à 0 au-delà de la durée du prêt (prêt déjà soldé). */
+export function crdApresAnnees(capitalCents: number, tauxPct: number, dureeAnneesPret: number, anneesEcoulees: number): number {
+  if (capitalCents <= 0 || dureeAnneesPret <= 0 || anneesEcoulees <= 0) return capitalCents > 0 ? capitalCents : 0;
+  const k = Math.min(anneesEcoulees, dureeAnneesPret) * 12;
+  const n = dureeAnneesPret * 12;
+  const r = tauxPct / 100 / 12;
+  if (r === 0) return capitalCents * Math.max(0, (n - k) / n);
+  return capitalCents * (Math.pow(1 + r, n) - Math.pow(1 + r, k)) / (Math.pow(1 + r, n) - 1);
+}
+
+/**
+ * TRI (taux de rentabilité interne) annuel par bissection sur la VAN. Suppose un seul
+ * changement de signe dans les flux (gros flux négatif initial, flux positifs modérés,
+ * gros flux positif final avec la revente) — vrai pour un investissement locatif classique,
+ * pas un solveur généraliste multi-racines. Retourne null si aucune racine trouvée dans
+ * [-99 %, +1000 %] (flux incohérents, ex. tous du même signe).
+ */
+export function calculerTRI(cashflowsCents: number[]): number | null {
+  if (cashflowsCents.length < 2 || cashflowsCents[0] >= 0) return null;
+  const van = (taux: number) => cashflowsCents.reduce((s, cf, t) => s + cf / Math.pow(1 + taux, t), 0);
+
+  let lo = -0.99;
+  let hi = 10;
+  const vanLo = van(lo);
+  if (vanLo * van(hi) > 0) return null;
+
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    const vanMid = van(mid);
+    if (Math.abs(vanMid) < 1) return mid * 100;
+    if ((vanMid > 0) === (vanLo > 0)) lo = mid;
+    else hi = mid;
+  }
+  return ((lo + hi) / 2) * 100;
+}
+
+export type TriInput = {
+  dureeDetentionAnnees: number | null;
+  tauxValorisationPct: number | null;
+};
+
+export type TriResultat = {
+  dureeDetentionAnnees: number;
+  prixReventeCents: number;
+  crdReventeCents: number;
+  produitNetReventeCents: number;
+  triPct: number | null;
+};
+
+/**
+ * TRI sur apport : flux = −apport en année 0, cash-flow net-net (vue réelle) chaque année,
+ * plus le produit net de revente (prix de revente projeté − CRD restant, sans frais de
+ * revente ni fiscalité de plus-value — ceux-ci varient trop selon le régime fiscal/la
+ * structure de détention pour être estimés fiablement ici) l'année de la revente. Le prix
+ * de revente se projette depuis (prix d'achat + travaux) — les frais de notaire/agence/
+ * dossier sont des coûts de transaction, pas de la valeur du bien, donc ne se valorisent pas.
+ */
+export function computeTri(kpis: AnalyseBienKpis, input: AnalyseBienInput, tri: TriInput): TriResultat | null {
+  const dureeDetentionAnnees = tri.dureeDetentionAnnees;
+  const apportCents = input.apportCents ?? 0;
+  if (!dureeDetentionAnnees || dureeDetentionAnnees <= 0 || apportCents <= 0) return null;
+
+  const tauxValo = (tri.tauxValorisationPct ?? 0) / 100;
+  const valeurBaseCents = (input.prixOffreCents ?? 0) + (input.travauxEstimesCents ?? 0);
+  const prixReventeCents = Math.round(valeurBaseCents * Math.pow(1 + tauxValo, dureeDetentionAnnees));
+  const crdReventeCents = crdApresAnnees(
+    input.montantEmprunteCents ?? 0,
+    input.tauxPct ?? 0,
+    input.dureeAnnees ?? 0,
+    dureeDetentionAnnees
+  );
+  const produitNetReventeCents = prixReventeCents - crdReventeCents;
+
+  const flux: number[] = [-apportCents];
+  for (let annee = 1; annee <= dureeDetentionAnnees; annee++) {
+    flux.push(kpis.vue100.cashflowNetNetCents + (annee === dureeDetentionAnnees ? produitNetReventeCents : 0));
+  }
+
+  return {
+    dureeDetentionAnnees,
+    prixReventeCents,
+    crdReventeCents,
+    produitNetReventeCents,
+    triPct: calculerTRI(flux),
+  };
+}
+
 export type AnalyseBienInput = {
   prixAnnonceCents?: number | null;
   prixOffreCents: number | null;

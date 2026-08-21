@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { computeAnalyseBienKpis } from "@/lib/analyse-bien";
+import { computeAnalyseBienKpis, computeTri } from "@/lib/analyse-bien";
 import AnalyseDetail, { type Analyse, type LigneLoyer } from "./AnalyseDetail";
 
 export default async function AnalyseDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +40,8 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     vacanceLocativePct: analyseRow.vacance_locative_pct as number | null,
     gliPct: analyseRow.gli_pct as number | null,
     fraisGestionPct: analyseRow.frais_gestion_pct as number | null,
+    dureeDetentionAnnees: analyseRow.duree_detention_annees as number | null,
+    tauxValorisationPct: analyseRow.taux_valorisation_pct as number | null,
     notes: analyseRow.notes as string | null,
   };
 
@@ -50,7 +52,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     chargesCents: l.charges_cents as number,
   }));
 
-  const kpis = computeAnalyseBienKpis({
+  const analyseInput = {
     prixAnnonceCents: analyse.prixAnnonceCents,
     prixOffreCents: analyse.prixOffreCents,
     fraisNotaireCents: analyse.fraisNotaireCents,
@@ -71,6 +73,12 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
     gliPct: analyse.gliPct,
     fraisGestionPct: analyse.fraisGestionPct,
     lots: lignes.map((l) => ({ loyerHcCents: l.loyerHcCents, chargesCents: l.chargesCents })),
+  };
+
+  const kpis = computeAnalyseBienKpis(analyseInput);
+  const tri = computeTri(kpis, analyseInput, {
+    dureeDetentionAnnees: analyse.dureeDetentionAnnees,
+    tauxValorisationPct: analyse.tauxValorisationPct,
   });
 
   return (
@@ -91,7 +99,7 @@ export default async function AnalyseDetailPage({ params }: { params: Promise<{ 
         </a>
       </div>
 
-      <AnalyseDetail analyse={analyse} lignes={lignes} kpis={kpis} />
+      <AnalyseDetail analyse={analyse} lignes={lignes} kpis={kpis} tri={tri} />
     </section>
   );
 }

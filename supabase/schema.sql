@@ -377,6 +377,11 @@ create table if not exists analyses_biens (
   vacance_locative_pct numeric(5,2),
   gli_pct numeric(5,2),
   frais_gestion_pct numeric(5,2),
+  -- Hypothèses pour le TRI (taux de rentabilité interne) à la revente — voir computeTri
+  -- dans src/lib/analyse-bien.ts. Optionnelles : sans durée de détention renseignée, le TRI
+  -- ne se calcule simplement pas (les autres indicateurs restent inchangés).
+  duree_detention_annees integer,
+  taux_valorisation_pct numeric(5,2),
   notes text,
   created_at timestamptz not null default now()
 );

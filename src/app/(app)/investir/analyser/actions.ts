@@ -92,6 +92,8 @@ export async function saveAnalyse(_prev: SaveState, formData: FormData): Promise
       vacance_locative_pct: toNumOrNull(formData.get("vacance_locative")),
       gli_pct: toNumOrNull(formData.get("gli")),
       frais_gestion_pct: toNumOrNull(formData.get("frais_gestion")),
+      duree_detention_annees: toIntOrNull(formData.get("duree_detention")),
+      taux_valorisation_pct: toNumOrNull(formData.get("taux_valorisation")),
       notes: formData.get("notes") || null,
     })
     .eq("id", id);
