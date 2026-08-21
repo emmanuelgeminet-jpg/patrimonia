@@ -22,6 +22,10 @@ export default function CategoryExplorer({ transactions, categories }: { transac
   const maxDate = allDates[allDates.length - 1] ?? new Date().toISOString().slice(0, 10);
 
   const expenseCategories = categories.filter((c) => c.groupe !== null);
+  const besoinCategories = categories.filter((c) => c.groupe === "besoin");
+  const envieCategories = categories.filter((c) => c.groupe === "envie");
+  const epargneCategories = categories.filter((c) => c.groupe === "epargne");
+  const revenuCategories = categories.filter((c) => c.groupe === null);
   const [categorieId, setCategorieId] = useState<string>(expenseCategories[0]?.id ?? "");
   const [tagFilter, setTagFilter] = useState<string>("");
   const [granularite, setGranularite] = useState<Granularite>("mois");
@@ -65,9 +69,26 @@ export default function CategoryExplorer({ transactions, categories }: { transac
       <div className="form-row" style={{ border: "none" }}>
         <label>Catégorie</label>
         <select value={categorieId} onChange={(e) => setCategorieId(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.nom}</option>
-          ))}
+          {besoinCategories.length > 0 && (
+            <optgroup label="Besoins">
+              {besoinCategories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </optgroup>
+          )}
+          {envieCategories.length > 0 && (
+            <optgroup label="Envies">
+              {envieCategories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </optgroup>
+          )}
+          {epargneCategories.length > 0 && (
+            <optgroup label="Épargne">
+              {epargneCategories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </optgroup>
+          )}
+          {revenuCategories.length > 0 && (
+            <optgroup label="Revenus">
+              {revenuCategories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </optgroup>
+          )}
         </select>
       </div>
 
