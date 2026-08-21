@@ -107,6 +107,12 @@ function LotContent({ lot }: { lot: Lot }) {
             <Link href={`/gerer/bail/${lot.id}?locataireId=${actif.id}`} style={{ color: "var(--sage)", fontSize: 11 }}>
               Générer un bail
             </Link>
+            <Link href={`/gerer/etat-des-lieux/${lot.id}?locataireId=${actif.id}&type=entree`} style={{ color: "var(--sage)", fontSize: 11 }}>
+              État des lieux d&apos;entrée
+            </Link>
+            <Link href={`/gerer/etat-des-lieux/${lot.id}?locataireId=${actif.id}&type=sortie`} style={{ color: "var(--sage)", fontSize: 11 }}>
+              État des lieux de sortie
+            </Link>
           </div>
           <div className="placeholder-note" style={{ marginTop: 10 }}>
             Le statut du mois se calcule depuis le Journal comptable — pense à choisir ce logement dans le champ

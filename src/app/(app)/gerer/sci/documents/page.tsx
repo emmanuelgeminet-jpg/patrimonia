@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import DocumentsFolders, { type DocItem } from "./DocumentsFolders";
 import QuittancesArchive, { type QuittanceArchiveItem } from "@/components/QuittancesArchive";
 import BauxArchive, { type BailArchiveItem } from "@/components/BauxArchive";
+import EtatsDesLieuxArchive, { type EtatDesLieuxArchiveItem } from "@/components/EtatsDesLieuxArchive";
 
 const DOSSIERS = ["Statuts", "Assemblées générales", "Baux", "États des lieux", "Factures & justificatifs", "Assurances & diagnostics", "Quittances"];
 
@@ -98,6 +99,27 @@ export default async function DocumentsPage() {
     url: bauxUrlByPath.get(b.storage_path as string) ?? null,
   }));
 
+  const { data: edlRows } = await supabase
+    .from("etats_des_lieux")
+    .select("id, bien_adresse, lot_nom, locataire_nom, type, date_etat_des_lieux, storage_path, created_at")
+    .eq("sci_id", sciId);
+  const edls = edlRows ?? [];
+  const edlPaths = edls.map((e) => e.storage_path as string);
+  const { data: edlSignedUrls } = edlPaths.length
+    ? await supabase.storage.from("documents").createSignedUrls(edlPaths, 3600)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const edlUrlByPath = new Map((edlSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+  const edlItems: EtatDesLieuxArchiveItem[] = edls.map((e) => ({
+    id: e.id as string,
+    bienAdresse: e.bien_adresse as string,
+    lotNom: e.lot_nom as string,
+    locataireNom: e.locataire_nom as string,
+    type: e.type as "entree" | "sortie",
+    dateEtatDesLieux: e.date_etat_des_lieux as string,
+    dateGeneration: e.created_at as string,
+    url: edlUrlByPath.get(e.storage_path as string) ?? null,
+  }));
+
   return (
     <section className="section">
       <div className="crumb">Gérer <b>› Documents</b></div>
@@ -116,6 +138,8 @@ export default async function DocumentsPage() {
       <QuittancesArchive items={quittancesItems} />
 
       <BauxArchive items={bauxItems} />
+
+      <EtatsDesLieuxArchive items={edlItems} />
     </section>
   );
 }
