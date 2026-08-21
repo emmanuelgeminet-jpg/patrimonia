@@ -40,6 +40,9 @@ create table if not exists sci (
   -- Adresse du siège social — mention obligatoire du bailleur sur une quittance de loyer
   -- (article 21 de la loi du 6 juillet 1989).
   adresse text,
+  -- Nom du gérant qui signe pour la SCI (une SCI signe par son représentant légal, pas par
+  -- un associé quelconque — voir quittance.ts, bloc signature "Pour la SCI ..., le Gérant").
+  gerant_nom text,
   -- Habillage visuel de la quittance PDF, propre à cette SCI (voir src/lib/quittance.ts) —
   -- vide/null = écusson générique (monogramme). Une donnée, pas du code câblé sur un nom de
   -- SCI en particulier : n'importe quelle SCI pourrait un jour avoir son propre style ici.
