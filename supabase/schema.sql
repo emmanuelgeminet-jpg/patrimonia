@@ -279,6 +279,33 @@ create table if not exists documents (
 );
 
 -- =====================================================================
+-- 6bis-2. QUITTANCES (archive structurée — le fichier PDF lui-même reste dans
+-- `documents`/Storage comme avant ; cette table sert à retrouver rapidement une
+-- quittance précise (par logement, locataire, période) sans avoir à parser des
+-- noms de fichiers. Un bien est soit en SCI soit en nom propre, jamais les deux.
+-- =====================================================================
+
+create table if not exists quittances (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid references sci(id) on delete cascade,
+  household_id uuid references households(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  lot_id uuid references lots(id) on delete set null,
+  bien_adresse text not null,
+  lot_nom text not null,
+  locataire_nom text not null,
+  mois text not null,
+  loyer_hc_cents bigint not null,
+  charges_cents bigint not null,
+  storage_path text not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint quittance_owner_coherent check (
+    (sci_id is not null and household_id is null) or (sci_id is null and household_id is not null)
+  )
+);
+
+-- =====================================================================
 -- 6bis. SUGGESTIONS (boîte à idées — visible uniquement par les admins)
 -- =====================================================================
 
@@ -446,6 +473,8 @@ create index if not exists idx_journal_sci_date on journal_ecritures(sci_id, dat
 create index if not exists idx_comptes_courants_sci on comptes_courants_mouvements(sci_id);
 create index if not exists idx_budget_household_date on budget_transactions(household_id, date);
 create index if not exists idx_documents_entity on documents(entity_type, entity_id);
+create index if not exists idx_quittances_sci on quittances(sci_id);
+create index if not exists idx_quittances_household on quittances(household_id);
 create index if not exists idx_analyses_household on analyses_biens(household_id);
 
 -- =====================================================================
@@ -688,6 +717,7 @@ alter table comptes_courants_mouvements enable row level security;
 alter table budget_categories enable row level security;
 alter table budget_transactions enable row level security;
 alter table documents enable row level security;
+alter table quittances enable row level security;
 alter table feedback_messages enable row level security;
 alter table profil_investisseur enable row level security;
 alter table profil_charges_lignes enable row level security;
@@ -809,6 +839,13 @@ create policy "documents accessibles" on documents for all using (
     where lots.id = documents.entity_id
     and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
   ))
+);
+
+drop policy if exists "quittances de ma sci ou mon foyer" on quittances;
+create policy "quittances de ma sci ou mon foyer" on quittances for all using (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+) with check (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
 );
 
 -- =====================================================================

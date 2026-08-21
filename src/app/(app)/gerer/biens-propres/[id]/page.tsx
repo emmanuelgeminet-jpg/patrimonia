@@ -4,6 +4,7 @@ import { formatEuros } from "@/lib/budget";
 import FinancementForm from "./FinancementForm";
 import FicheForm from "./FicheForm";
 import LotsSection, { type Lot } from "./LotsSection";
+import QuittancesArchive, { type QuittanceArchiveItem } from "@/components/QuittancesArchive";
 
 export default async function BienPropreDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -67,6 +68,28 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
 
   const chargesProvisionneesAnnuellesCents = locatairesActifs.reduce((s, l) => s + (l.charges_cents as number) * 12, 0);
   const soldeChargesCents = chargesCoproAnnuellesCents !== null ? chargesProvisionneesAnnuellesCents - chargesCoproAnnuellesCents : null;
+
+  const { data: quittancesRows } = await supabase
+    .from("quittances")
+    .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, storage_path, created_at")
+    .eq("bien_id", bien.id);
+  const quittances = quittancesRows ?? [];
+  const quittancesPaths = quittances.map((q) => q.storage_path as string);
+  const { data: quittancesSignedUrls } = quittancesPaths.length
+    ? await supabase.storage.from("documents").createSignedUrls(quittancesPaths, 3600)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const quittancesUrlByPath = new Map((quittancesSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+  const quittancesItems: QuittanceArchiveItem[] = quittances.map((q) => ({
+    id: q.id as string,
+    bienAdresse: q.bien_adresse as string,
+    lotNom: q.lot_nom as string,
+    locataireNom: q.locataire_nom as string,
+    mois: q.mois as string,
+    loyerHcCents: q.loyer_hc_cents as number,
+    chargesCents: q.charges_cents as number,
+    dateGeneration: q.created_at as string,
+    url: quittancesUrlByPath.get(q.storage_path as string) ?? null,
+  }));
 
   return (
     <section className="section">
@@ -136,6 +159,8 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
       </div>
 
       <LotsSection bienId={bien.id as string} lots={lots} />
+
+      <QuittancesArchive items={quittancesItems} />
 
       <FicheForm
         fiche={{

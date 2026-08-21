@@ -157,6 +157,20 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     return { error: "Erreur lors de l'enregistrement." };
   }
 
+  await supabase.from("quittances").insert({
+    household_id: bien.household_id,
+    bien_id: lot.bien_id,
+    lot_id: lotId,
+    bien_adresse: bien.adresse as string,
+    lot_nom: lot.nom as string,
+    locataire_nom: locataire.nom as string,
+    mois,
+    loyer_hc_cents: locataire.loyer_hc_cents as number,
+    charges_cents: locataire.charges_cents as number,
+    storage_path: storagePath,
+    created_by: user.id,
+  });
+
   const { data: signed } = await supabase.storage.from("documents").createSignedUrl(storagePath, 3600);
 
   revalidateBien(lot.bien_id as string);
