@@ -101,7 +101,7 @@ export async function deleteLocataire(id: string, bienId: string) {
   revalidateBien(bienId);
 }
 
-export async function genererQuittance(lotId: string, mois: string): Promise<{ error?: string; url?: string }> {
+export async function genererQuittance(lotId: string, mois: string): Promise<{ error?: string; warning?: string; url?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -157,7 +157,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     return { error: "Erreur lors de l'enregistrement." };
   }
 
-  await supabase.from("quittances").insert({
+  const { error: quittanceDbError } = await supabase.from("quittances").insert({
     household_id: bien.household_id,
     bien_id: lot.bien_id,
     lot_id: lotId,
@@ -174,5 +174,8 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
   const { data: signed } = await supabase.storage.from("documents").createSignedUrl(storagePath, 3600);
 
   revalidateBien(lot.bien_id as string);
+  if (quittanceDbError) {
+    return { url: signed?.signedUrl, warning: "Quittance générée, mais l'entrée dans l'archive n'a pas pu être enregistrée." };
+  }
   return { url: signed?.signedUrl };
 }

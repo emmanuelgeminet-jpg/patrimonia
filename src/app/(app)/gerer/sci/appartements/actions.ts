@@ -73,7 +73,7 @@ export async function deleteLocataire(id: string) {
   revalidatePath(PATH_VISION_GLOBALE);
 }
 
-export async function genererQuittance(lotId: string, mois: string): Promise<{ error?: string; url?: string }> {
+export async function genererQuittance(lotId: string, mois: string): Promise<{ error?: string; warning?: string; url?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -170,7 +170,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     return { error: "Erreur lors de l'enregistrement." };
   }
 
-  await supabase.from("quittances").insert({
+  const { error: quittanceDbError } = await supabase.from("quittances").insert({
     sci_id: bien.sci_id,
     bien_id: lot.bien_id,
     lot_id: lotId,
@@ -189,5 +189,11 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
 
   revalidatePath(PATH_APPARTEMENTS);
   revalidatePath("/gerer/sci/documents");
+  // La quittance elle-même (fichier + entrée Documents) a déjà réussi à ce stade — l'échec de
+  // l'archive ne doit pas bloquer le téléchargement, mais Emmanuel doit le savoir plutôt que
+  // de découvrir plus tard qu'une quittance manque silencieusement dans l'archive.
+  if (quittanceDbError) {
+    return { url: signed?.signedUrl, warning: "Quittance générée, mais l'entrée dans l'archive n'a pas pu être enregistrée." };
+  }
   return { url: signed?.signedUrl };
 }

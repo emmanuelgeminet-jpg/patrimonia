@@ -214,26 +214,30 @@ function QuittanceButton({ lotId }: { lotId: string }) {
   const [mois, setMois] = useState(() => new Date().toISOString().slice(0, 7));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const onGenerer = () => {
     setError(null);
+    setWarning(null);
     startTransition(async () => {
       const result = await genererQuittance(lotId, mois);
       if (result.error) {
         setError(result.error);
         return;
       }
+      if (result.warning) setWarning(result.warning);
       if (result.url) window.open(result.url, "_blank");
     });
   };
 
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
       <input type="month" value={mois} onChange={(e) => setMois(e.target.value)} style={{ maxWidth: 130, fontSize: 11 }} />
       <span style={{ color: "var(--sage)", cursor: "pointer", fontSize: 11 }} onClick={onGenerer}>
         {pending ? "Génération..." : "Générer la quittance"}
       </span>
       {error && <span style={{ color: "var(--brick)", fontSize: 11 }}>{error}</span>}
+      {warning && <span style={{ color: "var(--amber)", fontSize: 11 }}>{warning}</span>}
     </div>
   );
 }
