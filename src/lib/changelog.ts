@@ -8,6 +8,16 @@ export type ChangelogEntry = { date: string; title: string; description: string 
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-21",
+    title: "Export de sauvegarde des données",
+    description: "Un bouton sur Mon compte télécharge toutes les données (foyer, SCI, biens, comptabilité, baux, quittances...) en un fichier JSON, à garder de son côté.",
+  },
+  {
+    date: "2026-08-21",
+    title: "Photo directe depuis mobile pour les justificatifs",
+    description: "L'ajout d'un document (Documents SCI, journal, profil investisseur) propose l'appareil photo en priorité sur mobile, au lieu du sélecteur de fichier générique.",
+  },
+  {
+    date: "2026-08-21",
     title: "Trésorerie prévisionnelle",
     description: "Projection du solde bancaire SCI sur les 12 prochains mois (loyers, mensualités de prêt, charges estimées) sur Vision globale.",
   },
