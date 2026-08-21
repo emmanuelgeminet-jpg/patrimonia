@@ -28,7 +28,10 @@ export const navGroups: NavGroup[] = [
   },
   {
     groupLabel: "Gestion immobilière",
-    items: [{ href: "/gerer/nouveau-bien", label: "Rentrer un nouveau bien", icon: "nouveau" }],
+    items: [
+      { href: "/gerer/alertes", label: "Alertes", icon: "alertes" },
+      { href: "/gerer/nouveau-bien", label: "Rentrer un nouveau bien", icon: "nouveau" },
+    ],
   },
 ];
 
