@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import PasswordForm from "./PasswordForm";
 import InviteLink from "./InviteLink";
 import HouseholdNameForm from "./HouseholdNameForm";
+import ExportDonneesButton from "./ExportDonneesButton";
 
 export default async function ComptePage() {
   const supabase = await createClient();
@@ -41,6 +42,16 @@ export default async function ComptePage() {
       </div>
 
       <PasswordForm />
+
+      <div className="card">
+        <h2>Sauvegarde de tes données</h2>
+        <div className="card-sub">
+          Un export complet (foyer, SCI, biens, locataires, comptabilité, baux, quittances...) à garder de ton côté,
+          en cas de problème. N&apos;inclut pas le contenu des fichiers PDF/photos déjà déposés — seulement leur nom
+          et leur dossier ; télécharge-les séparément depuis les écrans Documents si besoin.
+        </div>
+        <ExportDonneesButton />
+      </div>
 
       <div className="card">
         <Link href="/quoi-de-neuf" style={{ color: "var(--sage)", fontSize: 13 }}>Quoi de neuf dans l&apos;appli →</Link>
