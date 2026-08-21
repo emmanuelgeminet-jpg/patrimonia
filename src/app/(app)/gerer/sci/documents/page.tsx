@@ -78,7 +78,7 @@ export default async function DocumentsPage() {
 
   const { data: bauxRows } = await supabase
     .from("baux")
-    .select("id, bien_adresse, lot_nom, locataire_nom, date_prise_effet, duree_mois, loyer_hc_cents, charges_cents, storage_path, created_at")
+    .select("id, bien_adresse, lot_nom, locataire_nom, type_bail, date_prise_effet, duree_mois, loyer_hc_cents, charges_cents, storage_path, created_at")
     .eq("sci_id", sciId);
   const baux = bauxRows ?? [];
   const bauxPaths = baux.map((b) => b.storage_path as string);
@@ -91,6 +91,7 @@ export default async function DocumentsPage() {
     bienAdresse: b.bien_adresse as string,
     lotNom: b.lot_nom as string,
     locataireNom: b.locataire_nom as string,
+    typeBail: b.type_bail as "non_meuble" | "meuble",
     datePriseEffet: b.date_prise_effet as string,
     dureeMois: b.duree_mois as number,
     loyerHcCents: b.loyer_hc_cents as number,

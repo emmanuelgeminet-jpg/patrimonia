@@ -6,6 +6,7 @@ import {
   drawField,
   drawFieldsGrid,
   drawChecklistLine,
+  drawTable,
   drawBadgeOrLogo,
   finish,
   ensureSpace,
@@ -22,8 +23,12 @@ import {
   DPE_SEUILS_MINIMUMS_DOM,
   DPE_SEUILS_MINIMUMS_METHODE,
   RENOUVELLEMENT_CONGE,
+  RENOUVELLEMENT_CONGE_MEUBLE,
   HONORAIRES_RAPPEL,
   DEPOT_GARANTIE_RAPPEL,
+  DEPOT_GARANTIE_RAPPEL_MEUBLE,
+  MOBILIER_OBLIGATOIRE,
+  INVENTAIRE_MOBILIER_RAPPEL,
 } from "@/lib/legal-text";
 
 export type BailLocataire = { nom: string; email?: string | null };
@@ -96,7 +101,9 @@ export type BailTic = { television?: string | null; internet?: string | null };
 
 export type BailDuree = {
   datePriseEffet: string;
-  dureeAnnees: 3 | 6 | null;
+  /** 1 an = valeur normale pour un bail meublé ; 3 ou 6 ans pour un bail non meublé (selon que le
+   *  bailleur est une personne physique ou morale). */
+  dureeAnnees: 1 | 3 | 6 | null;
   dureeReduiteMois?: number | null;
   dureeReduiteJustification?: string | null;
 };
@@ -150,7 +157,15 @@ export type BailAnnexes = {
   etatDesLieux: boolean;
   autorisationMiseEnLocation: boolean;
   referencesLoyersVoisinage: boolean;
+  /** Uniquement pertinent pour un bail meublé (art. 25-5 loi 1989) — annexé au bail. */
+  inventaireMobilier: boolean;
 };
+
+/** Inventaire du mobilier obligatoire (bail meublé uniquement) — les 11 éléments du décret
+ *  n° 2015-981 pré-remplis "présent", à décocher si absent (une absence peut requalifier le bail
+ *  en bail nu). Pas de champ "état" ici : l'état détaillé de chaque élément relève de l'état des
+ *  lieux, pas du bail — éviter de dupliquer la même évaluation à deux endroits. */
+export type MobilierItem = { label: string; present: boolean; observations?: string | null };
 
 export type BailDonnees = {
   bailleur: BailBailleur;
@@ -173,10 +188,18 @@ export type BailDonnees = {
   honoraires: BailHonoraires;
   autresConditions?: string | null;
   annexes: BailAnnexes;
+  /** Vide pour un bail non meublé — rempli via mobilierParDefaut() quand typeBail === "meuble". */
+  mobilier: MobilierItem[];
   lieuSignature: string;
 };
 
 export type BailMeta = { bienAdresse: string; lotNom: string; typeBail: "non_meuble" | "meuble" };
+
+/** Les 11 éléments obligatoires, tous cochés "présent" par défaut — à décocher un par un pour
+ *  ceux qui manqueraient réellement dans le logement. */
+export function mobilierParDefaut(): MobilierItem[] {
+  return MOBILIER_OBLIGATOIRE.map((label) => ({ label, present: true, observations: null }));
+}
 
 // ----- Conversion d'un montant en toutes lettres (mention obligatoire du contrat-type) -----
 
@@ -240,7 +263,7 @@ function oui(v: boolean | null | undefined): string {
   return v ? "Oui" : "Non";
 }
 
-async function drawEnTete(layout: PdfLayout, donnees: BailDonnees) {
+async function drawEnTete(layout: PdfLayout, donnees: BailDonnees, meta: BailMeta) {
   const badgeR = 26;
   const badgeCx = layout.left + badgeR;
   const badgeCy = layout.y - badgeR + 6;
@@ -248,19 +271,21 @@ async function drawEnTete(layout: PdfLayout, donnees: BailDonnees) {
   const wordmarkX = layout.left + badgeR * 2 + 12;
   layout.page.drawText(donnees.bailleur.nom.toUpperCase(), { x: wordmarkX, y: badgeCy + 8, size: 13, font: layout.bold, color: INK });
   layout.y -= badgeR * 2 + 10;
-  layout.page.drawText("CONTRAT DE LOCATION POUR LOCAUX NON MEUBLÉS", { x: layout.left, y: layout.y, size: 16, font: layout.bold, color: INK });
+  const titre = meta.typeBail === "meuble" ? "CONTRAT DE LOCATION MEUBLÉE" : "CONTRAT DE LOCATION POUR LOCAUX NON MEUBLÉS";
+  layout.page.drawText(titre, { x: layout.left, y: layout.y, size: 16, font: layout.bold, color: INK });
   layout.y -= 14;
-  layout.page.drawText(
-    "Soumis au titre Ier de la loi n° 89-462 du 6 juillet 1989, conforme au décret n° 2015-587 du 29 mai 2015.",
-    { x: layout.left, y: layout.y, size: 8, font: layout.italic, color: INK_SOFT }
-  );
+  const sousTitre =
+    meta.typeBail === "meuble"
+      ? "Soumis aux articles 25-3 à 25-11 (Titre Ier bis) de la loi n° 89-462 du 6 juillet 1989, conforme au décret n° 2015-587 du 29 mai 2015."
+      : "Soumis au titre Ier de la loi n° 89-462 du 6 juillet 1989, conforme au décret n° 2015-587 du 29 mai 2015.";
+  layout.page.drawText(sousTitre, { x: layout.left, y: layout.y, size: 8, font: layout.italic, color: INK_SOFT });
   layout.y -= 20;
 }
 
 /** Génère le PDF d'un bail de location (non meublé) et le renvoie en octets. */
 export async function genererBailPdf(donnees: BailDonnees, meta: BailMeta): Promise<Uint8Array> {
   const layout = await createLayout(`Bail — ${meta.bienAdresse} — ${meta.lotNom}`);
-  await drawEnTete(layout, donnees);
+  await drawEnTete(layout, donnees, meta);
 
   // ----- Désignation des parties -----
   drawSectionTitle(layout, "Désignation des parties");
@@ -364,12 +389,12 @@ export async function genererBailPdf(donnees: BailDonnees, meta: BailMeta): Prom
   drawSectionTitle(layout, "Date de prise d'effet et durée du contrat");
   drawFieldsGrid(layout, [
     { label: "Date de prise d'effet", value: formatDateFr(donnees.duree.datePriseEffet) },
-    { label: "Durée", value: donnees.duree.dureeAnnees ? `${donnees.duree.dureeAnnees} ans` : `Durée réduite — ${donnees.duree.dureeReduiteMois ?? "—"} mois` },
+    { label: "Durée", value: donnees.duree.dureeAnnees ? `${donnees.duree.dureeAnnees} an${donnees.duree.dureeAnnees > 1 ? "s" : ""}` : `Durée réduite — ${donnees.duree.dureeReduiteMois ?? "—"} mois` },
   ]);
   if (!donnees.duree.dureeAnnees && donnees.duree.dureeReduiteJustification) {
     drawParagraph(layout, `Motif de la durée réduite : ${donnees.duree.dureeReduiteJustification}`, { size: 8.5 });
   }
-  for (const line of RENOUVELLEMENT_CONGE) drawParagraph(layout, line, { size: 7.5 });
+  for (const line of meta.typeBail === "meuble" ? RENOUVELLEMENT_CONGE_MEUBLE : RENOUVELLEMENT_CONGE) drawParagraph(layout, line, { size: 7.5 });
 
   // ----- Conditions financières -----
   drawSectionTitle(layout, "Conditions financières — A. Loyer");
@@ -467,7 +492,7 @@ export async function genererBailPdf(donnees: BailDonnees, meta: BailMeta): Prom
 
   // ----- Garanties -----
   drawSectionTitle(layout, "Garanties");
-  drawParagraph(layout, DEPOT_GARANTIE_RAPPEL, { size: 8 });
+  drawParagraph(layout, meta.typeBail === "meuble" ? DEPOT_GARANTIE_RAPPEL_MEUBLE : DEPOT_GARANTIE_RAPPEL, { size: 8 });
   drawField(
     layout,
     donnees.garantie.type === "garantie_autonome" ? "Garantie autonome (en toutes lettres)" : "Dépôt de garantie (en toutes lettres)",
@@ -502,6 +527,21 @@ export async function genererBailPdf(donnees: BailDonnees, meta: BailMeta): Prom
     }
   }
 
+  // ----- Mobilier (bail meublé uniquement) -----
+  if (meta.typeBail === "meuble") {
+    drawSectionTitle(layout, "Inventaire du mobilier obligatoire");
+    drawParagraph(layout, INVENTAIRE_MOBILIER_RAPPEL, { size: 7.5 });
+    drawTable(
+      layout,
+      [
+        { label: "Élément (liste légale)", width: 260 },
+        { label: "Présent", width: 70 },
+        { label: "Observations", width: layout.right - layout.left - 330 },
+      ],
+      donnees.mobilier.map((m) => [m.label, m.present ? "Oui" : "Non", m.observations ?? "—"])
+    );
+  }
+
   // ----- Autres conditions particulières -----
   if (donnees.autresConditions) {
     drawSectionTitle(layout, "Autres conditions particulières");
@@ -516,6 +556,7 @@ export async function genererBailPdf(donnees: BailDonnees, meta: BailMeta): Prom
     { label: "Dossier de diagnostic technique", checked: donnees.annexes.dossierDiagnosticTechnique },
     { label: "Notice d'information (droits et obligations)", checked: donnees.annexes.noticeInformation },
     { label: "État des lieux", checked: donnees.annexes.etatDesLieux },
+    ...(meta.typeBail === "meuble" ? [{ label: "Inventaire du mobilier", checked: donnees.annexes.inventaireMobilier }] : []),
     { label: "Autorisation préalable de mise en location", checked: donnees.annexes.autorisationMiseEnLocation },
     { label: "Références de loyers du voisinage", checked: donnees.annexes.referencesLoyersVoisinage },
   ]);

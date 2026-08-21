@@ -53,5 +53,37 @@ export const HONORAIRES_RAPPEL = [
 export const DEPOT_GARANTIE_RAPPEL =
   "Pour la garantie de l'exécution des obligations du Locataire, il est prévu un dépôt de garantie ou une garantie autonome correspondant à un mois de loyer hors charges.";
 
+// ----- Spécifique au bail meublé (articles 25-3 à 25-11 de la loi n° 89-462, "Titre Ier bis" —
+// régime distinct du bail nu, décret n° 2015-981 du 31 juillet 2015 pour le mobilier) -----
+
+export const RENOUVELLEMENT_CONGE_MEUBLE = [
+  "Le présent contrat de location meublée est conclu pour une durée d'un an, reconduit tacitement à son terme dans les mêmes conditions, sauf congé délivré par l'une des parties (article 25-7 de la loi n° 89-462 du 6 juillet 1989).",
+  "Le locataire peut mettre fin au bail à tout moment, moyennant un préavis d'un mois, quelle que soit la zone géographique du logement.",
+  "Le bailleur, quant à lui, peut mettre fin au bail à son échéance et après avoir donné congé avec un préavis de trois mois, soit pour reprendre le logement en vue de l'occuper lui-même ou une personne de sa famille, soit pour le vendre, soit pour un motif légitime et sérieux.",
+];
+
+export const DEPOT_GARANTIE_RAPPEL_MEUBLE =
+  "Pour la garantie de l'exécution des obligations du Locataire, il est prévu un dépôt de garantie correspondant au maximum à deux mois de loyer hors charges (article 25-6 de la loi n° 89-462 du 6 juillet 1989).";
+
+/** Liste officielle et complète, décret n° 2015-981 du 31 juillet 2015 (article 25-4 de la loi
+ *  du 6 juillet 1989) — l'absence d'un seul de ces éléments peut entraîner la requalification du
+ *  bail meublé en bail nu (durée, dépôt de garantie et conditions de résiliation différents). */
+export const MOBILIER_OBLIGATOIRE = [
+  "Literie comprenant couette ou couverture",
+  "Dispositif d'occultation des fenêtres dans les pièces destinées à servir de chambre",
+  "Plaques de cuisson",
+  "Four ou four à micro-ondes",
+  "Réfrigérateur et congélateur, ou réfrigérateur équipé d'un compartiment à -6°C maximum",
+  "Vaisselle nécessaire à la prise des repas",
+  "Ustensiles de cuisine",
+  "Table et sièges",
+  "Étagères de rangement",
+  "Luminaires",
+  "Matériel d'entretien ménager adapté aux caractéristiques du logement",
+];
+
+export const INVENTAIRE_MOBILIER_RAPPEL =
+  "Conformément aux articles 25-4 et 25-5 de la loi n° 89-462 du 6 juillet 1989, le logement meublé doit être équipé d'un mobilier en quantité et qualité suffisantes pour permettre au locataire d'y dormir, manger et vivre convenablement, dont la liste minimale est fixée par le décret n° 2015-981 du 31 juillet 2015. Un inventaire et un état détaillé du mobilier sont établis contradictoirement au moment de la remise et de la restitution des clés, selon les mêmes modalités que l'état des lieux.";
+
 export const ART_3_2_ETAT_DES_LIEUX =
   "Conformément à l'article 3-2 de la loi n° 89-462 du 6 juillet 1989, l'état des lieux est établi de façon contradictoire par les parties ou par un tiers mandaté par elles dans les mêmes formes et en autant d'exemplaires que de parties lors de la remise et de la restitution des clés. Il porte sur l'ensemble des locaux et équipements d'usage privatif mentionnés au contrat de bail et dont le locataire a la jouissance exclusive. Le locataire peut demander au bailleur ou à son représentant de compléter l'état des lieux d'entrée dans un délai de dix jours à compter de son établissement. Pendant le premier mois de la période de chauffe, le locataire peut demander que l'état des lieux soit complété par l'état des éléments de chauffage.";

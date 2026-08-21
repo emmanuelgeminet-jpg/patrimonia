@@ -8,6 +8,7 @@ export type BailArchiveItem = {
   bienAdresse: string;
   lotNom: string;
   locataireNom: string;
+  typeBail: "non_meuble" | "meuble";
   datePriseEffet: string;
   dureeMois: number;
   loyerHcCents: number;
@@ -71,6 +72,7 @@ export default function BauxArchive({ items }: { items: BailArchiveItem[] }) {
             <tr>
               <th>Logement</th>
               <th>Locataire</th>
+              <th>Type</th>
               <th>Prise d&apos;effet</th>
               <th>Durée</th>
               <th className="num">Loyer + charges</th>
@@ -83,6 +85,7 @@ export default function BauxArchive({ items }: { items: BailArchiveItem[] }) {
               <tr key={b.id}>
                 <td>{b.bienAdresse} — {b.lotNom}</td>
                 <td>{b.locataireNom}</td>
+                <td><span className={`pill ${b.typeBail === "meuble" ? "warn" : "ok"}`}>{b.typeBail === "meuble" ? "Meublé" : "Non meublé"}</span></td>
                 <td>{formatDateFr(b.datePriseEffet)}</td>
                 <td>{b.dureeMois} mois</td>
                 <td className="num">{formatEuros(b.loyerHcCents + b.chargesCents)}</td>

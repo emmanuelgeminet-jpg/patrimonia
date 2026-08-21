@@ -263,23 +263,30 @@ export function drawTable(
     layout.y -= rowH;
   };
 
+  const cellLineHeight = size + 3;
   drawHeaderRow();
   for (const row of rows) {
+    // Chaque cellule peut retourner à la ligne (ex. une observation longue) — la hauteur de la
+    // ligne s'adapte à la cellule la plus haute, jamais de texte coupé/perdu.
+    const wrappedCells = columns.map((col, i) => wrapText(row[i] ?? "", layout.font, size, col.width - 12));
+    const maxLines = Math.max(1, ...wrappedCells.map((lines) => lines.length));
+    const cellRowH = Math.max(rowH, maxLines * cellLineHeight + 8);
+
     const pageBefore = layout.pageNum;
-    ensureSpace(layout, rowH);
+    ensureSpace(layout, cellRowH);
     // Réaffiche l'en-tête si on vient de changer de page pour cette ligne.
     if (layout.pageNum !== pageBefore) drawHeaderRow();
     const top = layout.y;
-    layout.page.drawRectangle({ x: layout.left, y: top - rowH, width: tableWidth, height: rowH, borderColor: LINE, borderWidth: 0.75 });
+    layout.page.drawRectangle({ x: layout.left, y: top - cellRowH, width: tableWidth, height: cellRowH, borderColor: LINE, borderWidth: 0.75 });
     let x = layout.left;
     for (let i = 0; i < columns.length; i++) {
-      if (i > 0) layout.page.drawLine({ start: { x, y: top }, end: { x, y: top - rowH }, thickness: 0.5, color: LINE });
-      const cell = row[i] ?? "";
-      const lines = wrapText(cell, layout.font, size, columns[i].width - 12);
-      layout.page.drawText(lines[0] ?? "", { x: x + 6, y: top - rowH / 2 - 3, size, font: layout.font, color: INK });
+      if (i > 0) layout.page.drawLine({ start: { x, y: top }, end: { x, y: top - cellRowH }, thickness: 0.5, color: LINE });
+      wrappedCells[i].forEach((line, li) => {
+        layout.page.drawText(line, { x: x + 6, y: top - 6 - size - li * cellLineHeight, size, font: layout.font, color: INK });
+      });
       x += columns[i].width;
     }
-    layout.y -= rowH;
+    layout.y -= cellRowH;
   }
   layout.y -= 8;
 }

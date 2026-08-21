@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import BailForm from "./BailForm";
-import type { BailDonnees } from "@/lib/bail";
+import { mobilierParDefaut, type BailDonnees } from "@/lib/bail";
 
 export default async function BailPage({
   params,
@@ -167,9 +167,11 @@ export default async function BailPage({
       dossierDiagnosticTechnique: true,
       noticeInformation: true,
       etatDesLieux: true,
+      inventaireMobilier: true,
       autorisationMiseEnLocation: false,
       referencesLoyersVoisinage: false,
     },
+    mobilier: mobilierParDefaut(),
     lieuSignature: (bien.ville as string | null) ?? "",
   };
 

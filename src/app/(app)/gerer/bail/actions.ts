@@ -13,6 +13,7 @@ import { genererBailPdf, type BailDonnees } from "@/lib/bail";
 export async function genererBail(
   lotId: string,
   locataireId: string,
+  typeBail: "non_meuble" | "meuble",
   donnees: BailDonnees
 ): Promise<{ error?: string; warning?: string; url?: string }> {
   const supabase = await createClient();
@@ -33,7 +34,7 @@ export async function genererBail(
   const pdfBytes = await genererBailPdf(donnees, {
     bienAdresse: bien.adresse as string,
     lotNom: lot.nom as string,
-    typeBail: "non_meuble",
+    typeBail,
   });
 
   const isSci = bien.owner_type === "sci";
@@ -71,7 +72,7 @@ export async function genererBail(
     bien_adresse: bien.adresse as string,
     lot_nom: lot.nom as string,
     locataire_nom: donnees.locataires.map((l) => l.nom).join(" et "),
-    type_bail: "non_meuble",
+    type_bail: typeBail,
     date_prise_effet: donnees.duree.datePriseEffet,
     duree_mois: dureeMois,
     loyer_hc_cents: donnees.loyer.montantInitialCents,

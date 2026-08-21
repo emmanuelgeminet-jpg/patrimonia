@@ -19,7 +19,7 @@ import type {
   BailHonoraires,
   BailAnnexes,
 } from "@/lib/bail";
-import { PERIODES_CONSTRUCTION } from "@/lib/bail";
+import { PERIODES_CONSTRUCTION, mobilierParDefaut } from "@/lib/bail";
 
 const rowStyle: React.CSSProperties = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8 };
 const labelStyle: React.CSSProperties = { fontSize: 12, display: "flex", flexDirection: "column", gap: 2, minWidth: 160 };
@@ -99,6 +99,7 @@ function SelectField({ label, value, onChange, options, width = 180 }: { label: 
 }
 
 export default function BailForm({ lotId, locataireId, initial }: { lotId: string; locataireId: string; initial: BailDonnees }) {
+  const [typeBail, setTypeBail] = useState<"non_meuble" | "meuble">("non_meuble");
   const [donnees, setDonnees] = useState<BailDonnees>(initial);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -135,11 +136,20 @@ export default function BailForm({ lotId, locataireId, initial }: { lotId: strin
   const hasPartageEconomies = !!donnees.partageEconomiesCharges;
   const hasTravaux = !!(donnees.travaux.ameliorationDecence || donnees.travaux.majorationNature || donnees.travaux.diminutionNature || false);
 
+  const onChangeTypeBail = (v: "non_meuble" | "meuble") => {
+    setTypeBail(v);
+    setDonnees((d) => ({
+      ...d,
+      duree: { ...d.duree, dureeAnnees: v === "meuble" ? 1 : 3 },
+      mobilier: v === "meuble" && d.mobilier.length === 0 ? mobilierParDefaut() : d.mobilier,
+    }));
+  };
+
   const onSubmit = () => {
     setError(null);
     setWarning(null);
     startTransition(async () => {
-      const result = await genererBail(lotId, locataireId, donnees);
+      const result = await genererBail(lotId, locataireId, typeBail, donnees);
       if (result.error) {
         setError(result.error);
         return;
@@ -151,6 +161,22 @@ export default function BailForm({ lotId, locataireId, initial }: { lotId: strin
 
   return (
     <>
+      <div className="card">
+        <h2>Type de bail</h2>
+        <div className="card-sub">
+          Détermine les mentions légales, la durée par défaut, le plafond du dépôt de garantie et l&apos;inventaire du mobilier applicables.
+        </div>
+        <div style={rowStyle}>
+          <SelectField
+            label="Type"
+            value={typeBail}
+            onChange={(v) => onChangeTypeBail(v as "non_meuble" | "meuble")}
+            options={[{ value: "non_meuble", label: "Non meublé (bail nu)" }, { value: "meuble", label: "Meublé" }]}
+            width={240}
+          />
+        </div>
+      </div>
+
       <div className="card">
         <h2>Désignation des parties</h2>
         <div style={rowStyle}>
@@ -300,8 +326,12 @@ export default function BailForm({ lotId, locataireId, initial }: { lotId: strin
           <SelectField
             label="Durée"
             value={donnees.duree.dureeAnnees ? String(donnees.duree.dureeAnnees) : "reduite"}
-            onChange={(v) => patchDuree({ dureeAnnees: v === "reduite" ? null : (Number(v) as 3 | 6) })}
-            options={[{ value: "3", label: "3 ans" }, { value: "6", label: "6 ans" }, { value: "reduite", label: "Durée réduite" }]}
+            onChange={(v) => patchDuree({ dureeAnnees: v === "reduite" ? null : (Number(v) as 1 | 3 | 6) })}
+            options={
+              typeBail === "meuble"
+                ? [{ value: "1", label: "1 an" }, { value: "reduite", label: "Durée réduite" }]
+                : [{ value: "3", label: "3 ans" }, { value: "6", label: "6 ans" }, { value: "reduite", label: "Durée réduite" }]
+            }
           />
           {!donnees.duree.dureeAnnees && (
             <>
@@ -417,6 +447,34 @@ export default function BailForm({ lotId, locataireId, initial }: { lotId: strin
         </div>
       </div>
 
+      {typeBail === "meuble" && (
+        <div className="card">
+          <h2>Inventaire du mobilier obligatoire</h2>
+          <div className="card-sub">Les 11 éléments requis par le décret n° 2015-981 — décoche ceux qui manqueraient réellement dans le logement</div>
+          {donnees.mobilier.map((item, index) => (
+            <div style={rowStyle} key={item.label}>
+              <CheckField
+                label={item.label}
+                checked={item.present}
+                onChange={(v) =>
+                  setDonnees((d) => ({ ...d, mobilier: d.mobilier.map((m, i) => (i === index ? { ...m, present: v } : m)) }))
+                }
+              />
+              {!item.present && (
+                <TextField
+                  label="Observations"
+                  value={item.observations ?? ""}
+                  onChange={(v) =>
+                    setDonnees((d) => ({ ...d, mobilier: d.mobilier.map((m, i) => (i === index ? { ...m, observations: v || null } : m)) }))
+                  }
+                  width={280}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="card">
         <h2>Honoraires de location</h2>
         <div className="card-sub">Uniquement si le bail est conclu avec le concours d&apos;une agence ou d&apos;un mandataire</div>
@@ -485,6 +543,9 @@ export default function BailForm({ lotId, locataireId, initial }: { lotId: strin
           <CheckField label="Dossier de diagnostic technique" checked={donnees.annexes.dossierDiagnosticTechnique} onChange={(v) => patchAnnexes({ dossierDiagnosticTechnique: v })} />
           <CheckField label="Notice d'information" checked={donnees.annexes.noticeInformation} onChange={(v) => patchAnnexes({ noticeInformation: v })} />
           <CheckField label="État des lieux" checked={donnees.annexes.etatDesLieux} onChange={(v) => patchAnnexes({ etatDesLieux: v })} />
+          {typeBail === "meuble" && (
+            <CheckField label="Inventaire du mobilier" checked={donnees.annexes.inventaireMobilier} onChange={(v) => patchAnnexes({ inventaireMobilier: v })} />
+          )}
           <CheckField label="Autorisation préalable de mise en location" checked={donnees.annexes.autorisationMiseEnLocation} onChange={(v) => patchAnnexes({ autorisationMiseEnLocation: v })} />
           <CheckField label="Références de loyers du voisinage" checked={donnees.annexes.referencesLoyersVoisinage} onChange={(v) => patchAnnexes({ referencesLoyersVoisinage: v })} />
         </div>
