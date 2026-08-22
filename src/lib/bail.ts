@@ -215,6 +215,9 @@ function deuxChiffresEnLettres(n: number): string {
   const u = n % 10;
   if (d === 7 || d === 9) {
     const base = d === 7 ? "soixante" : "quatre-vingt";
+    // Exception : 71 = "soixante et onze" (le seul cas "et" de cette tranche — 72-79 et
+    // 91-99 restent liés par un trait d'union, comme 81 = "quatre-vingt-un" sans "et").
+    if (d === 7 && u === 1) return `${base} et onze`;
     return `${base}-${UNITES[10 + u]}`;
   }
   const dizaineWord = DIZAINES[d];
