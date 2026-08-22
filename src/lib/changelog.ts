@@ -8,6 +8,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-08-21",
+    title: "Tests automatisés sur les calculs financiers",
+    description: "Premier filet de sécurité automatique (emprunts, amortissements, bilan SCI, TRI, trésorerie...) — a permis de trouver et corriger une coquille sur le bail (71€ mal orthographié en toutes lettres).",
+  },
+  {
+    date: "2026-08-21",
     title: "Export de sauvegarde des données",
     description: "Un bouton sur Mon compte télécharge toutes les données (foyer, SCI, biens, comptabilité, baux, quittances...) en un fichier JSON, à garder de son côté.",
   },
