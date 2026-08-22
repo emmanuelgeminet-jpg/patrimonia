@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useActionState, useTransition } from "react";
-import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, type SaveState } from "./actions";
+import { addLocataire, markLocataireSorti, deleteLocataire, genererQuittance, saveRepartitionLot, type SaveState } from "./actions";
 import { formatEuros } from "@/lib/budget";
 import RevisionLoyerForm, { type LoyerRevision } from "@/components/RevisionLoyerForm";
 
@@ -20,7 +20,13 @@ export type Locataire = {
   loyerRevisions: LoyerRevision[];
 };
 
-export type Lot = { id: string; nom: string; locataires: Locataire[] };
+export type Lot = {
+  id: string;
+  nom: string;
+  locataires: Locataire[];
+  surfaceM2: number | null;
+  tantiemesMillesimes: number | null;
+};
 
 const initialState: SaveState = {};
 
@@ -156,7 +162,45 @@ function LotContent({ bienId, lot }: { bienId: string; lot: Lot }) {
         </div>
       )}
 
+      <RepartitionForm bienId={bienId} lot={lot} />
+
       <AjouterLocataireForm bienId={bienId} lotId={lot.id} />
+    </div>
+  );
+}
+
+function RepartitionForm({ bienId, lot }: { bienId: string; lot: Lot }) {
+  const [state, formAction, pending] = useActionState(saveRepartitionLot, initialState);
+
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+      <form action={formAction} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input type="hidden" name="bien_id" value={bienId} />
+        <input type="hidden" name="lot_id" value={lot.id} />
+        <label style={{ fontSize: 12 }}>Surface :</label>
+        <input
+          name="surface_m2"
+          placeholder="m²"
+          defaultValue={lot.surfaceM2 ?? ""}
+          style={{ maxWidth: 90 }}
+        />
+        <label style={{ fontSize: 12 }}>Tantièmes :</label>
+        <input
+          name="tantiemes_millesimes"
+          placeholder="millièmes"
+          defaultValue={lot.tantiemesMillesimes ?? ""}
+          style={{ maxWidth: 100 }}
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          style={{ background: "var(--ink)", color: "#fff", border: "none", padding: "5px 12px", borderRadius: 20, fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Enregistrer
+        </button>
+        <span style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>utilisés pour la répartition des charges</span>
+      </form>
+      {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
     </div>
   );
 }

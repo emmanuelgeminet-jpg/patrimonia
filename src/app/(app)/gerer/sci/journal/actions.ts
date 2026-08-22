@@ -91,6 +91,17 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
     empruntId = String(formData.get("emprunt_id") ?? "") || null;
   }
 
+  // Période couverte par la dépense (régularisation de charges) — les deux ou aucune,
+  // même contrainte que côté base (ecriture_periode_coherente).
+  const periodeDebut = String(formData.get("periode_debut") ?? "") || null;
+  const periodeFin = String(formData.get("periode_fin") ?? "") || null;
+  if ((periodeDebut && !periodeFin) || (!periodeDebut && periodeFin)) {
+    return { error: "Renseigne les deux dates de la période couverte, ou aucune." };
+  }
+  if (periodeDebut && periodeFin && periodeFin < periodeDebut) {
+    return { error: "La fin de la période couverte doit être après son début." };
+  }
+
   const { data: inserted, error } = await supabase
     .from("journal_ecritures")
     .insert({
@@ -104,6 +115,8 @@ export async function addEcriture(_prev: SaveState, formData: FormData): Promise
       lot_id: lotId,
       commentaire: formData.get("commentaire") || null,
       categorie_charge: type === "decaissement" ? formData.get("categorie_charge") || null : null,
+      periode_debut: periodeDebut,
+      periode_fin: periodeFin,
       financement,
       associe_household_id: associeHouseholdId,
       associe_mouvement_type: associeMouvementType,

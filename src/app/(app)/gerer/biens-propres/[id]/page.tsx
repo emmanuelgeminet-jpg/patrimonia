@@ -8,6 +8,7 @@ import QuittancesArchive, { type QuittanceArchiveItem } from "@/components/Quitt
 import BauxArchive, { type BailArchiveItem } from "@/components/BauxArchive";
 import EtatsDesLieuxArchive, { type EtatDesLieuxArchiveItem } from "@/components/EtatsDesLieuxArchive";
 import DocumentsFolders, { type DocItem } from "../../sci/documents/DocumentsFolders";
+import ChargesSection, { type ChargeItem } from "./ChargesSection";
 
 const DOSSIERS_BIEN = ["Baux", "États des lieux", "Diagnostics & DPE", "Assurance", "Factures & justificatifs", "Quittances"];
 
@@ -31,11 +32,11 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
 
   if (!bien) notFound();
 
-  let { data: lotsRows } = await supabase.from("lots").select("id, nom").eq("bien_id", bien.id).order("nom");
+  let { data: lotsRows } = await supabase.from("lots").select("id, nom, surface_m2, tantiemes_millesimes").eq("bien_id", bien.id).order("nom");
   if (!lotsRows || lotsRows.length === 0) {
     // Biens créés avant la mise en place de la création automatique de lot : on comble le manque
     // à l'affichage, sans nouvelle manip SQL à demander.
-    const { data: nouveauLot } = await supabase.from("lots").insert({ bien_id: bien.id, nom: "Logement" }).select("id, nom").single();
+    const { data: nouveauLot } = await supabase.from("lots").insert({ bien_id: bien.id, nom: "Logement" }).select("id, nom, surface_m2, tantiemes_millesimes").single();
     lotsRows = nouveauLot ? [nouveauLot] : [];
   }
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
@@ -56,6 +57,8 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
   const lots: Lot[] = (lotsRows ?? []).map((l) => ({
     id: l.id as string,
     nom: l.nom as string,
+    surfaceM2: l.surface_m2 as number | null,
+    tantiemesMillesimes: l.tantiemes_millesimes as number | null,
     locataires: (locatairesRows ?? [])
       .filter((loc) => loc.lot_id === l.id)
       .map((loc) => ({
@@ -179,6 +182,29 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     url: edlUrlByPath.get(e.storage_path as string) ?? null,
   }));
 
+  const { data: chargesRows } = await supabase
+    .from("charges_biens_propres")
+    .select("id, date, montant_cents, categorie, periode_debut, periode_fin, commentaire, justificatif_path")
+    .eq("bien_id", bien.id)
+    .order("date", { ascending: false });
+  const charges = chargesRows ?? [];
+  const chargesPaths = charges.map((c) => c.justificatif_path as string | null).filter((p): p is string => !!p);
+  const { data: chargesSignedUrls } = chargesPaths.length
+    ? await supabase.storage.from("documents").createSignedUrls(chargesPaths, 3600)
+    : { data: [] as { path: string | null; signedUrl: string }[] };
+  const chargesUrlByPath = new Map((chargesSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+  const chargesItems: ChargeItem[] = charges.map((c) => ({
+    id: c.id as string,
+    date: c.date as string,
+    montantCents: c.montant_cents as number,
+    categorie: c.categorie as string | null,
+    periodeDebut: c.periode_debut as string,
+    periodeFin: c.periode_fin as string,
+    commentaire: c.commentaire as string | null,
+    justificatifPath: c.justificatif_path as string | null,
+    justificatifUrl: c.justificatif_path ? chargesUrlByPath.get(c.justificatif_path as string) ?? null : null,
+  }));
+
   return (
     <section className="section">
       <div className="crumb">Gestion immobilière <b>› Biens propres › {bien.adresse}</b></div>
@@ -246,6 +272,8 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
         )}
       </div>
 
+      <ChargesSection bienId={bien.id as string} lots={lots.map((l) => ({ id: l.id, nom: l.nom }))} charges={chargesItems} />
+
       <LotsSection bienId={bien.id as string} lots={lots} />
 
       <h2 style={{ marginTop: 22 }}>Documents</h2>
@@ -274,6 +302,7 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
           assuranceCompagnie: bien.assurance_pno_compagnie as string | null,
           assurancePolice: bien.assurance_pno_police as string | null,
           notes: bien.notes as string | null,
+          cleRepartitionDefaut: (bien.cle_repartition_defaut as string | null) ?? "surface",
         }}
       />
     </section>

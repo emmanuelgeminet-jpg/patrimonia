@@ -173,6 +173,7 @@ export default async function ImmeublePage() {
           assuranceCompagnie: bien.assurance_pno_compagnie as string | null,
           assurancePolice: bien.assurance_pno_police as string | null,
           notes: bien.notes as string | null,
+          cleRepartitionDefaut: (bien.cle_repartition_defaut as string | null) ?? "surface",
         }}
       />
     </section>

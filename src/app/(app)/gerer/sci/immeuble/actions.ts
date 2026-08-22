@@ -44,6 +44,7 @@ export async function saveFicheImmeuble(_prev: SaveState, formData: FormData): P
       assurance_pno_compagnie: formData.get("assurance_compagnie") || null,
       assurance_pno_police: formData.get("assurance_police") || null,
       notes: formData.get("notes") || null,
+      cle_repartition_defaut: formData.get("cle_repartition_defaut") || "surface",
     })
     .eq("id", bienId);
 

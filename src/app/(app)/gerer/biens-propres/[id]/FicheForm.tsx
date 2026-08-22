@@ -14,6 +14,7 @@ export type Fiche = {
   assuranceCompagnie: string | null;
   assurancePolice: string | null;
   notes: string | null;
+  cleRepartitionDefaut: string;
 };
 
 export default function FicheForm({ fiche }: { fiche: Fiche }) {
@@ -49,6 +50,15 @@ export default function FicheForm({ fiche }: { fiche: Fiche }) {
           <label style={{ fontSize: 12 }}>Assurance PNO :</label>
           <input name="assurance_compagnie" defaultValue={fiche.assuranceCompagnie ?? ""} placeholder="Compagnie" style={{ maxWidth: 160 }} />
           <input name="assurance_police" defaultValue={fiche.assurancePolice ?? ""} placeholder="N° de police" style={{ maxWidth: 160 }} />
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ fontSize: 12 }}>Répartition des charges entre logements :</label>
+          <select name="cle_repartition_defaut" defaultValue={fiche.cleRepartitionDefaut} style={{ maxWidth: 220 }}>
+            <option value="surface">Selon la surface</option>
+            <option value="egale">Également entre les logements</option>
+            <option value="tantiemes">Selon les tantièmes de copropriété</option>
+          </select>
         </div>
 
         <textarea

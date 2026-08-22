@@ -129,6 +129,12 @@ create table if not exists biens (
   zone_tendue boolean not null default false,
   loyer_reference_m2_cents bigint,
   loyer_reference_majore_m2_cents bigint,
+  -- Clé de répartition des charges par défaut pour ce bien (régularisation locataires) —
+  -- une seule clé par bien pour l'instant, pas par poste de charge (voir
+  -- src/lib/charges-regularisation.ts). 'surface' par défaut : lots.surface_m2 est le champ
+  -- le plus généralement exploitable sans nouvelle saisie, contrairement aux tantièmes,
+  -- propres à une vraie copropriété.
+  cle_repartition_defaut text not null default 'surface' check (cle_repartition_defaut in ('egale', 'surface', 'tantiemes')),
   created_at timestamptz not null default now(),
   constraint bien_owner_coherent check (
     (owner_type = 'sci' and sci_id is not null and household_id is null) or
@@ -150,6 +156,10 @@ create table if not exists lots (
   cave_numero text,
   parking_numero text,
   garage_numero text,
+  -- Tantièmes/millièmes de copropriété du lot — saisis à la main depuis le règlement de
+  -- copropriété, aucun lookup automatique. Ne sert que si la clé de répartition choisie
+  -- (biens.cle_repartition_defaut, ou celle d'une régularisation donnée) est 'tantiemes'.
+  tantiemes_millesimes integer,
   created_at timestamptz not null default now()
 );
 
@@ -225,6 +235,12 @@ create table if not exists journal_ecritures (
   -- catégorie sur la fiche immeuble — optionnel, non contraint en base (liste proposée
   -- côté formulaire pour rester cohérente, mais on ne bloque pas une saisie différente).
   categorie_charge text,
+  -- Période réellement couverte par cette dépense (ex. charges copro annuelles payées en
+  -- mars mais qui couvrent l'année civile entière) — distincte de `date` (date du
+  -- décaissement). Nullable : seule une écriture destinée à entrer dans une régularisation
+  -- de charges (voir src/lib/charges-regularisation.ts) en a besoin.
+  periode_debut date,
+  periode_fin date,
   -- 'banque_sci' : mouvement réel sur le compte bancaire de la SCI (compte dans le solde
   -- bancaire). 'avance_associe' : payé personnellement par un associé (ex. CB perso) —
   -- n'apparaît pas sur le relevé de la SCI, donc exclu du solde bancaire, mais reste une
@@ -251,6 +267,10 @@ create table if not exists journal_ecritures (
   constraint ecriture_emprunt_coherent check (
     emprunt_id is null or
     (financement = 'banque_sci' and type = 'decaissement' and associe_mouvement_type is null)
+  ),
+  constraint ecriture_periode_coherente check (
+    (periode_debut is null and periode_fin is null) or
+    (periode_debut is not null and periode_fin is not null and periode_fin >= periode_debut)
   )
 );
 
@@ -421,6 +441,62 @@ create table if not exists loyer_revisions (
 );
 
 create index if not exists idx_loyer_revisions_locataire on loyer_revisions(locataire_id);
+
+-- =====================================================================
+-- 6bis-5. CHARGES DÉTAILLÉES — BIENS PROPRES (équivalent de journal_ecritures pour un bien
+-- en nom propre, qui n'a pas de journal comptable : uniquement des charges à répartir/
+-- régulariser, pas un suivi de trésorerie complet). Remplace, comme source de vérité pour
+-- la régularisation, l'ancien agrégat unique biens.charges_copro_annuelles_cents (conservé
+-- pour l'affichage/compat, mais plus la seule saisie possible).
+-- =====================================================================
+
+create table if not exists charges_biens_propres (
+  id uuid primary key default gen_random_uuid(),
+  bien_id uuid not null references biens(id) on delete cascade,
+  lot_id uuid references lots(id) on delete set null,
+  date date not null,
+  montant_cents bigint not null,
+  categorie text,
+  periode_debut date not null,
+  periode_fin date not null,
+  justificatif_path text,
+  commentaire text,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint charge_bp_periode_coherente check (periode_fin >= periode_debut)
+);
+
+-- =====================================================================
+-- 6bis-6. RÉGULARISATIONS DE CHARGES (archive figée — une fois calculée et communiquée aux
+-- locataires, une régularisation ne doit pas changer silencieusement si les lots/locataires/
+-- clé de répartition du bien changent ensuite ; même logique que `donnees jsonb` sur
+-- baux/etats_des_lieux).
+-- =====================================================================
+
+create table if not exists regularisations_charges (
+  id uuid primary key default gen_random_uuid(),
+  sci_id uuid references sci(id) on delete cascade,
+  household_id uuid references households(id) on delete cascade,
+  bien_id uuid references biens(id) on delete set null,
+  bien_adresse text not null,
+  periode_debut date not null,
+  periode_fin date not null,
+  cle_repartition text not null check (cle_repartition in ('egale', 'surface', 'tantiemes')),
+  charges_totales_cents bigint not null,
+  donnees jsonb not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint regul_owner_coherent check (
+    (sci_id is not null and household_id is null) or (sci_id is null and household_id is not null)
+  )
+);
+
+create index if not exists idx_charges_bp_bien on charges_biens_propres(bien_id);
+create index if not exists idx_charges_bp_periode on charges_biens_propres(periode_debut, periode_fin);
+create index if not exists idx_journal_periode on journal_ecritures(periode_debut, periode_fin) where periode_debut is not null;
+create index if not exists idx_regularisations_sci on regularisations_charges(sci_id);
+create index if not exists idx_regularisations_household on regularisations_charges(household_id);
+create index if not exists idx_regularisations_bien on regularisations_charges(bien_id);
 
 -- =====================================================================
 -- 6bis. SUGGESTIONS (boîte à idées — visible uniquement par les admins)
@@ -844,6 +920,8 @@ alter table quittances enable row level security;
 alter table baux enable row level security;
 alter table etats_des_lieux enable row level security;
 alter table loyer_revisions enable row level security;
+alter table charges_biens_propres enable row level security;
+alter table regularisations_charges enable row level security;
 alter table feedback_messages enable row level security;
 alter table profil_investisseur enable row level security;
 alter table profil_charges_lignes enable row level security;
@@ -1001,6 +1079,28 @@ create policy "revisions de loyer de mon logement" on loyer_revisions for all us
     where locataires.id = loyer_revisions.locataire_id
     and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
   )
+);
+
+drop policy if exists "charges d'un bien de ma sci ou mon foyer" on charges_biens_propres;
+create policy "charges d'un bien de ma sci ou mon foyer" on charges_biens_propres for all using (
+  exists (
+    select 1 from biens
+    where biens.id = charges_biens_propres.bien_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )
+) with check (
+  exists (
+    select 1 from biens
+    where biens.id = charges_biens_propres.bien_id
+    and ((biens.owner_type = 'sci' and is_sci_member(biens.sci_id)) or (biens.owner_type = 'propre' and is_household_member(biens.household_id)))
+  )
+);
+
+drop policy if exists "regularisations de ma sci ou mon foyer" on regularisations_charges;
+create policy "regularisations de ma sci ou mon foyer" on regularisations_charges for all using (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
+) with check (
+  (sci_id is not null and is_sci_member(sci_id)) or (household_id is not null and is_household_member(household_id))
 );
 
 -- =====================================================================

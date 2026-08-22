@@ -474,6 +474,15 @@ function AjouterEcritureForm({
             <option value="Autre">Autre</option>
           </select>
         )}
+        {type === "decaissement" && (
+          <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <label style={{ fontSize: 10.5, color: "var(--ink-soft)" }} title="À remplir si cette dépense doit être répartie automatiquement entre locataires (régularisation de charges)">
+              Période couverte :
+            </label>
+            <input type="date" name="periode_debut" style={{ maxWidth: 130, fontSize: 11 }} />
+            <input type="date" name="periode_fin" style={{ maxWidth: 130, fontSize: 11 }} />
+          </span>
+        )}
         <input name="commentaire" placeholder="Commentaire" style={{ maxWidth: 150 }} />
 
         <select

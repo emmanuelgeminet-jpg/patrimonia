@@ -56,6 +56,28 @@ export async function saveValeurVenale(_prev: SaveState, formData: FormData): Pr
   return { success: true };
 }
 
+export async function saveRepartitionLot(_prev: SaveState, formData: FormData): Promise<SaveState> {
+  const lotId = String(formData.get("lot_id") ?? "");
+  if (!lotId) return { error: "Lot introuvable." };
+
+  const surface = formData.get("surface_m2");
+  const tantiemes = formData.get("tantiemes_millesimes");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("lots")
+    .update({
+      surface_m2: surface && surface !== "" ? parseFloat(String(surface).replace(",", ".")) : null,
+      tantiemes_millesimes: tantiemes && tantiemes !== "" ? parseInt(String(tantiemes), 10) : null,
+    })
+    .eq("id", lotId);
+
+  if (error) return { error: "Erreur lors de l'enregistrement." };
+  revalidatePath(PATH_APPARTEMENTS);
+  revalidatePath(PATH_VISION_GLOBALE);
+  return { success: true };
+}
+
 export async function markLocataireSorti(id: string) {
   const supabase = await createClient();
   await supabase
