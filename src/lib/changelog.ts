@@ -7,6 +7,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-22",
+    title: "Régularisation des charges",
+    description: "Saisie détaillée des charges (poste, période couverte), surface/tantièmes par logement, et un écran qui calcule automatiquement la part de charges et le solde de chaque locataire sur une période — plus besoin de le faire à la main.",
+  },
+  {
     date: "2026-08-21",
     title: "Tests automatisés sur les calculs financiers",
     description: "Premier filet de sécurité automatique (emprunts, amortissements, bilan SCI, TRI, trésorerie...) — a permis de trouver et corriger une coquille sur le bail (71€ mal orthographié en toutes lettres).",

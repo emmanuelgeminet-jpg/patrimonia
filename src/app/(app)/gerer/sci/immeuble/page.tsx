@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
 import CaracteristiquesForm from "./CaracteristiquesForm";
@@ -160,6 +161,11 @@ export default async function ImmeublePage() {
         <div className="placeholder-note" style={{ marginTop: 8 }}>
           &quot;Non catégorisé&quot; regroupe les écritures saisies avant l&apos;ajout de ce champ, ou sans catégorie
           choisie — la catégorie se choisit dans le formulaire du Journal comptable au moment de la saisie.
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <Link href={`/gerer/charges/${bien.id}`} style={{ color: "var(--sage)", fontSize: 12.5 }}>
+            Régulariser les charges →
+          </Link>
         </div>
       </div>
 
