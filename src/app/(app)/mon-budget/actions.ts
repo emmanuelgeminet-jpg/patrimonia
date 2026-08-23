@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { parseCsv, parsePdfText, decodeFileContent, ensureDefaultCategories } from "@/lib/budget";
+import { parseCsv, parsePdfText, decodeFileContent, ensureDefaultCategories, fetchAllRows } from "@/lib/budget";
 
 async function getHouseholdId() {
   const supabase = await createClient();
@@ -45,7 +45,9 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
   }
 
   if (transactions.length === 0) {
-    return { error: errors[0] ?? "Aucune transaction reconnue dans ce fichier." };
+    if (errors.length === 0) return { error: "Aucune transaction reconnue dans ce fichier." };
+    const apercu = errors.slice(0, 5).join(" ");
+    return { error: `Aucune transaction reconnue. ${apercu}${errors.length > 5 ? ` (+${errors.length - 5} autre(s) problème(s))` : ""}` };
   }
 
   const { supabase, householdId } = await getHouseholdId();
@@ -60,17 +62,26 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
   const dates = transactions.map((t) => t.date).sort();
 
   // Réutilise la catégorie déjà choisie pour un libellé identique, sinon "Non catégorisé".
+  // Récupéré par pages de 1000 (fetchAllRows) : un foyer avec beaucoup d'historique peut avoir
+  // plus de transactions déjà en base sur cette période que la limite par défaut d'une seule
+  // requête Supabase — sans ça, les lignes au-delà de 1000 ne sont jamais reconnues comme déjà
+  // présentes et se retrouvent réimportées en double.
   const libelles = [...new Set(transactions.map((t) => t.libelle))];
-  const { data: existing } = await supabase
-    .from("budget_transactions")
-    .select("date, libelle, montant_cents, categorie_id")
-    .eq("household_id", householdId)
-    .gte("date", dates[0])
-    .lte("date", dates[dates.length - 1])
-    .in("libelle", libelles);
+  const existing = await fetchAllRows<{ id: string; date: string; libelle: string; montant_cents: number; categorie_id: string | null }>(
+    (from, to) =>
+      supabase
+        .from("budget_transactions")
+        .select("id, date, libelle, montant_cents, categorie_id")
+        .eq("household_id", householdId)
+        .gte("date", dates[0])
+        .lte("date", dates[dates.length - 1])
+        .in("libelle", libelles)
+        .order("id", { ascending: true })
+        .range(from, to)
+  );
 
   const guessByLibelle = new Map<string, string>();
-  for (const row of existing ?? []) {
+  for (const row of existing) {
     if (!guessByLibelle.has(row.libelle) && row.categorie_id) {
       guessByLibelle.set(row.libelle, row.categorie_id);
     }
@@ -80,7 +91,7 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
   // considérée comme un doublon — utile quand un nouvel export recouvre
   // une période déjà importée.
   const existingCounts = new Map<string, number>();
-  for (const row of existing ?? []) {
+  for (const row of existing) {
     const key = `${row.date}|${row.libelle}|${row.montant_cents}`;
     existingCounts.set(key, (existingCounts.get(key) ?? 0) + 1);
   }
@@ -126,7 +137,14 @@ export async function importCsv(_prevState: ImportState, formData: FormData): Pr
   const parts = [`${rows.length} ligne(s) importée(s)`];
   if (doublons > 0) parts.push(`${doublons} déjà présente(s) ignorée(s)`);
   if (errors.length > 0) parts.push(`${errors.length} ligne(s) illisible(s) ignorée(s)`);
-  return { success: parts.join(" — ") + "." };
+  let success = parts.join(" — ") + ".";
+  // Le nombre seul ne dit pas à Emmanuel QUELLES lignes ont posé problème — sans ce détail,
+  // impossible de vérifier soi-même dans le fichier d'origine si l'écart est normal ou pas.
+  if (errors.length > 0) {
+    const apercu = errors.slice(0, 5).join(" ");
+    success += ` Détail : ${apercu}${errors.length > 5 ? ` (+${errors.length - 5} autre(s))` : ""}`;
+  }
+  return { success };
 }
 
 export async function updateTransactionCategory(transactionId: string, categorieId: string) {
@@ -179,4 +197,45 @@ export async function createCategory(_prevState: CreateCategoryState, formData: 
 
   revalidatePath("/mon-budget");
   return {};
+}
+
+export type UpdateCategoryState = { error?: string };
+
+export async function updateCategory(_prevState: UpdateCategoryState, formData: FormData): Promise<UpdateCategoryState> {
+  const id = String(formData.get("id") ?? "");
+  const nom = String(formData.get("nom") ?? "").trim();
+  const groupe = String(formData.get("groupe") ?? "");
+  if (!id) return { error: "Catégorie introuvable." };
+  if (!nom) return { error: "Donne un nom à la catégorie." };
+  if (!["besoin", "envie", "epargne", "revenu"].includes(groupe)) {
+    return { error: "Choisis un type de catégorie." };
+  }
+  const groupeDb = groupe === "revenu" ? null : groupe;
+
+  const { supabase, householdId } = await getHouseholdId();
+  const { error } = await supabase
+    .from("budget_categories")
+    .update({ nom, groupe: groupeDb })
+    .eq("id", id)
+    .eq("household_id", householdId);
+
+  if (error) return { error: "Impossible de modifier cette catégorie — réessaie." };
+  revalidatePath("/mon-budget");
+  return {};
+}
+
+/** Les transactions qui utilisaient cette catégorie repassent en "non catégorisées" (FK on
+ *  delete set null) — jamais supprimées, juste détachées. */
+export async function deleteCategory(id: string) {
+  const { supabase, householdId } = await getHouseholdId();
+  await supabase.from("budget_categories").delete().eq("id", id).eq("household_id", householdId);
+  revalidatePath("/mon-budget");
+}
+
+/** Vide entièrement l'historique de transactions importées du foyer — pas les catégories,
+ *  qui restent (configuration, pas donnée importée). Irréversible, confirmé côté UI. */
+export async function resetBudgetData() {
+  const { supabase, householdId } = await getHouseholdId();
+  await supabase.from("budget_transactions").delete().eq("household_id", householdId);
+  revalidatePath("/mon-budget");
 }

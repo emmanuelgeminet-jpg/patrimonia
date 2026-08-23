@@ -7,6 +7,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-08-23",
+    title: "Mon budget : période libre, camembert, catégories modifiables",
+    description: "Corrige un vrai bug de perte de données à l'import (les foyers avec beaucoup d'historique voyaient certaines transactions disparaître ou se dupliquer). Ajoute une période personnalisée (deux dates au choix, plus les raccourcis habituels), un camembert interactif des dépenses, la possibilité de créer/renommer/supprimer une catégorie, et un bouton pour réinitialiser les données importées.",
+  },
+  {
     date: "2026-08-22",
     title: "Régularisation des charges",
     description: "Saisie détaillée des charges (poste, période couverte), surface/tantièmes par logement, et un écran qui calcule automatiquement la part de charges et le solde de chaque locataire sur une période — plus besoin de le faire à la main.",

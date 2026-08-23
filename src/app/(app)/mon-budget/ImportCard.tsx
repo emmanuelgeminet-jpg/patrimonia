@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useRef } from "react";
-import { importCsv, type ImportState } from "./actions";
+import { useActionState, useRef, useTransition } from "react";
+import { importCsv, resetBudgetData, type ImportState } from "./actions";
 import { formatMonthLabel } from "@/lib/budget";
 import type { Transaction } from "./page";
 
@@ -11,6 +11,7 @@ export default function ImportCard({ transactions }: { transactions: Transaction
   const [state, formAction, pending] = useActionState(importCsv, initialState);
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [resetPending, startReset] = useTransition();
 
   const periods = new Map<string, { total: number; categorized: number }>();
   for (const t of transactions) {
@@ -61,20 +62,36 @@ export default function ImportCard({ transactions }: { transactions: Transaction
       )}
 
       {periodRows.length > 0 && (
-        <table style={{ marginTop: 14 }}>
-          <thead>
-            <tr><th>Période</th><th>Statut</th><th className="num">Lignes catégorisées</th></tr>
-          </thead>
-          <tbody>
-            {periodRows.map(([period, { total, categorized }]) => (
-              <tr key={period}>
-                <td>{formatMonthLabel(period)}</td>
-                <td><span className="pill ok">Importé</span></td>
-                <td className="num">{categorized} / {total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <table style={{ marginTop: 14 }}>
+            <thead>
+              <tr><th>Période</th><th>Statut</th><th className="num">Lignes catégorisées</th></tr>
+            </thead>
+            <tbody>
+              {periodRows.map(([period, { total, categorized }]) => (
+                <tr key={period}>
+                  <td>{formatMonthLabel(period)}</td>
+                  <td><span className="pill ok">Importé</span></td>
+                  <td className="num">{categorized} / {total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+            <span
+              style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11.5 }}
+              onClick={() => {
+                if (!window.confirm(`Supprimer les ${transactions.length} transaction(s) importées ? Cette action est irréversible. Tes catégories, elles, seront conservées.`)) return;
+                startReset(() => {
+                  resetBudgetData();
+                });
+              }}
+            >
+              {resetPending ? "Réinitialisation..." : "Réinitialiser mes données (supprimer toutes les transactions importées)"}
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

@@ -68,18 +68,20 @@ export default function DashboardHero({
   depenses,
   epargne,
   solde,
+  periodLabel,
 }: {
   revenus: number;
   depenses: number;
   epargne: number;
   solde: number;
+  periodLabel: string;
 }) {
   const tauxEpargne = revenus > 0 ? epargne / revenus : 0;
   const resteAVivre = revenus - depenses;
 
   return (
     <div className="indic-block">
-      <div className="indic-title">Vue d&apos;ensemble du mois</div>
+      <div className="indic-title">Vue d&apos;ensemble — {periodLabel}</div>
       <div className="indic-note">Recalculée automatiquement à partir de tes transactions importées</div>
 
       <div className="stat-row">
@@ -88,7 +90,7 @@ export default function DashboardHero({
           <div className="gauge-text">
             <div className="hs-label">Taux d&apos;épargne</div>
             <div className="gauge-foot">
-              Objectif courant <b style={{ color: "#8FB88D" }}>20 %</b> — {formatEuros(epargne)} mis de côté ce mois-ci
+              Objectif courant <b style={{ color: "#8FB88D" }}>20 %</b> — {formatEuros(epargne)} mis de côté sur la période
             </div>
           </div>
         </div>
@@ -96,7 +98,7 @@ export default function DashboardHero({
         <div className="gauge-card">
           <BalanceGauge revenus={revenus} depenses={depenses} />
           <div className="gauge-text">
-            <div className="hs-label">Balance du mois</div>
+            <div className="hs-label">Balance de la période</div>
             <div className="gauge-foot">
               {solde >= 0 ? "Solde positif" : "Solde négatif"} — {formatEuros(revenus)} de revenus contre{" "}
               {formatEuros(depenses)} de dépenses

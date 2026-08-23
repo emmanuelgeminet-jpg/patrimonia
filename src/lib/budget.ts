@@ -1,5 +1,29 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+const PAGE_SIZE = 1000;
+
+/**
+ * Supabase/PostgREST plafonne toute requête à 1000 lignes par défaut, silencieusement (pas
+ * d'erreur, juste une réponse tronquée). Sur une table qui peut dépasser ce seuil (des années
+ * de transactions bancaires), une requête `.select()` toute simple perd des lignes sans le
+ * dire — récupère donc tout par pages de 1000 jusqu'à épuisement, au lieu de faire confiance
+ * à une seule requête.
+ */
+export async function fetchAllRows<T>(
+  queryFactory: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await queryFactory(from, from + PAGE_SIZE - 1);
+    if (error || !data) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return rows;
+}
+
 export type ParsedTransaction = {
   date: string; // YYYY-MM-DD
   libelle: string;
@@ -67,6 +91,14 @@ function findColumn(headers: string[], aliases: string[]): number {
   const normalized = headers.map(normalizeHeader);
   for (const alias of aliases) {
     const idx = normalized.indexOf(alias);
+    if (idx !== -1) return idx;
+  }
+  // Repli : certaines banques nomment leurs colonnes avec des mots en plus
+  // ("date operation", "libelle simplifie", "montant de l'operation") — si aucune colonne
+  // ne correspond exactement, on accepte une correspondance partielle plutôt que de rejeter
+  // tout le fichier.
+  for (const alias of aliases) {
+    const idx = normalized.findIndex((h) => h.includes(alias));
     if (idx !== -1) return idx;
   }
   return -1;
