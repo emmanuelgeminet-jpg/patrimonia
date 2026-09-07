@@ -45,7 +45,12 @@ export default function SignatureUpload({
         </div>
       ) : (
         <form ref={formRef} action={formAction} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <input type="file" name="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" required style={{ fontSize: 12 }} />
+          {/* Filtre volontairement large ("toutes les images") plutôt qu'une liste précise de
+              types/extensions : certains systèmes appliquent mal un filtre combiné MIME +
+              extensions et masquent des fichiers pourtant valides dans la fenêtre "Parcourir"
+              (constaté avec un PNG) — la vérification stricte JPEG/PNG se fait de toute façon
+              côté serveur (resolveSignatureFile), ce filtre n'est qu'un confort visuel. */}
+          <input type="file" name="file" accept="image/*" required style={{ fontSize: 12 }} />
           <button
             type="submit"
             disabled={pending}
