@@ -147,6 +147,46 @@ export async function saveInfosSci(_prev: SaveState, formData: FormData): Promis
   return { success: true };
 }
 
+export type UploadSignatureState = { error?: string; success?: boolean };
+const MAX_SIGNATURE_OCTETS = 5 * 1024 * 1024; // 5 Mo
+
+export async function uploadSignatureSci(_prevState: UploadSignatureState, formData: FormData): Promise<UploadSignatureState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Choisis un fichier." };
+  if (file.type !== "image/jpeg" && !/\.(jpe?g)$/i.test(file.name)) {
+    return { error: "Seul le format JPEG est accepté." };
+  }
+  if (file.size > MAX_SIGNATURE_OCTETS) return { error: "Fichier trop volumineux (5 Mo maximum)." };
+
+  const { supabase, sciId } = await getSciContext();
+
+  // Toujours le même chemin (une seule signature par SCI) : upsert remplace l'ancienne au lieu
+  // d'accumuler des fichiers orphelins à chaque nouvel envoi.
+  const storagePath = `sci/${sciId}/signature.jpg`;
+  const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (uploadError) return { error: "Erreur lors de l'envoi du fichier." };
+
+  const { error: dbError } = await supabase.from("sci").update({ signature_path: storagePath }).eq("id", sciId);
+  if (dbError) return { error: "Erreur lors de l'enregistrement." };
+
+  revalidatePath(JOURNAL_PATH);
+  return { success: true };
+}
+
+export async function removeSignatureSci() {
+  const { supabase, sciId } = await getSciContext();
+
+  const { data: sci } = await supabase.from("sci").select("signature_path").eq("id", sciId).single();
+  if (sci?.signature_path) {
+    await supabase.storage.from("documents").remove([sci.signature_path as string]);
+  }
+  await supabase.from("sci").update({ signature_path: null }).eq("id", sciId);
+  revalidatePath(JOURNAL_PATH);
+}
+
 export async function saveResultatReporte(_prev: SaveState, formData: FormData): Promise<SaveState> {
   const { supabase, sciId } = await getSciContext();
 

@@ -63,6 +63,8 @@ export type SciInfo = {
   soldeOuvertureDate: string | null;
   capitalSocialCents: number;
   resultatReporteCents: number;
+  /** URL signée (1h) de la signature du gérant, si renseignée — null sinon. */
+  signatureUrl: string | null;
 };
 export type Emprunt = {
   id: string;

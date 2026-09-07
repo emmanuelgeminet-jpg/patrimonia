@@ -62,6 +62,12 @@ export default async function JournalPage() {
   ]);
   const urlByPath = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]));
 
+  let signatureUrl: string | null = null;
+  if (sci?.signature_path) {
+    const { data: signed } = await supabase.storage.from("documents").createSignedUrl(sci.signature_path as string, 3600);
+    signatureUrl = signed?.signedUrl ?? null;
+  }
+
   const associes = (associesRows ?? []).map((a) => ({
     householdId: a.household_id as string,
     nom: (a.households as unknown as { name: string } | null)?.name ?? "Foyer",
@@ -86,6 +92,7 @@ export default async function JournalPage() {
           soldeOuvertureDate: sci!.solde_ouverture_date as string | null,
           capitalSocialCents: (sci!.capital_social_cents as number | null) ?? 0,
           resultatReporteCents: (sci!.resultat_reporte_cents as number | null) ?? 0,
+          signatureUrl,
         }}
         biens={(biensRows ?? []).map((b) => ({ id: b.id as string, label: b.adresse as string }))}
         lots={(lotsRows ?? []).map((l) => ({ id: l.id as string, nom: l.nom as string, bienId: l.bien_id as string }))}

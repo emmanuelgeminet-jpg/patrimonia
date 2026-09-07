@@ -3,6 +3,10 @@ import { formatEuros, formatMonthLabel } from "@/lib/budget";
 import { LOGO_GASCONS_RAPIERES_BASE64 } from "@/lib/logo-gascons-rapieres";
 
 export type QuittanceInfo = {
+  /** true pour un bien détenu par une SCI, false pour un bien en nom propre — distinct de la
+   *  simple présence de gerantNom (qui peut être vide sur une SCI pas encore renseignée) pour
+   *  ne jamais afficher à tort la mention "S C I" sous le nom d'un foyer. */
+  estSci: boolean;
   sciNom: string;
   /** SIREN de la SCI, si connu — absent pour un bien détenu en nom propre. */
   siren?: string | null;
@@ -99,8 +103,10 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
     drawMonogrammeBadge(page, badgeCx, badgeCy, badgeR, info.sciNom.trim().charAt(0).toUpperCase() || "?", bold);
   }
   const wordmarkX = left + badgeR * 2 + 12;
-  page.drawText(info.sciNom.toUpperCase(), { x: wordmarkX, y: badgeCy + 8, size: 15, font: bold, color: INK });
-  page.drawText("S C I", { x: wordmarkX, y: badgeCy - 8, size: 8, font, color: INK_SOFT });
+  page.drawText(info.sciNom.toUpperCase(), { x: wordmarkX, y: badgeCy + (info.estSci ? 8 : 0), size: 15, font: bold, color: INK });
+  if (info.estSci) {
+    page.drawText("S C I", { x: wordmarkX, y: badgeCy - 8, size: 8, font, color: INK_SOFT });
+  }
 
   page.drawLine({ start: { x: left, y: 715 }, end: { x: right, y: 715 }, thickness: 1, color: GOLD });
 

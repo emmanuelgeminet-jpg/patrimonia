@@ -108,8 +108,20 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
   const { data: bien } = await supabase.from("biens").select("adresse, sci_id").eq("id", lot.bien_id).single();
   if (!bien || !bien.sci_id) return { error: "Bien introuvable." };
 
-  const { data: sci } = await supabase.from("sci").select("name, siren, adresse, logo_style, gerant_nom").eq("id", bien.sci_id).single();
+  const { data: sci } = await supabase
+    .from("sci")
+    .select("name, siren, adresse, logo_style, gerant_nom, signature_path")
+    .eq("id", bien.sci_id)
+    .single();
   if (!sci) return { error: "SCI introuvable." };
+
+  // Signature du gérant, si renseignée dans Informations de la SCI — distincte de la signature
+  // du foyer (biens propres) : une SCI signe par son représentant légal.
+  let signatureImageBytes: Uint8Array | undefined;
+  if (sci.signature_path) {
+    const { data: sigBlob } = await supabase.storage.from("documents").download(sci.signature_path as string);
+    if (sigBlob) signatureImageBytes = new Uint8Array(await sigBlob.arrayBuffer());
+  }
 
   const { data: locataire } = await supabase
     .from("locataires")
@@ -156,6 +168,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
   const datePaiement = encaissements[encaissements.length - 1].date as string;
 
   const pdfBytes = await genererQuittancePdf({
+    estSci: true,
     sciNom: sci.name as string,
     siren: sci.siren as string | null,
     bailleurAdresse: sci.adresse as string | null,
@@ -168,6 +181,7 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     loyerHcCents: locataire.loyer_hc_cents as number,
     chargesCents: locataire.charges_cents as number,
     datePaiement,
+    signatureImageBytes,
   });
 
   const fileName = `Quittance_${(lot.nom as string).replace(/[^a-zA-Z0-9]/g, "_")}_${mois}.pdf`;

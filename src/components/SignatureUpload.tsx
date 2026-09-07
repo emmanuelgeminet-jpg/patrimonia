@@ -1,12 +1,26 @@
 "use client";
 
 import { useActionState, useRef, useTransition } from "react";
-import { uploadSignature, removeSignature, type UploadSignatureState } from "./actions";
+
+export type UploadSignatureState = { error?: string; success?: boolean };
 
 const initialState: UploadSignatureState = {};
 
-export default function SignatureUpload({ currentUrl }: { currentUrl: string | null }) {
-  const [state, formAction, pending] = useActionState(uploadSignature, initialState);
+/**
+ * Composant partagé entre la signature du foyer (biens propres, Mon compte) et celle du gérant
+ * de la SCI (Informations de la SCI) — même UI, actions serveur différentes passées en props,
+ * pour ne pas maintenir deux copies presque identiques.
+ */
+export default function SignatureUpload({
+  currentUrl,
+  uploadAction,
+  onRemove,
+}: {
+  currentUrl: string | null;
+  uploadAction: (prevState: UploadSignatureState, formData: FormData) => Promise<UploadSignatureState>;
+  onRemove: () => void | Promise<void>;
+}) {
+  const [state, formAction, pending] = useActionState(uploadAction, initialState);
   const [removePending, startRemove] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -23,7 +37,7 @@ export default function SignatureUpload({ currentUrl }: { currentUrl: string | n
             style={{ color: "var(--brick)", cursor: "pointer", fontSize: 11.5 }}
             onClick={() => {
               if (!window.confirm("Supprimer la signature enregistrée ?")) return;
-              startRemove(() => { removeSignature(); });
+              startRemove(() => { onRemove(); });
             }}
           >
             {removePending ? "Suppression..." : "Supprimer"}

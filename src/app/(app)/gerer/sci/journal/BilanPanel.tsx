@@ -3,6 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { formatEuros } from "@/lib/budget";
 import { computeCompteDeResultat, computeBilan } from "@/lib/bilan-sci";
+import SignatureUpload from "@/components/SignatureUpload";
 import {
   addEmprunt,
   deleteEmprunt,
@@ -10,6 +11,8 @@ import {
   deleteImmobilisation,
   saveInfosSci,
   saveResultatReporte,
+  uploadSignatureSci,
+  removeSignatureSci,
   type SaveState,
 } from "./bilan-actions";
 import type { SciInfo, Ecriture, Associe, Mouvement, Emprunt, Immobilisation } from "./JournalTabs";
@@ -255,6 +258,18 @@ function InfosSciForm({ sci }: { sci: SciInfo }) {
         </div>
       </form>
       {state.error && <div style={{ color: "var(--brick)", fontSize: 11, marginTop: 4 }}>{state.error}</div>}
+
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-soft)", fontWeight: 600, marginBottom: 8 }}>
+          Signature du gérant
+        </div>
+        <div className="card-sub" style={{ margin: "0 0 10px" }}>
+          Une photo ou un scan de la signature du gérant (format JPEG), imprimée sur les quittances de cette SCI — une
+          SCI signe par son représentant légal, pas par n&apos;importe quel associé, même celui qui gère l&apos;appli
+          au quotidien. Purement visuel, ça ne vaut pas une signature électronique certifiée.
+        </div>
+        <SignatureUpload currentUrl={sci.signatureUrl} uploadAction={uploadSignatureSci} onRemove={removeSignatureSci} />
+      </div>
     </div>
   );
 }

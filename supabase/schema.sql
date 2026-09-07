@@ -54,6 +54,10 @@ create table if not exists sci (
   -- vide/null = écusson générique (monogramme). Une donnée, pas du code câblé sur un nom de
   -- SCI en particulier : n'importe quelle SCI pourrait un jour avoir son propre style ici.
   logo_style text,
+  -- Signature manuscrite numérisée (JPEG) du gérant — distincte de households.signature_path :
+  -- une SCI signe par son représentant légal, qui n'est pas nécessairement l'associé qui gère
+  -- l'appli au quotidien.
+  signature_path text,
   capital_social_cents bigint,
   date_creation date,
   regime_fiscal text,

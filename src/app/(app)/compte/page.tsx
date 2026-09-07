@@ -5,7 +5,8 @@ import PasswordForm from "./PasswordForm";
 import InviteLink from "./InviteLink";
 import HouseholdNameForm from "./HouseholdNameForm";
 import ExportDonneesButton from "./ExportDonneesButton";
-import SignatureUpload from "./SignatureUpload";
+import SignatureUpload from "@/components/SignatureUpload";
+import { uploadSignature, removeSignature } from "./actions";
 
 export default async function ComptePage() {
   const supabase = await createClient();
@@ -55,7 +56,7 @@ export default async function ComptePage() {
           propre. Attention : c&apos;est purement visuel, ça ne vaut pas une signature électronique certifiée — mieux
           qu&apos;un cadre vide, mais pas une garantie juridique équivalente à une signature manuscrite sur papier.
         </div>
-        <SignatureUpload currentUrl={signatureUrl} />
+        <SignatureUpload currentUrl={signatureUrl} uploadAction={uploadSignature} onRemove={removeSignature} />
       </div>
 
       <PasswordForm />

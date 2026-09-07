@@ -168,6 +168,7 @@ export async function genererQuittance(
   }
 
   const pdfBytes = await genererQuittancePdf({
+    estSci: false,
     sciNom: household.name as string,
     bailleurAdresse: household.adresse as string | null,
     bienAdresse: bien.adresse as string,
