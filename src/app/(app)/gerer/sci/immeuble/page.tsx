@@ -49,17 +49,20 @@ export default async function ImmeublePage() {
     );
   }
 
-  const { data: lotsRows } = await supabase.from("lots").select("id, nom").eq("bien_id", bien.id);
+  // Les écritures ne dépendent que de sciId (déjà connu) — récupérées en même temps que les
+  // lots plutôt qu'après, puisqu'elles n'ont besoin ni des lots ni des locataires.
+  const [{ data: lotsRows }, { data: ecrituresRows }] = await Promise.all([
+    supabase.from("lots").select("id, nom").eq("bien_id", bien.id),
+    supabase
+      .from("journal_ecritures")
+      .select("type, montant_cents, financement, associe_mouvement_type, bien_id, lot_id, date, categorie_charge")
+      .eq("sci_id", sciId),
+  ]);
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
 
   const { data: locatairesRows } = lotIds.length
     ? await supabase.from("locataires").select("loyer_hc_cents, charges_cents, date_sortie").in("lot_id", lotIds)
     : { data: [] as { loyer_hc_cents: number; charges_cents: number; date_sortie: string | null }[] };
-
-  const { data: ecrituresRows } = await supabase
-    .from("journal_ecritures")
-    .select("type, montant_cents, financement, associe_mouvement_type, bien_id, lot_id, date, categorie_charge")
-    .eq("sci_id", sciId);
 
   const locatairesActifs = (locatairesRows ?? []).filter((l) => !l.date_sortie);
   const loyersHcAnnuels = locatairesActifs.reduce((s, l) => s + l.loyer_hc_cents * 12, 0);

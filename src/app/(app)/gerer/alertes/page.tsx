@@ -34,8 +34,15 @@ export default async function AlertesPage() {
   const sciId = associeRow?.sci_id as string | undefined;
 
   // ----- Biens (SCI + propres), lots, locataires actifs -----
+  // Les baux ne dépendent que de sciId/householdId (comme les biens) — récupérés en même
+  // temps plutôt qu'après toute la chaîne biens → lots → locataires → écritures, qui elle
+  // reste bien séquentielle (chaque étape a besoin des identifiants de la précédente).
   const orFilter = sciId ? `sci_id.eq.${sciId},household_id.eq.${householdId}` : `household_id.eq.${householdId}`;
-  const { data: biensRows } = await supabase.from("biens").select("id, adresse, owner_type, dpe_classe, dpe_date").or(orFilter);
+  const bauxOrFilter = sciId ? `sci_id.eq.${sciId},household_id.eq.${householdId}` : `household_id.eq.${householdId}`;
+  const [{ data: biensRows }, { data: bauxRows }] = await Promise.all([
+    supabase.from("biens").select("id, adresse, owner_type, dpe_classe, dpe_date").or(orFilter),
+    supabase.from("baux").select("bien_adresse, lot_nom, locataire_nom, date_prise_effet, duree_mois").or(bauxOrFilter),
+  ]);
   const biens = biensRows ?? [];
   const bienIds = biens.map((b) => b.id as string);
 
@@ -98,11 +105,6 @@ export default async function AlertesPage() {
     .sort((a, b) => a.expiration.getTime() - b.expiration.getTime());
 
   // ----- Fins de bail approchantes (baux générés depuis l'appli) -----
-  const bauxOrFilter = sciId ? `sci_id.eq.${sciId},household_id.eq.${householdId}` : `household_id.eq.${householdId}`;
-  const { data: bauxRows } = await supabase
-    .from("baux")
-    .select("bien_adresse, lot_nom, locataire_nom, date_prise_effet, duree_mois")
-    .or(bauxOrFilter);
   const finsDeBailAlertes = (bauxRows ?? [])
     .map((b) => {
       const fin = addMonths(b.date_prise_effet as string, b.duree_mois as number);

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { formatEuros } from "@/lib/budget";
 import FinancementForm from "./FinancementForm";
@@ -12,31 +13,13 @@ import ChargesSection, { type ChargeItem } from "./ChargesSection";
 
 const DOSSIERS_BIEN = ["Baux", "États des lieux", "Diagnostics & DPE", "Assurance", "Factures & justificatifs", "Quittances"];
 
-export default async function BienPropreDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user!.id).single();
-  const householdId = profile?.household_id as string;
-
-  const { data: bien } = await supabase
-    .from("biens")
-    .select("*")
-    .eq("id", id)
-    .eq("owner_type", "propre")
-    .eq("household_id", householdId)
-    .maybeSingle();
-
-  if (!bien) notFound();
-
-  let { data: lotsRows } = await supabase.from("lots").select("id, nom, surface_m2, tantiemes_millesimes").eq("bien_id", bien.id).order("nom");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerLotsEtLocataires(supabase: SupabaseClient<any>, bienId: string): Promise<Lot[]> {
+  let { data: lotsRows } = await supabase.from("lots").select("id, nom, surface_m2, tantiemes_millesimes").eq("bien_id", bienId).order("nom");
   if (!lotsRows || lotsRows.length === 0) {
     // Biens créés avant la mise en place de la création automatique de lot : on comble le manque
     // à l'affichage, sans nouvelle manip SQL à demander.
-    const { data: nouveauLot } = await supabase.from("lots").insert({ bien_id: bien.id, nom: "Logement" }).select("id, nom, surface_m2, tantiemes_millesimes").single();
+    const { data: nouveauLot } = await supabase.from("lots").insert({ bien_id: bienId, nom: "Logement" }).select("id, nom, surface_m2, tantiemes_millesimes").single();
     lotsRows = nouveauLot ? [nouveauLot] : [];
   }
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
@@ -54,7 +37,7 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
         .order("date_revision", { ascending: false })
     : { data: [] as Record<string, unknown>[] };
 
-  const lots: Lot[] = (lotsRows ?? []).map((l) => ({
+  return (lotsRows ?? []).map((l) => ({
     id: l.id as string,
     nom: l.nom as string,
     surfaceM2: l.surface_m2 as number | null,
@@ -84,47 +67,42 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
           })),
       })),
   }));
+}
 
-  const locatairesActifs = (locatairesRows ?? []).filter((l) => !l.date_sortie);
-  const loyerMensuelCents = locatairesActifs.reduce((s, l) => s + (l.loyer_hc_cents as number) + (l.charges_cents as number), 0);
-  const creditMensualiteCents = (bien.credit_mensualite_cents as number | null) ?? 0;
-  const assuranceMensuelleCents = (bien.assurance_mensuelle_cents as number | null) ?? 0;
-  const chargesCoproAnnuellesCents = bien.charges_copro_annuelles_cents as number | null;
-  const chargesCoproMensuelles = Math.round((chargesCoproAnnuellesCents ?? 0) / 12);
-  const cashflowMensuelCents = loyerMensuelCents - creditMensualiteCents - assuranceMensuelleCents - chargesCoproMensuelles;
-
-  const chargesProvisionneesAnnuellesCents = locatairesActifs.reduce((s, l) => s + (l.charges_cents as number) * 12, 0);
-  const soldeChargesCents = chargesCoproAnnuellesCents !== null ? chargesProvisionneesAnnuellesCents - chargesCoproAnnuellesCents : null;
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerDocuments(supabase: SupabaseClient<any>, bienId: string): Promise<DocItem[]> {
   const { data: docsRows } = await supabase
     .from("documents")
     .select("id, dossier, nom_fichier, storage_path")
     .eq("entity_type", "bien")
-    .eq("entity_id", bien.id);
+    .eq("entity_id", bienId);
   const docs = docsRows ?? [];
   const docsPaths = docs.map((d) => d.storage_path as string);
   const { data: docsSignedUrls } = docsPaths.length
     ? await supabase.storage.from("documents").createSignedUrls(docsPaths, 3600)
     : { data: [] as { path: string | null; signedUrl: string }[] };
   const docsUrlByPath = new Map((docsSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
-  const documents: DocItem[] = docs.map((d) => ({
+  return docs.map((d) => ({
     id: d.id as string,
     nomFichier: d.nom_fichier as string,
     dossier: DOSSIERS_BIEN.includes(d.dossier as string) ? (d.dossier as string) : DOSSIERS_BIEN[DOSSIERS_BIEN.length - 1],
     url: docsUrlByPath.get(d.storage_path as string) ?? null,
   }));
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerQuittances(supabase: SupabaseClient<any>, bienId: string): Promise<QuittanceArchiveItem[]> {
   const { data: quittancesRows } = await supabase
     .from("quittances")
     .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, date_paiement, storage_path, created_at")
-    .eq("bien_id", bien.id);
+    .eq("bien_id", bienId);
   const quittances = quittancesRows ?? [];
   const quittancesPaths = quittances.map((q) => q.storage_path as string);
   const { data: quittancesSignedUrls } = quittancesPaths.length
     ? await supabase.storage.from("documents").createSignedUrls(quittancesPaths, 3600)
     : { data: [] as { path: string | null; signedUrl: string }[] };
   const quittancesUrlByPath = new Map((quittancesSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
-  const quittancesItems: QuittanceArchiveItem[] = quittances.map((q) => ({
+  return quittances.map((q) => ({
     id: q.id as string,
     bienAdresse: q.bien_adresse as string,
     lotNom: q.lot_nom as string,
@@ -136,18 +114,21 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     datePaiement: q.date_paiement as string | null,
     url: quittancesUrlByPath.get(q.storage_path as string) ?? null,
   }));
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerBaux(supabase: SupabaseClient<any>, bienId: string): Promise<BailArchiveItem[]> {
   const { data: bauxRows } = await supabase
     .from("baux")
     .select("id, bien_adresse, lot_nom, locataire_nom, type_bail, date_prise_effet, duree_mois, loyer_hc_cents, charges_cents, storage_path, created_at")
-    .eq("bien_id", bien.id);
+    .eq("bien_id", bienId);
   const baux = bauxRows ?? [];
   const bauxPaths = baux.map((b) => b.storage_path as string);
   const { data: bauxSignedUrls } = bauxPaths.length
     ? await supabase.storage.from("documents").createSignedUrls(bauxPaths, 3600)
     : { data: [] as { path: string | null; signedUrl: string }[] };
   const bauxUrlByPath = new Map((bauxSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
-  const bauxItems: BailArchiveItem[] = baux.map((b) => ({
+  return baux.map((b) => ({
     id: b.id as string,
     bienAdresse: b.bien_adresse as string,
     lotNom: b.lot_nom as string,
@@ -160,18 +141,21 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     dateGeneration: b.created_at as string,
     url: bauxUrlByPath.get(b.storage_path as string) ?? null,
   }));
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerEtatsDesLieux(supabase: SupabaseClient<any>, bienId: string): Promise<EtatDesLieuxArchiveItem[]> {
   const { data: edlRows } = await supabase
     .from("etats_des_lieux")
     .select("id, bien_adresse, lot_nom, locataire_nom, type, date_etat_des_lieux, storage_path, created_at")
-    .eq("bien_id", bien.id);
+    .eq("bien_id", bienId);
   const edls = edlRows ?? [];
   const edlPaths = edls.map((e) => e.storage_path as string);
   const { data: edlSignedUrls } = edlPaths.length
     ? await supabase.storage.from("documents").createSignedUrls(edlPaths, 3600)
     : { data: [] as { path: string | null; signedUrl: string }[] };
   const edlUrlByPath = new Map((edlSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
-  const edlItems: EtatDesLieuxArchiveItem[] = edls.map((e) => ({
+  return edls.map((e) => ({
     id: e.id as string,
     bienAdresse: e.bien_adresse as string,
     lotNom: e.lot_nom as string,
@@ -181,11 +165,14 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     dateGeneration: e.created_at as string,
     url: edlUrlByPath.get(e.storage_path as string) ?? null,
   }));
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function chargerCharges(supabase: SupabaseClient<any>, bienId: string): Promise<ChargeItem[]> {
   const { data: chargesRows } = await supabase
     .from("charges_biens_propres")
     .select("id, date, montant_cents, categorie, periode_debut, periode_fin, commentaire, justificatif_path")
-    .eq("bien_id", bien.id)
+    .eq("bien_id", bienId)
     .order("date", { ascending: false });
   const charges = chargesRows ?? [];
   const chargesPaths = charges.map((c) => c.justificatif_path as string | null).filter((p): p is string => !!p);
@@ -193,7 +180,7 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     ? await supabase.storage.from("documents").createSignedUrls(chargesPaths, 3600)
     : { data: [] as { path: string | null; signedUrl: string }[] };
   const chargesUrlByPath = new Map((chargesSignedUrls ?? []).map((s) => [s.path, s.signedUrl]));
-  const chargesItems: ChargeItem[] = charges.map((c) => ({
+  return charges.map((c) => ({
     id: c.id as string,
     date: c.date as string,
     montantCents: c.montant_cents as number,
@@ -204,6 +191,52 @@ export default async function BienPropreDetailPage({ params }: { params: Promise
     justificatifPath: c.justificatif_path as string | null,
     justificatifUrl: c.justificatif_path ? chargesUrlByPath.get(c.justificatif_path as string) ?? null : null,
   }));
+}
+
+export default async function BienPropreDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user!.id).single();
+  const householdId = profile?.household_id as string;
+
+  const { data: bien } = await supabase
+    .from("biens")
+    .select("*")
+    .eq("id", id)
+    .eq("owner_type", "propre")
+    .eq("household_id", householdId)
+    .maybeSingle();
+
+  if (!bien) notFound();
+
+  const bienId = bien.id as string;
+
+  // Ces 6 blocs ne dépendent que de bienId, jamais les uns des autres — les lancer en
+  // parallèle plutôt qu'à la suite évite d'attendre inutilement une dizaine d'allers-retours
+  // réseau successifs (c'était la principale cause de lenteur ressentie sur cette page).
+  const [lots, documents, quittancesItems, bauxItems, edlItems, chargesItems] = await Promise.all([
+    chargerLotsEtLocataires(supabase, bienId),
+    chargerDocuments(supabase, bienId),
+    chargerQuittances(supabase, bienId),
+    chargerBaux(supabase, bienId),
+    chargerEtatsDesLieux(supabase, bienId),
+    chargerCharges(supabase, bienId),
+  ]);
+
+  const locatairesActifs = lots.flatMap((l) => l.locataires).filter((l) => !l.dateSortie);
+  const loyerMensuelCents = locatairesActifs.reduce((s, l) => s + l.loyerHcCents + l.chargesCents, 0);
+  const creditMensualiteCents = (bien.credit_mensualite_cents as number | null) ?? 0;
+  const assuranceMensuelleCents = (bien.assurance_mensuelle_cents as number | null) ?? 0;
+  const chargesCoproAnnuellesCents = bien.charges_copro_annuelles_cents as number | null;
+  const chargesCoproMensuelles = Math.round((chargesCoproAnnuellesCents ?? 0) / 12);
+  const cashflowMensuelCents = loyerMensuelCents - creditMensualiteCents - assuranceMensuelleCents - chargesCoproMensuelles;
+
+  const chargesProvisionneesAnnuellesCents = locatairesActifs.reduce((s, l) => s + l.chargesCents * 12, 0);
+  const soldeChargesCents = chargesCoproAnnuellesCents !== null ? chargesProvisionneesAnnuellesCents - chargesCoproAnnuellesCents : null;
 
   return (
     <section className="section">

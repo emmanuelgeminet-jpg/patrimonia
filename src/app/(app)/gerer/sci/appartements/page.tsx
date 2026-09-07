@@ -38,9 +38,25 @@ export default async function AppartementsPage() {
 
   const lotIds = (lotsRows ?? []).map((l) => l.id as string);
 
-  const { data: locatairesRows } = lotIds.length
-    ? await supabase.from("locataires").select("*").in("lot_id", lotIds).order("date_entree", { ascending: false })
-    : { data: [] as Record<string, unknown>[] };
+  const moisEnCours = new Date().toISOString().slice(0, 7);
+  const [anneeNum, moisNum] = moisEnCours.split("-").map(Number);
+  const moisSuivant = moisNum === 12 ? `${anneeNum + 1}-01` : `${anneeNum}-${String(moisNum + 1).padStart(2, "0")}`;
+
+  // Les locataires et les écritures du journal ne dépendent que des lots (déjà connus) — pas
+  // l'un de l'autre — donc partent en parallèle plutôt qu'à la suite.
+  const [{ data: locatairesRows }, { data: ecrituresRows }] = await Promise.all([
+    lotIds.length
+      ? supabase.from("locataires").select("*").in("lot_id", lotIds).order("date_entree", { ascending: false })
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    lotIds.length
+      ? supabase
+          .from("journal_ecritures")
+          .select("lot_id, type, montant_cents, financement, date")
+          .in("lot_id", lotIds)
+          .gte("date", `${moisEnCours}-01`)
+          .lt("date", `${moisSuivant}-01`)
+      : Promise.resolve({ data: [] as { lot_id: string; type: "encaissement" | "decaissement"; montant_cents: number; financement: "banque_sci" | "avance_associe"; date: string }[] }),
+  ]);
 
   const locataireIds = (locatairesRows ?? []).map((l) => l.id as string);
   const { data: revisionsRows } = locataireIds.length
@@ -50,18 +66,6 @@ export default async function AppartementsPage() {
         .in("locataire_id", locataireIds)
         .order("date_revision", { ascending: false })
     : { data: [] as Record<string, unknown>[] };
-
-  const moisEnCours = new Date().toISOString().slice(0, 7);
-  const [anneeNum, moisNum] = moisEnCours.split("-").map(Number);
-  const moisSuivant = moisNum === 12 ? `${anneeNum + 1}-01` : `${anneeNum}-${String(moisNum + 1).padStart(2, "0")}`;
-  const { data: ecrituresRows } = lotIds.length
-    ? await supabase
-        .from("journal_ecritures")
-        .select("lot_id, type, montant_cents, financement, date")
-        .in("lot_id", lotIds)
-        .gte("date", `${moisEnCours}-01`)
-        .lt("date", `${moisSuivant}-01`)
-    : { data: [] as { lot_id: string; type: "encaissement" | "decaissement"; montant_cents: number; financement: "banque_sci" | "avance_associe"; date: string }[] };
 
   const lots = (lotsRows ?? []).map((l) => {
     const locataires = (locatairesRows ?? [])

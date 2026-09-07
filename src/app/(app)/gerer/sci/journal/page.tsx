@@ -47,15 +47,19 @@ export default async function JournalPage() {
   ]);
 
   const bienIds = (biensRows ?? []).map((b) => b.id as string);
-  const { data: lotsRows } = bienIds.length
-    ? await supabase.from("lots").select("id, nom, bien_id").in("bien_id", bienIds).order("nom")
-    : { data: [] as { id: string; nom: string; bien_id: string }[] };
-
   const ecritures = ecrituresRows ?? [];
   const paths = ecritures.map((e) => e.justificatif_path as string | null).filter((p): p is string => !!p);
-  const { data: signedUrls } = paths.length
-    ? await supabase.storage.from("documents").createSignedUrls(paths, 3600)
-    : { data: [] as { path: string | null; signedUrl: string }[] };
+
+  // Indépendantes l'une de l'autre (lots ← bienIds, urls signées ← justificatifs déjà connus) —
+  // parties en parallèle plutôt qu'à la suite.
+  const [{ data: lotsRows }, { data: signedUrls }] = await Promise.all([
+    bienIds.length
+      ? supabase.from("lots").select("id, nom, bien_id").in("bien_id", bienIds).order("nom")
+      : Promise.resolve({ data: [] as { id: string; nom: string; bien_id: string }[] }),
+    paths.length
+      ? supabase.storage.from("documents").createSignedUrls(paths, 3600)
+      : Promise.resolve({ data: [] as { path: string | null; signedUrl: string }[] }),
+  ]);
   const urlByPath = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]));
 
   const associes = (associesRows ?? []).map((a) => ({

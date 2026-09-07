@@ -15,16 +15,25 @@ export default async function EtatDesLieuxPage({
   const edlType: "entree" | "sortie" = type === "sortie" ? "sortie" : "entree";
   const supabase = await createClient();
 
-  const { data: lot } = await supabase.from("lots").select("*").eq("id", lotId).maybeSingle();
+  // lot, locataire et entrees ne dépendent que de lotId (déjà connu via les params de route) —
+  // aucun des trois n'a besoin des autres, donc partent ensemble plutôt qu'à la suite.
+  const locataireQuery = supabase.from("locataires").select("*").eq("lot_id", lotId);
+  const [{ data: lot }, { data: locataire }, entreesRows] = await Promise.all([
+    supabase.from("lots").select("*").eq("id", lotId).maybeSingle(),
+    locataireId ? locataireQuery.eq("id", locataireId).maybeSingle() : locataireQuery.is("date_sortie", null).maybeSingle(),
+    edlType === "sortie"
+      ? supabase
+          .from("etats_des_lieux")
+          .select("id, date_etat_des_lieux")
+          .eq("lot_id", lotId)
+          .eq("type", "entree")
+          .order("date_etat_des_lieux", { ascending: false })
+      : Promise.resolve({ data: [] as { id: string; date_etat_des_lieux: string }[] }),
+  ]);
   if (!lot) notFound();
 
   const { data: bien } = await supabase.from("biens").select("*").eq("id", lot.bien_id).maybeSingle();
   if (!bien) notFound();
-
-  const locataireQuery = supabase.from("locataires").select("*").eq("lot_id", lotId);
-  const { data: locataire } = locataireId
-    ? await locataireQuery.eq("id", locataireId).maybeSingle()
-    : await locataireQuery.is("date_sortie", null).maybeSingle();
 
   if (!locataire) {
     return (
@@ -53,16 +62,10 @@ export default async function EtatDesLieuxPage({
     bailleurAdresse = (household?.adresse as string | null) ?? "";
   }
 
-  let entrees: { id: string; date: string }[] = [];
-  if (edlType === "sortie") {
-    const { data: entreesRows } = await supabase
-      .from("etats_des_lieux")
-      .select("id, date_etat_des_lieux")
-      .eq("lot_id", lotId)
-      .eq("type", "entree")
-      .order("date_etat_des_lieux", { ascending: false });
-    entrees = (entreesRows ?? []).map((e) => ({ id: e.id as string, date: e.date_etat_des_lieux as string }));
-  }
+  const entrees = ((entreesRows.data ?? []) as { id: string; date_etat_des_lieux: string }[]).map((e) => ({
+    id: e.id,
+    date: e.date_etat_des_lieux,
+  }));
 
   const initial: EtatDesLieuxDonnees = {
     bailleur: { nom: bailleurNom, adresse: bailleurAdresse },

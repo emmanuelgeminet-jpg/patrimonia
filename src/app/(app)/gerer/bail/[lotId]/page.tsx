@@ -14,16 +14,17 @@ export default async function BailPage({
   const { locataireId } = await searchParams;
   const supabase = await createClient();
 
-  const { data: lot } = await supabase.from("lots").select("*").eq("id", lotId).maybeSingle();
+  // lot et locataire ne dépendent que de lotId (déjà connu via les params de route) — aucun
+  // des deux n'a besoin de l'autre, donc partent ensemble plutôt qu'à la suite.
+  const locataireQuery = supabase.from("locataires").select("*").eq("lot_id", lotId);
+  const [{ data: lot }, { data: locataire }] = await Promise.all([
+    supabase.from("lots").select("*").eq("id", lotId).maybeSingle(),
+    locataireId ? locataireQuery.eq("id", locataireId).maybeSingle() : locataireQuery.is("date_sortie", null).maybeSingle(),
+  ]);
   if (!lot) notFound();
 
   const { data: bien } = await supabase.from("biens").select("*").eq("id", lot.bien_id).maybeSingle();
   if (!bien) notFound();
-
-  const locataireQuery = supabase.from("locataires").select("*").eq("lot_id", lotId);
-  const { data: locataire } = locataireId
-    ? await locataireQuery.eq("id", locataireId).maybeSingle()
-    : await locataireQuery.is("date_sortie", null).maybeSingle();
 
   if (!locataire) {
     return (
