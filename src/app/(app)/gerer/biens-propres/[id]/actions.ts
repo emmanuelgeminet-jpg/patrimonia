@@ -124,7 +124,18 @@ export async function deleteLocataire(id: string, bienId: string) {
   revalidateBien(bienId);
 }
 
-export async function genererQuittance(lotId: string, mois: string): Promise<{ error?: string; warning?: string; url?: string }> {
+export async function genererQuittance(
+  lotId: string,
+  mois: string,
+  loyerHcCents: number,
+  chargesCents: number,
+  datePaiement: string
+): Promise<{ error?: string; warning?: string; url?: string }> {
+  if (!datePaiement) return { error: "La date d'encaissement est obligatoire." };
+  if (!Number.isFinite(loyerHcCents) || loyerHcCents < 0 || !Number.isFinite(chargesCents) || chargesCents < 0) {
+    return { error: "Montant de loyer ou de charges invalide." };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -137,25 +148,36 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
   const { data: bien } = await supabase.from("biens").select("adresse, household_id").eq("id", lot.bien_id).single();
   if (!bien || !bien.household_id) return { error: "Bien introuvable." };
 
-  const { data: household } = await supabase.from("households").select("name").eq("id", bien.household_id).single();
+  const { data: household } = await supabase.from("households").select("name, adresse, signature_path").eq("id", bien.household_id).single();
   if (!household) return { error: "Foyer introuvable." };
 
   const { data: locataire } = await supabase
     .from("locataires")
-    .select("nom, loyer_hc_cents, charges_cents")
+    .select("nom")
     .eq("lot_id", lotId)
     .is("date_sortie", null)
     .maybeSingle();
   if (!locataire) return { error: "Aucun locataire actif sur ce logement." };
 
+  // Signature numérisée facultative, déposée une fois dans Mon compte — purement visuelle, pas
+  // une signature électronique qualifiée, mais mieux qu'un cadre vide.
+  let signatureImageBytes: Uint8Array | undefined;
+  if (household.signature_path) {
+    const { data: sigBlob } = await supabase.storage.from("documents").download(household.signature_path as string);
+    if (sigBlob) signatureImageBytes = new Uint8Array(await sigBlob.arrayBuffer());
+  }
+
   const pdfBytes = await genererQuittancePdf({
     sciNom: household.name as string,
+    bailleurAdresse: household.adresse as string | null,
     bienAdresse: bien.adresse as string,
     lotNom: lot.nom as string,
     locataireNom: locataire.nom as string,
     mois,
-    loyerHcCents: locataire.loyer_hc_cents as number,
-    chargesCents: locataire.charges_cents as number,
+    loyerHcCents,
+    chargesCents,
+    datePaiement,
+    signatureImageBytes,
   });
 
   const fileName = `Quittance_${(lot.nom as string).replace(/[^a-zA-Z0-9]/g, "_")}_${mois}.pdf`;
@@ -188,8 +210,9 @@ export async function genererQuittance(lotId: string, mois: string): Promise<{ e
     lot_nom: lot.nom as string,
     locataire_nom: locataire.nom as string,
     mois,
-    loyer_hc_cents: locataire.loyer_hc_cents as number,
-    charges_cents: locataire.charges_cents as number,
+    loyer_hc_cents: loyerHcCents,
+    charges_cents: chargesCents,
+    date_paiement: datePaiement,
     storage_path: storagePath,
     created_by: user.id,
   });

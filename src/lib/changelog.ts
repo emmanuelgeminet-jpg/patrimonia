@@ -8,6 +8,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-09-07",
+    title: "Quittances biens propres : montants libres et signature",
+    description: "Pour un bien en nom propre (pas de journal comptable), tu peux maintenant saisir toi-même le loyer, les charges et la date d'encaissement à chaque quittance. Ajoute aussi une signature numérisée (JPEG, dans Mon compte) imprimée sur le document — purement visuelle, ça ne remplace pas une signature électronique certifiée.",
+  },
+  {
+    date: "2026-09-07",
     title: "Pages plus rapides",
     description: "Plusieurs écrans (fiche d'un bien propre, documents, immeuble, journal, appartements, alertes, bail, état des lieux) enchaînaient de nombreuses questions à la base de données une par une au lieu d'en même temps — corrigé, ils doivent se sentir nettement plus réactifs.",
   },

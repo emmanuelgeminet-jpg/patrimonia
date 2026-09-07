@@ -23,10 +23,14 @@ export type QuittanceInfo = {
   mois: string; // "YYYY-MM"
   loyerHcCents: number;
   chargesCents: number;
-  /** Date réelle d'encaissement du loyer ("YYYY-MM-DD"), retrouvée dans le Journal comptable —
-   *  distincte de la date d'émission de la quittance (aujourd'hui). Optionnelle uniquement pour
-   *  un bien en nom propre, qui n'a pas de journal comptable équivalent à celui de la SCI. */
+  /** Date réelle d'encaissement du loyer ("YYYY-MM-DD") — retrouvée dans le Journal comptable
+   *  pour un bien en SCI, saisie à la main pour un bien en nom propre (pas de journal
+   *  comptable équivalent). Distincte de la date d'émission de la quittance (aujourd'hui). */
   datePaiement?: string | null;
+  /** Image JPEG de la signature manuscrite numérisée du bailleur, si renseignée dans Mon
+   *  compte — purement visuel (ne vaut pas signature électronique qualifiée), imprimée dans
+   *  le cadre de signature plutôt que de le laisser vide. */
+  signatureImageBytes?: Uint8Array | null;
 };
 
 const INK = rgb(0.13, 0.15, 0.12);
@@ -177,7 +181,22 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
     page.drawText(line, { x: right - 200, y: sigY, size: 10, font, color: INK });
     sigY -= 13;
   }
-  page.drawRectangle({ x: right - 200, y: y - 13 * sigLines.length - 56, width: 200, height: 56, borderColor: LINE, borderWidth: 1 });
+  const sigBoxWidth = 200;
+  const sigBoxHeight = 56;
+  const sigBoxX = right - sigBoxWidth;
+  const sigBoxY = y - 13 * sigLines.length - sigBoxHeight;
+  page.drawRectangle({ x: sigBoxX, y: sigBoxY, width: sigBoxWidth, height: sigBoxHeight, borderColor: LINE, borderWidth: 1 });
+  if (info.signatureImageBytes) {
+    const sigImage = await doc.embedJpg(info.signatureImageBytes);
+    const margin = 6;
+    const sigDims = sigImage.scaleToFit(sigBoxWidth - margin * 2, sigBoxHeight - margin * 2);
+    page.drawImage(sigImage, {
+      x: sigBoxX + (sigBoxWidth - sigDims.width) / 2,
+      y: sigBoxY + (sigBoxHeight - sigDims.height) / 2,
+      width: sigDims.width,
+      height: sigDims.height,
+    });
+  }
   y -= 13 * sigLines.length + 56 + 24;
 
   // ----- Mentions légales -----

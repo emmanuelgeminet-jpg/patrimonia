@@ -16,6 +16,10 @@ create table if not exists households (
   -- Adresse du foyer — sert d'adresse du bailleur sur un bail pour un bien en nom propre
   -- (même rôle que sci.adresse pour un bien en SCI).
   adresse text,
+  -- Signature manuscrite numérisée (JPEG), déposée une fois dans Mon compte — imprimée sur les
+  -- quittances des biens en nom propre. Purement visuelle : ne vaut pas signature électronique
+  -- qualifiée, mais mieux qu'un cadre vide.
+  signature_path text,
   created_at timestamptz not null default now()
 );
 

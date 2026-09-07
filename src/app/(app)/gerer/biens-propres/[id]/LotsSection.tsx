@@ -113,7 +113,7 @@ function LotContent({ bienId, lot }: { bienId: string; lot: Lot }) {
             >
               Marquer sorti
             </span>
-            <QuittanceButton lotId={lot.id} />
+            <QuittanceButton lotId={lot.id} defaultLoyerHcCents={actif.loyerHcCents} defaultChargesCents={actif.chargesCents} />
             <Link href={`/gerer/bail/${lot.id}?locataireId=${actif.id}`} style={{ color: "var(--sage)", fontSize: 11 }}>
               Générer un bail
             </Link>
@@ -231,8 +231,20 @@ function AjouterLocataireForm({ bienId, lotId }: { bienId: string; lotId: string
   );
 }
 
-function QuittanceButton({ lotId }: { lotId: string }) {
+function QuittanceButton({
+  lotId,
+  defaultLoyerHcCents,
+  defaultChargesCents,
+}: {
+  lotId: string;
+  defaultLoyerHcCents: number;
+  defaultChargesCents: number;
+}) {
+  const [ouvert, setOuvert] = useState(false);
   const [mois, setMois] = useState(() => new Date().toISOString().slice(0, 7));
+  const [loyerHc, setLoyerHc] = useState((defaultLoyerHcCents / 100).toString());
+  const [charges, setCharges] = useState((defaultChargesCents / 100).toString());
+  const [dateEncaissement, setDateEncaissement] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -240,8 +252,18 @@ function QuittanceButton({ lotId }: { lotId: string }) {
   const onGenerer = () => {
     setError(null);
     setWarning(null);
+    if (!dateEncaissement) {
+      setError("Indique la date d'encaissement.");
+      return;
+    }
+    const loyerHcCents = Math.round(parseFloat(loyerHc.replace(",", ".")) * 100);
+    const chargesCents = Math.round(parseFloat(charges.replace(",", ".")) * 100);
+    if (!Number.isFinite(loyerHcCents) || !Number.isFinite(chargesCents)) {
+      setError("Montant invalide.");
+      return;
+    }
     startTransition(async () => {
-      const result = await genererQuittance(lotId, mois);
+      const result = await genererQuittance(lotId, mois, loyerHcCents, chargesCents, dateEncaissement);
       if (result.error) {
         setError(result.error);
         return;
@@ -251,14 +273,35 @@ function QuittanceButton({ lotId }: { lotId: string }) {
     });
   };
 
-  return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-      <input type="month" value={mois} onChange={(e) => setMois(e.target.value)} style={{ maxWidth: 130, fontSize: 11 }} />
-      <span style={{ color: "var(--sage)", cursor: "pointer", fontSize: 11 }} onClick={onGenerer}>
-        {pending ? "Génération..." : "Générer la quittance"}
+  if (!ouvert) {
+    return (
+      <span style={{ color: "var(--sage)", cursor: "pointer", fontSize: 11 }} onClick={() => setOuvert(true)}>
+        Générer une quittance
       </span>
-      {error && <span style={{ color: "var(--brick)", fontSize: 11 }}>{error}</span>}
-      {warning && <span style={{ color: "var(--amber)", fontSize: 11 }}>{warning}</span>}
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", background: "var(--paper)", padding: "8px 10px", borderRadius: 8 }}>
+      <label style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Mois</label>
+      <input type="month" value={mois} onChange={(e) => setMois(e.target.value)} style={{ maxWidth: 130, fontSize: 11 }} />
+      <label style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Loyer HC €</label>
+      <input value={loyerHc} onChange={(e) => setLoyerHc(e.target.value)} style={{ maxWidth: 90, fontSize: 11 }} />
+      <label style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Charges €</label>
+      <input value={charges} onChange={(e) => setCharges(e.target.value)} style={{ maxWidth: 90, fontSize: 11 }} />
+      <label style={{ fontSize: 10.5, color: "var(--ink-soft)" }}>Encaissé le</label>
+      <input type="date" value={dateEncaissement} onChange={(e) => setDateEncaissement(e.target.value)} style={{ maxWidth: 140, fontSize: 11 }} />
+      <span
+        style={{ background: "var(--sage)", color: "#fff", padding: "5px 12px", borderRadius: 20, fontSize: 11, cursor: "pointer" }}
+        onClick={onGenerer}
+      >
+        {pending ? "Génération..." : "Générer"}
+      </span>
+      <span style={{ color: "var(--ink-soft)", cursor: "pointer", fontSize: 11 }} onClick={() => setOuvert(false)}>
+        Annuler
+      </span>
+      {error && <span style={{ color: "var(--brick)", fontSize: 11, width: "100%" }}>{error}</span>}
+      {warning && <span style={{ color: "var(--amber)", fontSize: 11, width: "100%" }}>{warning}</span>}
     </div>
   );
 }

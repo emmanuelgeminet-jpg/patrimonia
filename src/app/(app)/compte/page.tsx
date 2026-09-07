@@ -5,6 +5,7 @@ import PasswordForm from "./PasswordForm";
 import InviteLink from "./InviteLink";
 import HouseholdNameForm from "./HouseholdNameForm";
 import ExportDonneesButton from "./ExportDonneesButton";
+import SignatureUpload from "./SignatureUpload";
 
 export default async function ComptePage() {
   const supabase = await createClient();
@@ -16,14 +17,20 @@ export default async function ComptePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("household_id, households(name, adresse)")
+    .select("household_id, households(name, adresse, signature_path)")
     .eq("id", user!.id)
     .single();
 
   const householdId = profile?.household_id as string | undefined;
-  const household = profile?.households as unknown as { name: string; adresse: string | null } | null;
+  const household = profile?.households as unknown as { name: string; adresse: string | null; signature_path: string | null } | null;
   const householdName = household?.name;
   const householdAdresse = household?.adresse;
+
+  let signatureUrl: string | null = null;
+  if (household?.signature_path) {
+    const { data: signed } = await supabase.storage.from("documents").createSignedUrl(household.signature_path, 3600);
+    signatureUrl = signed?.signedUrl ?? null;
+  }
 
   return (
     <section className="section">
@@ -39,6 +46,16 @@ export default async function ComptePage() {
         </div>
         {householdId && <InviteLink link={`${origin}/login?invite=${householdId}`} />}
         <HouseholdNameForm currentName={householdName ?? ""} currentAdresse={householdAdresse} />
+      </div>
+
+      <div className="card">
+        <h2>Signature pour les quittances</h2>
+        <div className="card-sub">
+          Une photo ou un scan de ta signature manuscrite (format JPEG), imprimée sur les quittances des biens en nom
+          propre. Attention : c&apos;est purement visuel, ça ne vaut pas une signature électronique certifiée — mieux
+          qu&apos;un cadre vide, mais pas une garantie juridique équivalente à une signature manuscrite sur papier.
+        </div>
+        <SignatureUpload currentUrl={signatureUrl} />
       </div>
 
       <PasswordForm />

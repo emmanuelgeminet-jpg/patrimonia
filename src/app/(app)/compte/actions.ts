@@ -40,6 +40,60 @@ export async function renameHousehold(
   return { success: true };
 }
 
+export type UploadSignatureState = { error?: string; success?: boolean };
+const MAX_SIGNATURE_OCTETS = 5 * 1024 * 1024; // 5 Mo
+
+export async function uploadSignature(_prevState: UploadSignatureState, formData: FormData): Promise<UploadSignatureState> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { error: "Choisis un fichier." };
+  if (file.type !== "image/jpeg" && !/\.(jpe?g)$/i.test(file.name)) {
+    return { error: "Seul le format JPEG est accepté." };
+  }
+  if (file.size > MAX_SIGNATURE_OCTETS) return { error: "Fichier trop volumineux (5 Mo maximum)." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Non connecté." };
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+  if (!profile) return { error: "Profil introuvable." };
+
+  // Toujours le même chemin (une seule signature par foyer) : upsert remplace l'ancienne au
+  // lieu d'accumuler des fichiers orphelins à chaque nouvel envoi.
+  const storagePath = `hh/${profile.household_id}/signature.jpg`;
+  const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
+    contentType: "image/jpeg",
+    upsert: true,
+  });
+  if (uploadError) return { error: "Erreur lors de l'envoi du fichier." };
+
+  const { error: dbError } = await supabase.from("households").update({ signature_path: storagePath }).eq("id", profile.household_id);
+  if (dbError) return { error: "Erreur lors de l'enregistrement." };
+
+  revalidatePath("/compte");
+  return { success: true };
+}
+
+export async function removeSignature() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: profile } = await supabase.from("profiles").select("household_id").eq("id", user.id).single();
+  if (!profile) return;
+
+  const { data: household } = await supabase.from("households").select("signature_path").eq("id", profile.household_id).single();
+  if (household?.signature_path) {
+    await supabase.storage.from("documents").remove([household.signature_path as string]);
+  }
+  await supabase.from("households").update({ signature_path: null }).eq("id", profile.household_id);
+  revalidatePath("/compte");
+}
+
 export async function updatePassword(
   _prevState: UpdatePasswordState,
   formData: FormData
