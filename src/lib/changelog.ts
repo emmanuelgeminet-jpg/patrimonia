@@ -8,6 +8,11 @@ export type ChangelogEntry = { date: string; title: string; description: string 
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-09-07",
+    title: "Envoi des quittances par email",
+    description: "Depuis l'archive des quittances (SCI et biens propres), un bouton \"Envoyer par email\" prépare un aperçu (destinataire, objet, message, lien vers le PDF) que tu relis avant de confirmer l'envoi. Nécessite un domaine vérifié et un compte Resend configurés côté serveur.",
+  },
+  {
+    date: "2026-09-07",
     title: "Quittances biens propres : montants libres et signature",
     description: "Pour un bien en nom propre (pas de journal comptable), tu peux maintenant saisir toi-même le loyer, les charges et la date d'encaissement à chaque quittance. Ajoute aussi une signature numérisée (JPEG, dans Mon compte) imprimée sur le document — purement visuelle, ça ne remplace pas une signature électronique certifiée.",
   },

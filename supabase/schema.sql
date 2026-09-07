@@ -359,6 +359,10 @@ create table if not exists quittances (
   -- uniquement — pas d'équivalent pour un bien en nom propre, donc nullable).
   date_paiement date,
   storage_path text not null,
+  -- Trace d'envoi par email (adresse + horodatage) — sert à afficher "déjà envoyée" dans
+  -- l'archive et à éviter un envoi en double par erreur. Nulles tant que non envoyée.
+  email_envoye_a text,
+  email_envoye_le timestamptz,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   constraint quittance_owner_coherent check (

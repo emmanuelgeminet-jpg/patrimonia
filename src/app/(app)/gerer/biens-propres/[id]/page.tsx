@@ -94,7 +94,7 @@ async function chargerDocuments(supabase: SupabaseClient<any>, bienId: string): 
 async function chargerQuittances(supabase: SupabaseClient<any>, bienId: string): Promise<QuittanceArchiveItem[]> {
   const { data: quittancesRows } = await supabase
     .from("quittances")
-    .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, date_paiement, storage_path, created_at")
+    .select("id, bien_adresse, lot_nom, locataire_nom, mois, loyer_hc_cents, charges_cents, date_paiement, storage_path, created_at, email_envoye_a, email_envoye_le")
     .eq("bien_id", bienId);
   const quittances = quittancesRows ?? [];
   const quittancesPaths = quittances.map((q) => q.storage_path as string);
@@ -113,6 +113,8 @@ async function chargerQuittances(supabase: SupabaseClient<any>, bienId: string):
     dateGeneration: q.created_at as string,
     datePaiement: q.date_paiement as string | null,
     url: quittancesUrlByPath.get(q.storage_path as string) ?? null,
+    emailEnvoyeA: q.email_envoye_a as string | null,
+    emailEnvoyeLe: q.email_envoye_le as string | null,
   }));
 }
 
