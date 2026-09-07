@@ -31,9 +31,9 @@ export type QuittanceInfo = {
    *  pour un bien en SCI, saisie à la main pour un bien en nom propre (pas de journal
    *  comptable équivalent). Distincte de la date d'émission de la quittance (aujourd'hui). */
   datePaiement?: string | null;
-  /** Image JPEG de la signature manuscrite numérisée du bailleur, si renseignée dans Mon
-   *  compte — purement visuel (ne vaut pas signature électronique qualifiée), imprimée dans
-   *  le cadre de signature plutôt que de le laisser vide. */
+  /** Image (JPEG ou PNG) de la signature manuscrite numérisée du bailleur, si renseignée —
+   *  purement visuel (ne vaut pas signature électronique qualifiée), imprimée dans le cadre de
+   *  signature plutôt que de le laisser vide. Le format est détecté au contenu du fichier. */
   signatureImageBytes?: Uint8Array | null;
 };
 
@@ -47,6 +47,13 @@ const WHITE = rgb(1, 1, 1);
 function formatDateFr(dateStr: string): string {
   const [y, m, d] = dateStr.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/** Reconnaît le format au contenu du fichier (signature octale PNG) plutôt qu'à son extension,
+ *  qui peut mentir — accepte indifféremment un JPEG ou un PNG pour la signature déposée. */
+function embedSignatureImage(doc: PDFDocument, bytes: Uint8Array) {
+  const estPng = bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  return estPng ? doc.embedPng(bytes) : doc.embedJpg(bytes);
 }
 
 /** Écusson générique (monogramme) — le style par défaut pour n'importe quelle SCI ou foyer. */
@@ -193,7 +200,7 @@ export async function genererQuittancePdf(info: QuittanceInfo): Promise<Uint8Arr
   const sigBoxY = y - 13 * sigLines.length - sigBoxHeight;
   page.drawRectangle({ x: sigBoxX, y: sigBoxY, width: sigBoxWidth, height: sigBoxHeight, borderColor: LINE, borderWidth: 1 });
   if (info.signatureImageBytes) {
-    const sigImage = await doc.embedJpg(info.signatureImageBytes);
+    const sigImage = await embedSignatureImage(doc, info.signatureImageBytes);
     const margin = 6;
     const sigDims = sigImage.scaleToFit(sigBoxWidth - margin * 2, sigBoxHeight - margin * 2);
     page.drawImage(sigImage, {

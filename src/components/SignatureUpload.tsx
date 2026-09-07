@@ -45,7 +45,7 @@ export default function SignatureUpload({
         </div>
       ) : (
         <form ref={formRef} action={formAction} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <input type="file" name="file" accept="image/jpeg,.jpg,.jpeg" required style={{ fontSize: 12 }} />
+          <input type="file" name="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" required style={{ fontSize: 12 }} />
           <button
             type="submit"
             disabled={pending}

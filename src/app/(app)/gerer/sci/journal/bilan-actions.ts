@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { resolveSignatureFile } from "@/lib/signature-upload";
 
 export type SaveState = { error?: string; success?: boolean };
 
@@ -148,23 +149,26 @@ export async function saveInfosSci(_prev: SaveState, formData: FormData): Promis
 }
 
 export type UploadSignatureState = { error?: string; success?: boolean };
-const MAX_SIGNATURE_OCTETS = 5 * 1024 * 1024; // 5 Mo
 
 export async function uploadSignatureSci(_prevState: UploadSignatureState, formData: FormData): Promise<UploadSignatureState> {
   const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) return { error: "Choisis un fichier." };
-  if (file.type !== "image/jpeg" && !/\.(jpe?g)$/i.test(file.name)) {
-    return { error: "Seul le format JPEG est accepté." };
-  }
-  if (file.size > MAX_SIGNATURE_OCTETS) return { error: "Fichier trop volumineux (5 Mo maximum)." };
+  if (!file) return { error: "Choisis un fichier." };
+  const resolved = resolveSignatureFile(file);
+  if ("error" in resolved) return { error: resolved.error };
 
   const { supabase, sciId } = await getSciContext();
 
-  // Toujours le même chemin (une seule signature par SCI) : upsert remplace l'ancienne au lieu
-  // d'accumuler des fichiers orphelins à chaque nouvel envoi.
-  const storagePath = `sci/${sciId}/signature.jpg`;
+  // Même chemin qu'avant si le format ne change pas (upsert remplace l'ancienne) — mais si le
+  // format change (ex. JPEG -> PNG), l'ancien fichier a une extension différente et doit être
+  // supprimé explicitement pour ne pas laisser un orphelin dans le stockage.
+  const { data: sci } = await supabase.from("sci").select("signature_path").eq("id", sciId).single();
+  const storagePath = `sci/${sciId}/signature.${resolved.extension}`;
+  if (sci?.signature_path && sci.signature_path !== storagePath) {
+    await supabase.storage.from("documents").remove([sci.signature_path as string]);
+  }
+
   const { error: uploadError } = await supabase.storage.from("documents").upload(storagePath, file, {
-    contentType: "image/jpeg",
+    contentType: resolved.contentType,
     upsert: true,
   });
   if (uploadError) return { error: "Erreur lors de l'envoi du fichier." };

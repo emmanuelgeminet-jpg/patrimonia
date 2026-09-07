@@ -52,7 +52,7 @@ export default async function ComptePage() {
       <div className="card">
         <h2>Signature pour les quittances</h2>
         <div className="card-sub">
-          Une photo ou un scan de ta signature manuscrite (format JPEG), imprimée sur les quittances des biens en nom
+          Une photo ou un scan de ta signature manuscrite (JPEG ou PNG), imprimée sur les quittances des biens en nom
           propre. Attention : c&apos;est purement visuel, ça ne vaut pas une signature électronique certifiée — mieux
           qu&apos;un cadre vide, mais pas une garantie juridique équivalente à une signature manuscrite sur papier.
         </div>

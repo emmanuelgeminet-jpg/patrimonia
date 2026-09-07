@@ -264,7 +264,7 @@ function InfosSciForm({ sci }: { sci: SciInfo }) {
           Signature du gérant
         </div>
         <div className="card-sub" style={{ margin: "0 0 10px" }}>
-          Une photo ou un scan de la signature du gérant (format JPEG), imprimée sur les quittances de cette SCI — une
+          Une photo ou un scan de la signature du gérant (JPEG ou PNG), imprimée sur les quittances de cette SCI — une
           SCI signe par son représentant légal, pas par n&apos;importe quel associé, même celui qui gère l&apos;appli
           au quotidien. Purement visuel, ça ne vaut pas une signature électronique certifiée.
         </div>
